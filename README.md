@@ -4,7 +4,7 @@
 Shiny App for filtering redundant features in LC-MS peak table and associated .mgf file.
 
 ### Contact :mailbox_with_mail:
-[⚠️**Issues**⚠️](https://github.com/plyush1993/MetaboCensoR/issues)<br>
+[⚠️**Issues**⚠️](https://github.com/plyush1993/MetaboCensoR/issues)
 <div align="left">
   <span style="font-weight: bold; vertical-align: middle;"></span>
   <a href="mailto:plyushchenko.ivan@gmail.com"><img src="https://img.shields.io/badge/-4a9edc?style=for-the-badge&logo=gmail" height="28" alt="Email" style="vertical-align: middle;"/></a>
