@@ -3,6 +3,24 @@
 ### Description :bookmark_tabs:
 Shiny App for filtering redundant features in LC-MS peak table and associated .mgf file.
 
+Server Tab | Action
+------------ | -------------
+**Data upload** | Uploading CSV peak table, choose correct Row ID + sample keywords + mz & rt columns
+**Blank filters** | Define Blank group, set Blank filter → Apply
+**MS filters** | Enable Deleting Isotopes/Adducts/Neutral Loses/In-Source Fragments → Apply
+**QC filters** | Define groups, choose Zero/RSD/Mean/Min filters → Apply
+**Peak filters** | Choose mz/rt/RMD/AMD cutoffs → Apply
+**Final summary** | Compile summary, export final dataset, filter MGF
+**About** | Description, Project Details, References
+
+<details>
+  <summary><b>Server Map&nbsp;&nbsp;</b></summary>
+  <br/>
+</a><a href="DOI:">
+<img src="Server_Map.png" align="center" width="700" height="500">
+</a>
+</details>
+
 ### Launch the App :rocket:
 Shiny deployment:<br>
 [**`MetaboCensoR`**](https://plyush1993.shinyapps.io/MetaboCensoR/) <br><br>
