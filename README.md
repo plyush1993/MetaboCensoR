@@ -23,7 +23,7 @@ Server Tab | Action
 
 ### Launch the App :rocket:
 Shiny deployment:<br>
-[**`MetaboCensoR`**](https://plyush1993.shinyapps.io/MetaboCensoR/) <br><br>
+[**`plyush1993.shinyapps.io/MetaboCensoR`**](https://plyush1993.shinyapps.io/MetaboCensoR/) <br><br>
 Run locally:
 ```r
 cat("Checking required packages (auto-installing if missing)\n")
