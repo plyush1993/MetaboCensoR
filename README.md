@@ -5,7 +5,7 @@ Shiny App for filtering redundant features in LC-MS peak table and associated .m
 
 Server Tab | Action
 ------------ | -------------
-**Data upload** | Uploading CSV peak table, choose correct Row ID + sample keywords + mz & rt columns
+**Data upload** | Uploading CSV peak table, choose correct sample column names + mz & rt columns
 **Blank filters** | Define Blank group, set Blank filter → Apply
 **MS filters** | Enable Deleting Isotopes/Adducts/Neutral Loses/In-Source Fragments → Apply
 **QC filters** | Define groups, choose Zero/RSD/Mean/Min filters → Apply
