@@ -1,7 +1,7 @@
 # MetaboCensoR <img src="metabocensor_logo_4x.png" align="right" height="180" width="160">
 
 ### Description :bookmark_tabs:
-Shiny App for filtering redundant features in LC-MS peak table and associated .mgf file. The App is available to directly read the output peak table from [mzMine](https://mzio.io/mzmine-news/), [xcms](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [MS-DIAL](https://systemsomicslab.github.io/compms/msdial/main.html), [Default format](https://github.com/plyush1993/MetaboCensoR/blob/main/toy_examples/default_toy.csv), and [MGF file](https://fiehnlab.ucdavis.edu/projects/lipidblast/mgf-files) (check compatibility with [examples of inputs](https://github.com/plyush1993/MetaboCensoR/tree/main/toy_examples)).
+The [R](https://www.r-project.org/) [Shiny](https://shiny.posit.co/) App for filtering redundant features in LC-MS peak table and associated .mgf file. The App is available to directly read the output peak table from [mzMine](https://mzio.io/mzmine-news/), [xcms](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [MS-DIAL](https://systemsomicslab.github.io/compms/msdial/main.html), [Default format](https://github.com/plyush1993/MetaboCensoR/blob/main/toy_examples/default_toy.csv), and [MGF file](https://fiehnlab.ucdavis.edu/projects/lipidblast/mgf-files) (check compatibility with [examples of inputs](https://github.com/plyush1993/MetaboCensoR/tree/main/toy_examples)).
 
 Server Tab | Action
 ------------ | -------------
