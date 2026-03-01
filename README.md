@@ -22,6 +22,7 @@ Server Tab | Action
 <img src="Server_Map.png" align="center" width="700" height="500">
 </a>
 </details>
+<br>
 
 ### Launch the App :rocket:
 Shiny deployment:<br>
