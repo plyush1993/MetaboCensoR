@@ -39,7 +39,7 @@ shiny::shinyApp(ui, server)
 
 > [!IMPORTANT]
 >The App was compiled using [R version 4.1.2](https://cran.r-project.org/bin/windows/base/old/4.1.2/)<br/>
-> [`Full Seesion Info`](https://github.com/plyush1993/MetaboCensoR/blob/main/session_info.txt)
+> [`Full App Seesion Info`](https://github.com/plyush1993/MetaboCensoR/blob/main/session_info.txt)
 <br>
 
 ### Contact :mailbox_with_mail:
