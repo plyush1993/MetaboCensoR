@@ -3,14 +3,14 @@
 ### Description :bookmark_tabs:
 The [R](https://www.r-project.org/) [Shiny](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and associated .mgf file. The App is available to directly read the output peak table from [mzMine](https://mzio.io/mzmine-news/), [xcms](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [MS-DIAL](https://systemsomicslab.github.io/compms/msdial/main.html), [Default format](https://github.com/plyush1993/MetaboCensoR/blob/main/toy_examples/default_toy.csv), and [MGF file](https://fiehnlab.ucdavis.edu/projects/lipidblast/mgf-files).<br>
 Check compatibility with [examples of inputs](https://github.com/plyush1993/MetaboCensoR/tree/main/toy_examples).<br>
-#### Quick Overview:
 
+### Quick Overview :world_map:
 Server Tab | Action
 ------------ | -------------
-**Data upload** | Uploading CSV peak table, choose correct sample column names + mz & rt columns
-**Blank filters** | Define Blank group, set Blank filter → Apply
+**Data upload** | Uploading CSV peak table, define columns
+**Blank filters** | Set Blank filter → Apply
 **MS filters** | Enable Deleting Isotopes/Adducts/Neutral Loses/In-Source Fragments → Apply
-**QC filters** | Define groups, choose Zero/RSD/Mean/Min filters → Apply
+**QC filters** | Choose Zero/RSD/Mean/Min filters → Apply
 **Peak filters** | Choose mz/rt/RMD/AMD cutoffs → Apply
 **Final summary** | Compile summary, export final dataset, filter MGF
 **About** | Description, Project Details, References
