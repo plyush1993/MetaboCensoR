@@ -76,4 +76,6 @@ d₃ − m₀ ≈ 182.57570 − 181.07066 = 1.50504<br>
 <br>
 
 > [!IMPORTANT]
->Since Isotopes and Dimers are determined by graph construction, we recommend to keep the default value of n is 1 (to prevent misidentification with mass shift ) and n_d 3.
+>**Since Isotopes and Dimers are determined by graph construction, we recommend to keep the default value of `n` is 1 and `n_d` 3.** <br>
+> For isotopes, `n` = 1 forces the algorithm to find the $1^{st}$ $^{13}C$ isotope before it can group an $M+2$ or $M+3$ peak. If `n` is set higher, the app might incorrectly cluster two independent molecules that are simply separated by exactly $2.0067$ Da, even if the intermediate $M+1$ peak is missing.<br>
+> For dimers, an `n_d` = 3 provides robust 'bridging' between monomer and dimer clusters. Because these half-integer shifts ($1.5, 2.5, 3.5$ Da) are unique and do not overlap with standard isotope patterns, a higher `n_d` value significantly improves the recovery of co-eluting dimer complexes without risking over-connection of the feature graph.
