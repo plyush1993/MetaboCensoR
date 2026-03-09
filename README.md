@@ -5,7 +5,7 @@ The [`R`](https://www.r-project.org/) [`Shiny`](https://www.shinyapps.io/) App f
 - Directly reads the output peak table from [`mzMine`](https://mzio.io/mzmine-news/), [`xcms`](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [`MS-DIAL`](https://systemsomicslab.github.io/compms/msdial/main.html), `Default format`, and [`MGF file`](https://fiehnlab.ucdavis.edu/projects/lipidblast/mgf-files).<br>
 Check compatibility with [examples of inputs](https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples).
 - Filter features detected in a blank with a widget.
-- Filter, detect, and assign: Isotopes/Dimers, Adducts, Neutral Loses, and In-Source Fragments with annotation tables.
+- Filter Isotopes/Dimers, Adducts, Neutral Loses, In-Source Fragments, and generate annotation tables.
 - Filter features by Zero/RSD/Mean/Min values with a widget.
 - Filter peaks by *mz*, *RT*, RMD, and AMD with a widget.
 
