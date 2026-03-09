@@ -1,0 +1,6 @@
+row ID,row m/z,row retention time,row ion mobility,row ion mobility unit,row CCS,correlation group ID,annotation network number,best ion,auto MS2 verify,identified by n=,partners,neutral M mass,Blank_1_R-C1_1_5037.mzML Peak area,Blank_2_R-C1_1_5038.mzML Peak area,Blank_3_R-C1_1_5038.mzML Peak area,Sample_1_R-D1_1_5039.mzML Peak area,Sample_2_R-D2_1_5040.mzML Peak area,Sample_3_R-D3_1_5041.mzML Peak area
+1,146.0292369,0.40136337,,,,2,,,,,,,928.26465,0,0,53896.605,48963.965,35950.15
+2,110.0080919,0.40470904,,,,2,,,,,,,4782.3657,0,0,224799.17,204244.62,153777.55
+3,119.9870617,0.45612907,,,,5,,,,,,,0,0,0,10251.336,11513.844,6484.201
+4,101.9764794,0.465274,,,,5,,,,,,,0,0,152.1,13851.584,15823.077,7198.6387
+5,136.0003678,0.46991554,,,,5,,,,,,,0,0,0,8034.685,11653.202,5391.634
