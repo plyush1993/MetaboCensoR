@@ -1,7 +1,7 @@
 # MetaboCensoR <img src="metabocensor_logo_4x.png" align="right" height="180" width="160">
 
 ### Description :bookmark_tabs:
-The [`R`](https://www.r-project.org/) [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and associated .mgf file. 
+The [`R`](https://www.r-project.org/) [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and .mgf file. 
 - Directly read the output peak table from [`mzMine`](https://mzio.io/mzmine-news/), [`xcms`](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [`MS-DIAL`](https://systemsomicslab.github.io/compms/msdial/main.html), and `Default format`.<br>
 Check compatibility with [examples of inputs](https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples).
 - Filter features detected in a blank with a widget.
