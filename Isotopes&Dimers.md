@@ -16,6 +16,14 @@ C13*(3+0.5)|3.511760
 
 # Script
 ```r
+packages <- c("tibble", "tidyr", "dplyr")
+for (pkg in packages) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg)
+    library(pkg, character.only = TRUE)
+  }
+}
+
 # Define parameters
 z_max <- 3      # Maximum charge state
 n_iso <- 3      # Number of isotopes
