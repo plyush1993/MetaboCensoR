@@ -19,6 +19,7 @@ shiny::fluidPage(
   theme = shinythemes::shinytheme("flatly"),
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
   useShinyjs(),
+  shinyBS:::shinyBSDep,
 
   tags$head(
     tags$title("MetaboCensoR"),
@@ -1082,26 +1083,6 @@ shiny::fluidPage(
   )
 )
 
-  ),
-tags$script(src = "shared/bootstrap/js/bootstrap.min.js"),
-tags$script(HTML("
-  (function() {
-    function init_bs_tooltips() {
-      if (!window.jQuery || !jQuery.fn || !jQuery.fn.tooltip) return;
-
-      // Re-init all shinyBS tooltips (works after dynamic UI updates too)
-      jQuery('[data-toggle=\"tooltip\"]').tooltip('dispose');
-      jQuery('[data-toggle=\"tooltip\"]').tooltip({
-        container: 'body',
-        html: true,
-        trigger: 'click'
-      });
-    }
-
-    // Run once + whenever Shiny re-binds UI
-    jQuery(init_bs_tooltips);
-    jQuery(document).on('shiny:connected shiny:bound', init_bs_tooltips);
-  })();
-"))
+  )
 )
 }
