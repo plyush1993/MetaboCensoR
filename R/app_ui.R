@@ -19,7 +19,6 @@ shiny::fluidPage(
   theme = shinythemes::shinytheme("flatly"),
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
   useShinyjs(),
-  shinyBS:::shinyBSDep,
 
   tags$head(
     tags$title("MetaboCensoR"),
@@ -28,6 +27,24 @@ shiny::fluidPage(
       type = "image/png",
       href = "www/metabocensor_logo.png"
     ),
+    tags$script(HTML("
+      $(document).on('shiny:connected', function() {
+        // Find every button shinyBS created
+        $('[data-toggle=\"tooltip\"]').each(function() {
+          var $el = $(this);
+          // Manually add the Bootstrap 5 prefix that R 4.5.0 requires
+          $el.attr('data-bs-toggle', 'tooltip');
+          $el.attr('data-bs-title', $el.attr('title') || $el.attr('data-original-title'));
+          $el.attr('data-bs-html', 'true');
+
+          // Initialize it using the native 2026 engine
+          new bootstrap.Tooltip(this, {
+            container: 'body',
+            trigger: 'click'
+          });
+        });
+      });
+    ")),
     tags$style(HTML("
       .shiny-output-error-validation { color:#000 !important; font-size: 22px !important; font-weight:800 !important; padding:12px; }
       .highlight { background:#fff; border:2px solid #000; color:#000; padding:8px; border-radius:8px; font-weight:bold; }
