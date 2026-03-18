@@ -21,6 +21,16 @@
 #' @import shinyBS
 app_server <- function(input, output, session) {
 
+  observe({
+    # This small bit of JavaScript 'wakes up' the tooltips for Bootstrap 5
+    shinyjs::runjs("
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-toggle=\"tooltip\"]'))
+      var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+      })
+    ")
+  })
+
   # --------------------------
   # Shared upload hub (Tab 0)
   # --------------------------
