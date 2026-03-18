@@ -21,6 +21,31 @@ shiny::fluidPage(
   useShinyjs(),
 
   tags$head(
+  tags$script(HTML("
+    function initTooltipsCompat() {
+      // Bootstrap 5 (no jQuery tooltip)
+      if (window.bootstrap && bootstrap.Tooltip) {
+        document.querySelectorAll('[data-toggle=\"tooltip\"], [data-bs-toggle=\"tooltip\"]').forEach(function(el){
+          if (el.__tt_inited) return; // avoid duplicates
+          var trig = el.getAttribute('data-trigger') || 'click';
+          el.__tt_inited = new bootstrap.Tooltip(el, {html: true, container: 'body', trigger: trig});
+        });
+        return;
+      }
+
+      // Bootstrap 3/4 (jQuery tooltip)
+      if (window.jQuery && jQuery.fn && jQuery.fn.tooltip) {
+        $('[data-toggle=\"tooltip\"]').tooltip({html: true, container: 'body', trigger: 'click'});
+      }
+    }
+
+    // run on load + after Shiny binds new UI
+    $(initTooltipsCompat);
+    $(document).on('shiny:connected shiny:bound', initTooltipsCompat);
+  "))
+),
+
+  tags$head(
     tags$title("MetaboCensoR"),
     tags$link(
       rel  = "icon",
@@ -182,19 +207,6 @@ shiny::fluidPage(
 
     "))
   ),
-
-  tags$script(HTML("
-      $(document).on('shiny:visualchange', function() {
-        setTimeout(function() {
-          var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-toggle=\"tooltip\"]'))
-          tooltipTriggerList.map(function (el) {
-            if (!bootstrap.Tooltip.getInstance(el)) {
-              new bootstrap.Tooltip(el, { container: 'body', trigger: 'click', html: true });
-            }
-          });
-        }, 500);
-      });
-    ")),
 
   div(
     id = "corner_logo",
