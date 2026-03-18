@@ -2,9 +2,9 @@ Package: MetaboCensoR
 Title: Shiny App for filtering redundant features in LC-MS
 Version: 0.1
 Authors@R: 
-    person("Ivan", "Plyushchenko", , "ivan.plyushchenko@gmail.com", role = c("aut", "cre"),
+    person("Ivan", "Plyushchenko", , "plyushchenko.ivan@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3883-4695"))
-Description: What the package does (one paragraph).
+Description: The R Shiny App for filtering redundant features in LC-MS peak table and .mgf file.
 License: GPL-3.0
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
