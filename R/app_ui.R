@@ -74,6 +74,30 @@ shiny::fluidPage(
         padding: 5px;
       }
 
+      /* 4. Ensure Tooltip is 100% solid and readable */
+      .tooltip {
+        opacity: 1 !important; /* Forces the outer wrapper to be solid */
+      }
+
+      .tooltip-inner {
+        background-color: #2c3e50 !important; /* Solid dark blue-gray */
+        opacity: 1 !important;               /* Forces the inner box to be solid */
+        color: #ffffff !important;
+        font-size: 15px !important;
+        text-align: left !important;
+        max-width: 450px !important;
+        border: 2px solid #ffffff;            /* Slightly thicker border helps it pop */
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* Adds depth over the gradient */
+      }
+
+      /* Optional: Make the little arrow solid too */
+      .tooltip .tooltip-arrow::before {
+        opacity: 1 !important;
+        border-top-color: #2c3e50 !important;
+        border-right-color: #2c3e50 !important;
+      }
+
       :root{
         --cornerW: 110px;
         --logoH:   120px;
