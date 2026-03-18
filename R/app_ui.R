@@ -50,12 +50,28 @@ shiny::fluidPage(
         border-color:#2c3e50 !important;
       }
 
-      /* Fix for transparent tables in newer Shiny versions */
-      .datatables, .html-widget {
+      /* 1. Keep the outer container transparent so no white square appears */
+      .html-widget.datatables {
+        background-color: transparent !important;
+      }
+
+      /* 2. Only color the actual table once it is generated */
+      .dataTable, .dataTables_scroll {
         background-color: #ffffff !important;
-        padding: 12px !important;
-        border-radius: 8px !important;
         color: #2c3e50 !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        border: 1px solid #dee2e6 !important;
+      }
+
+      /* 3. Ensure the search box and pagination stay visible against the gradient */
+      .dataTables_wrapper .dataTables_length,
+      .dataTables_wrapper .dataTables_filter,
+      .dataTables_wrapper .dataTables_info,
+      .dataTables_wrapper .dataTables_paginate {
+        color: #ffffff !important;
+        font-weight: bold;
+        padding: 5px;
       }
 
       :root{
