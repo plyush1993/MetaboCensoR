@@ -21,31 +21,6 @@ shiny::fluidPage(
   useShinyjs(),
 
   tags$head(
-  tags$script(HTML("
-    function initTooltipsCompat() {
-      // Bootstrap 5 (no jQuery tooltip)
-      if (window.bootstrap && bootstrap.Tooltip) {
-        document.querySelectorAll('[data-toggle=\"tooltip\"], [data-bs-toggle=\"tooltip\"]').forEach(function(el){
-          if (el.__tt_inited) return; // avoid duplicates
-          var trig = el.getAttribute('data-trigger') || 'click';
-          el.__tt_inited = new bootstrap.Tooltip(el, {html: true, container: 'body', trigger: trig});
-        });
-        return;
-      }
-
-      // Bootstrap 3/4 (jQuery tooltip)
-      if (window.jQuery && jQuery.fn && jQuery.fn.tooltip) {
-        $('[data-toggle=\"tooltip\"]').tooltip({html: true, container: 'body', trigger: 'click'});
-      }
-    }
-
-    // run on load + after Shiny binds new UI
-    $(initTooltipsCompat);
-    $(document).on('shiny:connected shiny:bound', initTooltipsCompat);
-  "))
-),
-
-  tags$head(
     tags$title("MetaboCensoR"),
     tags$link(
       rel  = "icon",
@@ -103,6 +78,7 @@ shiny::fluidPage(
       .tooltip {
         opacity: 1 !important; /* Forces the outer wrapper to be solid */
       }
+      .tooltip.show { opacity: 1 !important; }
 
       .tooltip-inner {
         background-color: #2c3e50 !important; /* Solid dark blue-gray */
