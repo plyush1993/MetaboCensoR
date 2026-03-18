@@ -2633,7 +2633,7 @@ observeEvent(input$clear_shared, {
     content = function(file) {
       req(filtered_mgf_sps())
       # Export using the Mgf backend
-      export(filtered_mgf_sps(), backend = MsBackendMgf(), file = file)
+      Spectra::export(filtered_mgf_sps(), backend = MsBackendMgf(), file = file)
     }
   )
 
