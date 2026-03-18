@@ -21,16 +21,6 @@
 #' @import shinyBS
 app_server <- function(input, output, session) {
 
-  observe({
-    # This small bit of JavaScript 'wakes up' the tooltips for Bootstrap 5
-    shinyjs::runjs("
-      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-toggle=\"tooltip\"]'))
-      var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-      })
-    ")
-  })
-
   # --------------------------
   # Shared upload hub (Tab 0)
   # --------------------------
@@ -2724,7 +2714,7 @@ output$help_body <- renderUI({
       br(),
       div(class="highlight", "Note: We recommend letting the application use its auto-generated `feature_id` to prevent any conflicts during  processing."),
       br(),
-      div(class="highlight", "Note: for xcms type mz column is automatically converted to min."),
+      div(class="highlight", "Note: for xcms type rt column is automatically converted to min."),
       br(),
       div(class = "highlight",
       "Tip: examples of accessible Peak Table data format are provided in the ",
