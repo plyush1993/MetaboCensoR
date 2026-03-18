@@ -70,7 +70,7 @@ shiny::fluidPage(
       .dataTables_wrapper .dataTables_filter,
       .dataTables_wrapper .dataTables_info,
       .dataTables_wrapper .dataTables_paginate {
-        color: #ffffff !important;
+        color: #000000 !important;
         font-weight: bold;
         padding: 5px;
       }
