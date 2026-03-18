@@ -181,26 +181,6 @@ shiny::fluidPage(
       font-weight: bold !important;
     }
 
-    ")),
-    tags$script(HTML("
-      $(document).on('shiny:idle', function() {
-        // Find all old shinyBS buttons
-        var $legacyTips = $('[data-toggle=\"tooltip\"]');
-
-        $legacyTips.each(function() {
-          // 1. Manually add the 'bs-' prefix Bootstrap 5 requires
-          var titleText = $(this).attr('title') || $(this).attr('data-original-title');
-          $(this).attr('data-bs-toggle', 'tooltip');
-          $(this).attr('data-bs-html', 'true');
-          $(this).attr('data-bs-title', titleText);
-
-          // 2. Initialize the tooltip using the 2026 Bootstrap engine
-          new bootstrap.Tooltip(this, {
-            container: 'body',
-            trigger: 'click'
-          });
-        });
-      });
     "))
   ),
 
@@ -1102,6 +1082,26 @@ shiny::fluidPage(
   )
 )
 
-  )
+  ),
+tags$script(src = "shared/bootstrap/js/bootstrap.min.js"),
+tags$script(HTML("
+  (function() {
+    function init_bs_tooltips() {
+      if (!window.jQuery || !jQuery.fn || !jQuery.fn.tooltip) return;
+
+      // Re-init all shinyBS tooltips (works after dynamic UI updates too)
+      jQuery('[data-toggle=\"tooltip\"]').tooltip('dispose');
+      jQuery('[data-toggle=\"tooltip\"]').tooltip({
+        container: 'body',
+        html: true,
+        trigger: 'click'
+      });
+    }
+
+    // Run once + whenever Shiny re-binds UI
+    jQuery(init_bs_tooltips);
+    jQuery(document).on('shiny:connected shiny:bound', init_bs_tooltips);
+  })();
+"))
 )
 }
