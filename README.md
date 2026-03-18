@@ -24,14 +24,16 @@ Shiny deployment:<br>
 [**`plyush1993.shinyapps.io/MetaboCensoR`**](https://plyush1993.shinyapps.io/MetaboCensoR/) <br><br>
 Run locally:
 ```r
-cat("Checking required packages (auto-installing if missing)\n")
-if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
-pacman::p_load("shiny", "DT", "shinythemes", "shinyWidgets", "shinyjs", "vroom", "dplyr", "data.table", "tidyr", "plotly", "igraph", "scales", "tools", "ggplot2", "tibble", "shinyBS", "htmltools", "waiter", "shinycssloaders", "BiocManager")
-if (!requireNamespace("Spectra", quietly = TRUE)) BiocManager::install("Spectra")
-if (!requireNamespace("MsBackendMgf", quietly = TRUE)) BiocManager::install("MsBackendMgf")
+if (!require("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+if (!require("remotes", quietly = TRUE)) {
+    install.packages("remotes")
+}
+remotes::install_github("plyush1993/MetaboCensoR")
 
-source("https://raw.githubusercontent.com/plyush1993/MetaboCensoR/refs/heads/main/app.R")
-shiny::shinyApp(ui, server)
+library(MetaboCensoR)
+run_metabocensor()
 ```
 <br>
 
