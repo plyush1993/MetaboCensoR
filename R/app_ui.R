@@ -50,6 +50,14 @@ shiny::fluidPage(
         border-color:#2c3e50 !important;
       }
 
+      /* Fix for transparent tables in newer Shiny versions */
+      .datatables, .html-widget {
+        background-color: #ffffff !important;
+        padding: 12px !important;
+        border-radius: 8px !important;
+        color: #2c3e50 !important;
+      }
+
       :root{
         --cornerW: 110px;
         --logoH:   120px;

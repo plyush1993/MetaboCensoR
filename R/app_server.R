@@ -1490,7 +1490,7 @@ observeEvent(input$clear_shared, {
           list(
             extend = "csvHtml5",
             text   = "Download CSV",
-            filename = paste0(file_path_sans_ext(basename(shared$name)), " isotopes-dimers"),
+            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " isotopes-dimers"),
             exportOptions = list(
               modifier = list(page = "all")
             )
@@ -1526,7 +1526,7 @@ observeEvent(input$clear_shared, {
             list(
               extend = "csvHtml5",
               text   = "Download CSV",
-              filename = paste0(file_path_sans_ext(basename(shared$name)), " adducts"),
+              filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " adducts"),
               exportOptions = list(
                 modifier = list(page = "all")
               )
@@ -1556,7 +1556,7 @@ observeEvent(input$clear_shared, {
           list(
             extend = "csvHtml5",
             text   = "Download CSV",
-            filename = paste0(file_path_sans_ext(basename(shared$name)), " neutral loses"),
+            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " neutral loses"),
             exportOptions = list(
               modifier = list(page = "all")
             )
@@ -1584,7 +1584,7 @@ observeEvent(input$clear_shared, {
           list(
             extend = "csvHtml5",
             text   = "Download CSV",
-            filename = paste0(file_path_sans_ext(basename(shared$name)), " in-source fragments"),
+            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " in-source fragments"),
             exportOptions = list(
               modifier = list(page = "all")
             )
@@ -2418,7 +2418,7 @@ observeEvent(input$clear_shared, {
   output$dl_final_table <- downloadHandler(
   filename = function() {
       nm <- shared$name %||% "dataset.csv"
-      paste0(file_path_sans_ext(basename(nm)), "_filtered.csv")
+      paste0(tools::file_path_sans_ext(basename(nm)), "_filtered.csv")
   },
   content = function(file) {
     req(final_table(), shared$data_type)
@@ -2628,7 +2628,7 @@ observeEvent(input$clear_shared, {
 
   output$dl_mgf <- downloadHandler(
     filename = function() {
-      paste0(file_path_sans_ext(input$mgf_input$name), "_filtered.mgf")
+      paste0(tools::file_path_sans_ext(input$mgf_input$name), "_filtered.mgf")
     },
     content = function(file) {
       req(filtered_mgf_sps())
