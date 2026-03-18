@@ -38,6 +38,17 @@ Run:
 library(MetaboCensoR)
 run_metabocensor()
 ```
+Without installation:
+```r
+cat("Checking required packages (auto-installing if missing)\n")
+if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
+pacman::p_load("shiny", "DT", "shinythemes", "shinyWidgets", "shinyjs", "vroom", "dplyr", "data.table", "tidyr", "plotly", "igraph", "scales", "tools", "ggplot2", "tibble", "shinyBS", "htmltools", "waiter", "shinycssloaders", "BiocManager")
+if (!requireNamespace("Spectra", quietly = TRUE)) BiocManager::install("Spectra")
+if (!requireNamespace("MsBackendMgf", quietly = TRUE)) BiocManager::install("MsBackendMgf")
+
+source("https://raw.githubusercontent.com/plyush1993/MetaboCensoR/refs/heads/main/app.R")
+shiny::shinyApp(ui, server)
+```
 <br>
 
 > [!IMPORTANT]
