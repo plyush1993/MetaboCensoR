@@ -20,27 +20,6 @@ shiny::fluidPage(
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
   useShinyjs(),
 
-  tags$script(HTML("
-      $(document).on('shiny:idle', function() {
-        // Find all old shinyBS buttons
-        var $legacyTips = $('[data-toggle=\"tooltip\"]');
-
-        $legacyTips.each(function() {
-          // 1. Manually add the 'bs-' prefix Bootstrap 5 requires
-          var titleText = $(this).attr('title') || $(this).attr('data-original-title');
-          $(this).attr('data-bs-toggle', 'tooltip');
-          $(this).attr('data-bs-html', 'true');
-          $(this).attr('data-bs-title', titleText);
-
-          // 2. Initialize the tooltip using the 2026 Bootstrap engine
-          new bootstrap.Tooltip(this, {
-            container: 'body',
-            trigger: 'click'
-          });
-        });
-      });
-    ")),
-
   tags$head(
     tags$title("MetaboCensoR"),
     tags$link(
