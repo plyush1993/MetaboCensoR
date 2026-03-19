@@ -1,7 +1,7 @@
 bibentry(
   bibtype = "Manual",
   title = "MetaboCensoR: Shiny App for filtering redundant features in LC-MS",
-  author = person("Ivan", "Plyushchenko", email = "your.email@domain.com", role = c("aut", "cre")),
+  author = person("Ivan", "Plyushchenko", email = "plyushchenko.ivan@gmail.com", role = c("aut", "cre")),
   year = "2026",
   url = "https://github.com/plyush1993/MetaboCensoR",
   note = "R package version 0.1.0"
