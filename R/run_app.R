@@ -4,11 +4,15 @@
 #' @export
 run_metabocensor <- function(...) {
   cat("\n")
-  cat(crayon::cyan("             ╔════════════════════╗\n"))
-  cat(crayon::cyan("             ║ "), crayon::blue$bold('   Metabo' %+% red$bold('CensoR   ')), crayon::cyan(" ║\n"), sep = "")
-  cat(crayon::cyan("             ╚════════════════════╝\n"))
+  cat(crayon::cyan("             +--------------------+\n"))
+  app_name <- paste0(
+    crayon::blue(crayon::bold("   Metabo")),
+    crayon::red(crayon::bold("CensoR   "))
+  )
+  cat(crayon::cyan("             | "), app_name, crayon::cyan(" |\n"), sep = "")
+  cat(crayon::cyan("             +--------------------+\n"))
   cat("\n")
-  cat(crayon::cyan$bold("Shiny App for filtering redundant features in LC-MS\n"))
+  cat(crayon::cyan(crayon::bold("Shiny App for filtering redundant features in LC-MS\n")))
   cat("\n")
 
   flush.console()
