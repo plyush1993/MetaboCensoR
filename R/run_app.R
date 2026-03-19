@@ -1,7 +1,6 @@
 #' Run the MetaboCensoR Application
-#' Online version: https://plyush1993.shinyapps.io/metabocensor/
 #'
-#' @importFrom crayon blue red cyan %+%
+#' @importFrom crayon blue red cyan bold %+%
 #' @export
 run_metabocensor <- function(...) {
   cat("\n")
