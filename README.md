@@ -45,6 +45,12 @@ run_metabocensor()
 > [`Full App Session Info`](https://github.com/plyush1993/MetaboCensoR/blob/main/session_info.txt)
 <br>
 
+### Citation :link:
+If you use **`MetaboCensoR`** in your study, please cite this paper:
+
+> [To be updated](https://doi.org/)
+<br/>
+
 ### Contact :mailbox_with_mail:
 [⚠️**Issues**⚠️](https://github.com/plyush1993/MetaboCensoR/issues)
 <div align="left">
