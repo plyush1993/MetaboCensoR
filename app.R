@@ -4827,8 +4827,8 @@ output$help_body <- renderUI({
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
           GitHub
        </a>')),
-      tags$li(HTML('Examples of Use:&nbsp;
-       <a href="https://github.com/plyush1993/MetaboCensoR" target="_blank"
+      tags$li(HTML('Case Studies:&nbsp;
+       <a href="https://github.com/plyush1993/MetaboCensoR_Examples" target="_blank"
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
           GitHub
        </a>')),
