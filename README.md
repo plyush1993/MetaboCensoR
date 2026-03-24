@@ -20,10 +20,10 @@ Check compatibility with [examples of inputs](https://github.com/plyush1993/Meta
 </details><br>
 
 ### Launch the App :rocket:
-**Shiny deployment**<br>
+**Shiny Web Deployment**<br>
 [**`plyush1993.shinyapps.io/MetaboCensoR`**](https://plyush1993.shinyapps.io/MetaboCensoR/) <br><br>
-**Run locally**<br>
-Install:
+**Install Locally**<br>
+
 ```r
 if (!require("BiocManager", quietly = TRUE)) {
     install.packages("BiocManager")
@@ -33,7 +33,7 @@ if (!require("remotes", quietly = TRUE)) {
 }
 remotes::install_github("plyush1993/MetaboCensoR", INSTALL_opts = "--no-multiarch")
 ```
-Run:
+**Run Locally**
 ```r
 MetaboCensoR::run_metabocensor()
 ```
