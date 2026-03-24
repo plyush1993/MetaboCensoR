@@ -35,8 +35,7 @@ remotes::install_github("plyush1993/MetaboCensoR", INSTALL_opts = "--no-multiarc
 ```
 Run:
 ```r
-library(MetaboCensoR)
-run_metabocensor()
+MetaboCensoR::run_metabocensor()
 ```
 <br>
 
