@@ -2100,12 +2100,24 @@ observeEvent(input$clear_shared, {
         labs(x = "RT (min)", y = "m/z", title = "m/z vs RT")
 
       if ("rt" %in% sel) {
-        rtcut <- input$peak_rt_cutoff %||% 2
-        p_mzrt <- p_mzrt + geom_vline(xintercept = rtcut, color = "red", linetype = "dashed", linewidth = 1)
+        if (isTRUE(input$rt_min_enable)) {
+          rtmin <- input$peak_rt_min %||% 1
+          p_mzrt <- p_mzrt + geom_vline(xintercept = rtmin, color = "red", linetype = "dashed", linewidth = 1)
+        }
+        if (isTRUE(input$rt_max_enable)) {
+          rtmax <- input$peak_rt_max %||% 30
+          p_mzrt <- p_mzrt + geom_vline(xintercept = rtmax, color = "red", linetype = "dashed", linewidth = 1)
+        }
       }
       if ("mz" %in% sel) {
-        mzcut <- input$peak_mz_cutoff %||% 300
-        p_mzrt <- p_mzrt + geom_hline(yintercept = mzcut, color = "red", linetype = "dashed", linewidth = 1)
+        if (isTRUE(input$mz_min_enable)) {
+          mzmin <- input$peak_mz_min %||% 200
+          p_mzrt <- p_mzrt + geom_hline(yintercept = mzmin, color = "red", linetype = "dashed", linewidth = 1)
+        }
+        if (isTRUE(input$mz_max_enable)) {
+          mzmax <- input$peak_mz_max %||% 1500
+          p_mzrt <- p_mzrt + geom_hline(yintercept = mzmax, color = "red", linetype = "dashed", linewidth = 1)
+        }
       }
       plots[["mzrt"]] <- ggplotly(p_mzrt)
     }
@@ -2114,14 +2126,19 @@ observeEvent(input$clear_shared, {
     if ("rmd" %in% sel) {
       dd2 <- dd[is.finite(dd$RMD), , drop = FALSE]
       if (nrow(dd2) > 0) {
-        rmin <- input$peak_rmd_min %||% -2000
-        rmax <- input$peak_rmd_max %||% 2000
         p_rmd <- ggplot(dd2, aes(x = mz, y = RMD)) +
           geom_point(alpha = 0.7, size = 3, color = "black", shape = 21, fill = "indianred") +
-          geom_hline(yintercept = rmin, color = "red", linetype = "dashed", linewidth = 1) +
-          geom_hline(yintercept = rmax, color = "red", linetype = "dashed", linewidth = 1) +
           theme_minimal() +
           labs(x = "m/z", y = "RMD (ppm)", title = "RMD vs m/z")
+
+        if (isTRUE(input$rmd_min_enable)) {
+          rmin <- input$peak_rmd_min %||% -2000
+          p_rmd <- p_rmd + geom_hline(yintercept = rmin, color = "red", linetype = "dashed", linewidth = 1)
+        }
+        if (isTRUE(input$rmd_max_enable)) {
+          rmax <- input$peak_rmd_max %||% 2000
+          p_rmd <- p_rmd + geom_hline(yintercept = rmax, color = "red", linetype = "dashed", linewidth = 1)
+        }
         plots[["rmd"]] <- ggplotly(p_rmd)
       }
     }
@@ -2130,14 +2147,19 @@ observeEvent(input$clear_shared, {
     if ("amd" %in% sel) {
       dd3 <- dd[is.finite(dd$AMD), , drop = FALSE]
       if (nrow(dd3) > 0) {
-        amin <- input$peak_amd_min %||% 0.00
-        amax <- input$peak_amd_max %||% 0.50
         p_amd <- ggplot(dd3, aes(x = mz, y = AMD)) +
           geom_point(alpha = 0.7, size = 3, color = "black", shape = 21, fill = "mediumpurple") +
-          geom_hline(yintercept = amin, color = "red", linetype = "dashed", linewidth = 1) +
-          geom_hline(yintercept = amax, color = "red", linetype = "dashed", linewidth = 1) +
           theme_minimal() +
           labs(x = "m/z", y = "AMD (Da)", title = "AMD vs m/z")
+
+        if (isTRUE(input$amd_min_enable)) {
+          amin <- input$peak_amd_min %||% 0.00
+          p_amd <- p_amd + geom_hline(yintercept = amin, color = "red", linetype = "dashed", linewidth = 1)
+        }
+        if (isTRUE(input$amd_max_enable)) {
+          amax <- input$peak_amd_max %||% 0.50
+          p_amd <- p_amd + geom_hline(yintercept = amax, color = "red", linetype = "dashed", linewidth = 1)
+        }
         plots[["amd"]] <- ggplotly(p_amd)
       }
     }
@@ -2184,36 +2206,80 @@ observeEvent(input$clear_shared, {
     fail_amd <- rep(FALSE, before)
 
     if ("mz" %in% sel) {
-      mzcut <- suppressWarnings(as.numeric(input$peak_mz_cutoff))
-      validate(need(is.finite(mzcut), "m/z cutoff must be numeric."))
-      mz_pass <- is.finite(mzv) & mzv >= mzcut
+      mz_pass_min <- rep(TRUE, before)
+      mz_pass_max <- rep(TRUE, before)
+
+      if (isTRUE(input$mz_min_enable)) {
+        mzmin <- suppressWarnings(as.numeric(input$peak_mz_min))
+        validate(need(is.finite(mzmin), "m/z min cutoff must be numeric."))
+        mz_pass_min <- is.finite(mzv) & (mzv >= mzmin)
+      }
+      if (isTRUE(input$mz_max_enable)) {
+        mzmax <- suppressWarnings(as.numeric(input$peak_mz_max))
+        validate(need(is.finite(mzmax), "m/z max cutoff must be numeric."))
+        mz_pass_max <- is.finite(mzv) & (mzv <= mzmax)
+      }
+
+      mz_pass <- mz_pass_min & mz_pass_max
       fail_mz <- !mz_pass
     }
 
     if ("rt" %in% sel) {
-      rtcut <- suppressWarnings(as.numeric(input$peak_rt_cutoff))
-      validate(need(is.finite(rtcut), "rt cutoff must be numeric."))
-      rt_pass <- is.finite(rtv) & rtv >= rtcut
+      rt_pass_min <- rep(TRUE, before)
+      rt_pass_max <- rep(TRUE, before)
+
+      if (isTRUE(input$rt_min_enable)) {
+        rtmin <- suppressWarnings(as.numeric(input$peak_rt_min))
+        validate(need(is.finite(rtmin), "rt min cutoff must be numeric."))
+        rt_pass_min <- is.finite(rtv) & (rtv >= rtmin)
+      }
+      if (isTRUE(input$rt_max_enable)) {
+        rtmax <- suppressWarnings(as.numeric(input$peak_rt_max))
+        validate(need(is.finite(rtmax), "rt max cutoff must be numeric."))
+        rt_pass_max <- is.finite(rtv) & (rtv <= rtmax)
+      }
+
+      rt_pass <- rt_pass_min & rt_pass_max
       fail_rt <- !rt_pass
     }
 
     if ("rmd" %in% sel) {
-      rmin <- suppressWarnings(as.numeric(input$peak_rmd_min))
-      rmax <- suppressWarnings(as.numeric(input$peak_rmd_max))
-      validate(need(is.finite(rmin) && is.finite(rmax) && rmin <= rmax,
-                    "RMD bounds must be numeric and min ≤ max."))
+      rmd_pass_min <- rep(TRUE, before)
+      rmd_pass_max <- rep(TRUE, before)
       rmd_vals <- calculate_RMD(mzv)
-      rmd_pass <- is.finite(rmd_vals) & (rmd_vals >= rmin) & (rmd_vals <= rmax)
+
+      if (isTRUE(input$rmd_min_enable)) {
+        rmin <- suppressWarnings(as.numeric(input$peak_rmd_min))
+        validate(need(is.finite(rmin), "RMD min bound must be numeric."))
+        rmd_pass_min <- is.finite(rmd_vals) & (rmd_vals >= rmin)
+      }
+      if (isTRUE(input$rmd_max_enable)) {
+        rmax <- suppressWarnings(as.numeric(input$peak_rmd_max))
+        validate(need(is.finite(rmax), "RMD max bound must be numeric."))
+        rmd_pass_max <- is.finite(rmd_vals) & (rmd_vals <= rmax)
+      }
+
+      rmd_pass <- rmd_pass_min & rmd_pass_max
       fail_rmd <- !rmd_pass
     }
 
     if ("amd" %in% sel) {
-      amin <- suppressWarnings(as.numeric(input$peak_amd_min))
-      amax <- suppressWarnings(as.numeric(input$peak_amd_max))
-      validate(need(is.finite(amin) && is.finite(amax) && amin <= amax,
-                    "AMD bounds must be numeric and min ≤ max."))
+      amd_pass_min <- rep(TRUE, before)
+      amd_pass_max <- rep(TRUE, before)
       amd_vals <- calculate_AMD(mzv, absolute = TRUE)
-      amd_pass <- is.finite(amd_vals) & (amd_vals >= amin) & (amd_vals <= amax)
+
+      if (isTRUE(input$amd_min_enable)) {
+        amin <- suppressWarnings(as.numeric(input$peak_amd_min))
+        validate(need(is.finite(amin), "AMD min bound must be numeric."))
+        amd_pass_min <- is.finite(amd_vals) & (amd_vals >= amin)
+      }
+      if (isTRUE(input$amd_max_enable)) {
+        amax <- suppressWarnings(as.numeric(input$peak_amd_max))
+        validate(need(is.finite(amax), "AMD max bound must be numeric."))
+        amd_pass_max <- is.finite(amd_vals) & (amd_vals <= amax)
+      }
+
+      amd_pass <- amd_pass_min & amd_pass_max
       fail_amd <- !amd_pass
     }
 
@@ -2830,7 +2896,7 @@ output$help_body <- renderUI({
       h3("Peak filters"),
       tags$ul(
         tags$li(tags$b("Overview:"), " alows to filter peaks by m/z, rt and mass defect (absolute and relative) values."),
-        tags$li(tags$b("Pick filters:"), " m/z ≥, rt ≥, RMD bounds, AMD bounds."),
+        tags$li(tags$b("Pick filters:"), " m/z, rt, RMD, and AMD bounds."),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically.")
       ),
       div(class="highlight", "Note: optional step to filter peaks based on apriori information")

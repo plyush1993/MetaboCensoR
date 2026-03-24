@@ -905,24 +905,56 @@ shiny::fluidPage(
               )
             ),
           br(),
-          conditionalPanel(condition = "input.peak_filters.indexOf('mz') >= 0",
-                           numericInput("peak_mz_cutoff", "m/z ≥ cutoff", value = 200, min = 0, step = 0.1)
+          conditionalPanel(
+            condition = "input.peak_filters.indexOf('mz') >= 0",
+            fluidRow(
+              column(6,
+                prettyCheckbox("mz_min_enable", "m/z ≥", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.mz_min_enable", numericInput("peak_mz_min", label = NULL, value = 200, min = 0, step = 0.1))
+              ),
+              column(6,
+                prettyCheckbox("mz_max_enable", "m/z ≤", FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.mz_max_enable", numericInput("peak_mz_max", label = NULL, value = 1500, min = 0, step = 0.1))
+              )
+            )
           ),
-          conditionalPanel(condition = "input.peak_filters.indexOf('rt') >= 0",
-                           numericInput("peak_rt_cutoff", "rt ≥ cutoff (min)", value = 1, min = 0, step = 0.1)
+          conditionalPanel(
+            condition = "input.peak_filters.indexOf('rt') >= 0",
+            fluidRow(
+              column(6,
+                prettyCheckbox("rt_min_enable", "rt ≥ (min)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.rt_min_enable", numericInput("peak_rt_min", label = NULL, value = 1, min = 0, step = 0.1))
+              ),
+              column(6,
+                prettyCheckbox("rt_max_enable", "rt ≤ (min)", FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.rt_max_enable", numericInput("peak_rt_max", label = NULL, value = 30, min = 0, step = 0.1))
+              )
+            )
           ),
           conditionalPanel(
             condition = "input.peak_filters.indexOf('rmd') >= 0",
             fluidRow(
-              column(6, numericInput("peak_rmd_min", "RMD ≥ (ppm)", value = -2000, min = -1000000, max = 1000000, step = 100)),
-              column(6, numericInput("peak_rmd_max", "RMD ≤ (ppm)", value =  2000, min = -1000000, max = 1000000, step = 100))
+              column(6,
+                prettyCheckbox("rmd_min_enable", "RMD ≥ (ppm)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.rmd_min_enable", numericInput("peak_rmd_min", label = NULL, value = -2000, min = -1000000, max = 1000000, step = 100))
+              ),
+              column(6,
+                prettyCheckbox("rmd_max_enable", "RMD ≤ (ppm)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.rmd_max_enable", numericInput("peak_rmd_max", label = NULL, value =  2000, min = -1000000, max = 1000000, step = 100))
+              )
             )
           ),
           conditionalPanel(
             condition = "input.peak_filters.indexOf('amd') >= 0",
             fluidRow(
-              column(6, numericInput("peak_amd_min", "AMD ≥ (Da)", value = 0.00, min = -1, max = 1, step = 0.001)),
-              column(6, numericInput("peak_amd_max", "AMD ≤ (Da)", value = 0.50, min = -1, max = 1, step = 0.001))
+              column(6,
+                prettyCheckbox("amd_min_enable", "AMD ≥ (Da)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.amd_min_enable", numericInput("peak_amd_min", label = NULL, value = 0.00, min = -1, max = 1, step = 0.001))
+              ),
+              column(6,
+                prettyCheckbox("amd_max_enable", "AMD ≤ (Da)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                conditionalPanel("input.amd_max_enable", numericInput("peak_amd_max", label = NULL, value = 0.50, min = -1, max = 1, step = 0.001))
+              )
             )
           ),
           tags$hr(),
