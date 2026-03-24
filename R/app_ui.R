@@ -396,7 +396,9 @@ shiny::fluidPage(
         mainPanel(
           conditionalPanel(
             condition = "!output.sharedUploaded",
-            div(class="highlight", "No dataset loaded. Go to 'Upload Data' tab.")
+            div(class="alert alert-warning text-center",
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;",
+            icon("exclamation-triangle"), " No dataset loaded. Please go to the 'Upload Data' tab.")
           ),
           uiOutput("blank_header_in"),
           DTOutput("blank_table_in"),
@@ -649,7 +651,9 @@ shiny::fluidPage(
         mainPanel(
           conditionalPanel(
             condition = "!output.sharedUploaded",
-            div(class="highlight", "No dataset loaded. Go to 'Upload Data' tab.")
+            div(class="alert alert-warning text-center",
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;",
+            icon("exclamation-triangle"), " No dataset loaded. Please go to the 'Upload Data' tab.")
           ),
           conditionalPanel(
             condition = "output.sharedUploaded && !output.msInputReady",
@@ -827,7 +831,9 @@ shiny::fluidPage(
         mainPanel(
           conditionalPanel(
             condition = "!output.sharedUploaded",
-            div(class="highlight", "No dataset loaded. Go to 'Upload Data' tab.")
+            div(class="alert alert-warning text-center",
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;",
+            icon("exclamation-triangle"), " No dataset loaded. Please go to the 'Upload Data' tab.")
           ),
           conditionalPanel(
             condition = "output.sharedUploaded && !output.qcInputReady",
@@ -969,7 +975,9 @@ shiny::fluidPage(
         mainPanel(
           conditionalPanel(
             condition = "!output.sharedUploaded",
-            div(class="highlight", "No dataset loaded. Go to 'Upload Data' tab.")
+            div(class="alert alert-warning text-center",
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;",
+            icon("exclamation-triangle"), " No dataset loaded. Please go to the 'Upload Data' tab.")
           ),
           conditionalPanel(
             condition = "output.sharedUploaded && !output.peakInputReady",
@@ -1061,7 +1069,9 @@ shiny::fluidPage(
         mainPanel(
           conditionalPanel(
             condition = "!output.sharedUploaded",
-            div(class="highlight", "No dataset loaded. Go to 'Upload Data' tab.")
+            div(class="alert alert-warning text-center",
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;",
+            icon("exclamation-triangle"), " No dataset loaded. Please go to the 'Upload Data' tab.")
           ),
           conditionalPanel(
             condition = "output.sharedUploaded && !output.finalReady",
