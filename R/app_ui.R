@@ -287,6 +287,7 @@ shiny::fluidPage(
         ),
         mainPanel(
           uiOutput("upload_tab_error"),
+          uiOutput("quick_stats_ui"),
           uiOutput("shared_header"),
           DTOutput("shared_preview")
         )

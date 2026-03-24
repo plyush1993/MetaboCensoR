@@ -223,7 +223,7 @@ observeEvent(input$clear_shared, {
 
   output$shared_header <- renderUI({
     req(shared$raw)
-    h3(sprintf("Dataset: %s  (%d rows × %d cols)", shared$name, nrow(as.data.frame(shared$raw)), ncol(as.data.frame(shared$raw))))
+    h3(sprintf("Dataset: %s", shared$name))
   })
 
   output$shared_preview <- renderDT({
@@ -242,6 +242,30 @@ observeEvent(input$clear_shared, {
     }
 
     datatable(df_show, options = list(scrollX = TRUE, pageLength = 6))
+  })
+
+  output$quick_stats_ui <- renderUI({
+    # Wait until the raw data is loaded
+    req(shared$raw)
+
+    # Safely try to get sample columns (won't display if there's a keyword error)
+    sc <- try(sample_cols0(), silent = TRUE)
+    if (inherits(sc, "try-error")) return(NULL)
+
+    n_features <- format(nrow(as.data.frame(shared$raw)), big.mark = ",")
+    n_samples  <- format(length(sc), big.mark = ",")
+
+    # Render two side-by-side dashboard metric cards
+    div(style = "display: flex; gap: 15px; margin-bottom: 15px; margin-top: 5px;",
+        div(style = "flex: 1; background-color: #f8f9fa; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #EE2C2C; box-shadow: 0 1px 3px rgba(0,0,0,0.05);",
+            h5("Total Samples Detected", style = "margin: 0 0 5px 0; color: #2c3e50; font-weight: bold; text-transform: uppercase; font-size: 14px;"),
+            h3(n_samples, style = "margin: 0; color: #EE2C2C; font-weight: 800; font-size: 28px;")
+        ),
+        div(style = "flex: 1; background-color: #f8f9fa; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #3498db; box-shadow: 0 1px 3px rgba(0,0,0,0.05);",
+            h5("Total Features (Peaks)", style = "margin: 0 0 5px 0; color: #2c3e50; font-weight: bold; text-transform: uppercase; font-size: 14px;"),
+            h3(n_features, style = "margin: 0; color: #3498db; font-weight: 800; font-size: 28px;")
+        )
+    )
   })
 
   output$global_controls0 <- renderUI({
@@ -273,8 +297,6 @@ observeEvent(input$clear_shared, {
       selectInput("row_id_col0", "Feature ID (auto-generated):", choices = choices_list, selected = default_rid),
       selectInput("mz_col0",     "m/z column:", choices = choices_list, selected = default_mz),
       selectInput("rt_col0",     "rt column:",  choices = choices_list, selected = default_rt),
-
-      tags$hr(),
       radioButtons(
         "sample_mode0", "How to define sample columns?",
         choices = c(
@@ -310,7 +332,6 @@ observeEvent(input$clear_shared, {
         )
       ),
 
-      uiOutput("sample_cols_status0")
     )
   })
 
@@ -436,13 +457,6 @@ observeEvent(input$clear_shared, {
     validate(need(length(sc) > 0,
                   "Auto-detect found no numeric sample columns. Switch to Manual or Keywords."))
     sc
-  })
-
-  output$sample_cols_status0 <- renderUI({
-    req(shared$raw)
-    sc <- try(sample_cols0(), silent = TRUE)
-    if (inherits(sc, "try-error")) return(NULL)
-    div(class="highlight", sprintf("Detected %d sample columns.", length(sc)))
   })
 
   sample_names <- reactive({
