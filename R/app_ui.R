@@ -1041,7 +1041,7 @@ shiny::fluidPage(
             ),
 
           br(),
-          downloadButton("dl_final_table",  "Final peak table (.csv)", class = "btn btn-success"),
+          shinyjs::disabled(downloadButton("dl_final_table",  "Final peak table (.csv)", class = "btn btn-success")),
           br(),br(),
           h3(class = "highlight", "MGF Filtering"),
           uiOutput("mgf_toggle_ui"),
@@ -1063,7 +1063,7 @@ shiny::fluidPage(
             size = 1
           ),
             br(),
-            downloadButton("dl_mgf", "Download Filtered MGF", class = "btn btn-success")
+            shinyjs::disabled(downloadButton("dl_mgf", "Download Filtered MGF", class = "btn btn-success"))
           )
         ),
         mainPanel(

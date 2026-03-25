@@ -2495,6 +2495,10 @@ observeEvent(input$clear_shared, {
   # Downloads
   # --------------------------
 
+  observe({
+    shinyjs::toggleState("dl_final_table", condition = !is.null(final_table()))
+  })
+
   output$dl_final_table <- downloadHandler(
   filename = function() {
       nm <- shared$name %||% "dataset.csv"
@@ -2705,6 +2709,12 @@ observeEvent(input$clear_shared, {
     gc()
     showNotification("MGF file and filtered data cleared from memory.", type = "warning", duration = 4)
   }, ignoreInit = TRUE)
+
+  observe({
+    sps <- filtered_mgf_sps()
+    is_ready <- !is.null(sps) && length(sps) > 0
+    shinyjs::toggleState("dl_mgf", condition = is_ready)
+  })
 
   output$dl_mgf <- downloadHandler(
     filename = function() {
