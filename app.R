@@ -4879,7 +4879,7 @@ output$help_body <- renderUI({
                         )),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically."),
         br(),
-        div(class="highlight", "Note: We recommend to apply drift/batch correction, normalization, and imputation for large-scale metabolomics study before QC filters, while all other filters should be applied before.")
+        div(class="highlight", "Note: We recommend to apply QC filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while all other filters should be applied strictly before them.")
       )
     ))
   }
