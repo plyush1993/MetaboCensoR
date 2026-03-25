@@ -1921,7 +1921,7 @@ ui <- fluidPage(
             ),
 
           br(),
-          downloadButton("dl_final_table",  "Final peak table (.csv)", class = "btn btn-success"),
+          shinyjs::disabled(downloadButton("dl_final_table",  "Final peak table (.csv)", class = "btn btn-success")),
           br(),br(),
           h3(class = "highlight", "MGF Filtering"),
           uiOutput("mgf_toggle_ui"), 
@@ -1943,7 +1943,7 @@ ui <- fluidPage(
             size = 1
           ),
             br(), 
-            downloadButton("dl_mgf", "Download Filtered MGF", class = "btn btn-success")
+            shinyjs::disabled(downloadButton("dl_mgf", "Download Filtered MGF", class = "btn btn-success"))
           )
         ),
         mainPanel(
@@ -4488,6 +4488,10 @@ observeEvent(input$clear_shared, {
   # Downloads
   # --------------------------
 
+  observe({
+    shinyjs::toggleState("dl_final_table", condition = !is.null(final_table()))
+  })
+  
   output$dl_final_table <- downloadHandler(
   filename = function() {
       nm <- shared$name %||% "dataset.csv"
@@ -4698,6 +4702,12 @@ observeEvent(input$clear_shared, {
     gc()                            
     showNotification("MGF file and filtered data cleared from memory.", type = "warning", duration = 4)
   }, ignoreInit = TRUE)
+  
+  observe({
+    sps <- filtered_mgf_sps()
+    is_ready <- !is.null(sps) && length(sps) > 0
+    shinyjs::toggleState("dl_mgf", condition = is_ready)
+  })
   
   output$dl_mgf <- downloadHandler(
     filename = function() {
