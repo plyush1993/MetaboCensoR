@@ -11,13 +11,13 @@
 #' @export
 run_metabocensor <- function(max_size_gb = 5, ...) {
   cat("\n")
-  cat(crayon::cyan("             +--------------------+\n"))
+  cat(crayon::cyan("             +====================+\n"))
   app_name <- paste0(
     crayon::blue(crayon::bold("   Metabo")),
     crayon::red(crayon::bold("CensoR   "))
   )
   cat(crayon::cyan("             | "), app_name, crayon::cyan(" |\n"), sep = "")
-  cat(crayon::cyan("             +--------------------+\n"))
+  cat(crayon::cyan("             +====================+\n"))
   cat("\n")
   cat(crayon::cyan(crayon::bold("Shiny App for filtering redundant features in LC-MS\n")))
   cat("\n")
