@@ -51,7 +51,7 @@ If you use **`MetaboCensoR`** in your study, please cite this paper:
 <br/>
 
 ### Contact :mailbox_with_mail:
-[:lady_beetle:](https://github.com/plyush1993/MetaboCensoR/issues)
+[**Bugs**:lady_beetle:](https://github.com/plyush1993/MetaboCensoR/issues)
 <div align="left">
   <span style="font-weight: bold; vertical-align: middle;"></span>
   <a href="mailto:plyushchenko.ivan@gmail.com"><img src="https://img.shields.io/badge/-4a9edc?style=for-the-badge&logo=gmail" height="28" alt="Email" style="vertical-align: middle;"/></a>
