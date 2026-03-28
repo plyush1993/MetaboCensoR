@@ -7,7 +7,7 @@ Check compatibility with [examples of inputs](https://github.com/plyush1993/Meta
 - Filter features detected in a blank with a widget.
 - Filter Isotopes/Dimers, Adducts, Neutral Loses, In-Source Fragments, and generate annotation tables.
 - Filter features by Zero/RSD/Mean/Min values with a widget.
-- Filter peaks by *mz*, *RT*, RMD, and AMD with a widget.
+- Filter peaks by *m/z*, *RT*, RMD, and AMD with a widget.
 - Compile the final filtered peak table, and filter [`MGF file`](https://fiehnlab.ucdavis.edu/projects/lipidblast/mgf-files) according to the final peak table.
 - Instructions and details.
 
