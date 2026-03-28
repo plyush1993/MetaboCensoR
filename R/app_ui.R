@@ -25,7 +25,7 @@ shiny::fluidPage(
     tags$link(
       rel  = "icon",
       type = "image/png",
-      href = "www/metabocensor_logo.png"
+      href = "www/metabocensor_logo_web.png"
     ),
 
     tags$style(HTML("
