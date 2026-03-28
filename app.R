@@ -906,7 +906,7 @@ ui <- fluidPage(
     tags$link(
       rel  = "icon",
       type = "image/png",
-      href = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/metabocensor_logo.png"
+      href = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/metabocensor_logo_web.png"
     ),
     tags$style(HTML("
       .shiny-output-error-validation { color:#000 !important; font-size: 22px !important; font-weight:800 !important; padding:12px; }
