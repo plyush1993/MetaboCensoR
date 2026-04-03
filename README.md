@@ -1,4 +1,4 @@
-# MetaboCensoR <img src="metabocensor_logo_4x.png" align="right" height="180" width="160">
+# MetaboCensoR <img src="metabocensor_logo_4x.png" align="right" height="200" width="180">
 
 ### Description :bookmark_tabs:
 The [`R`](https://www.r-project.org/) [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and .mgf file. 
