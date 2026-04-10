@@ -1519,6 +1519,7 @@ ui <- fluidPage(
           tags$hr(),
           prettyCheckbox("show_iso_table2", "Show isotope/dimer groups", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_add_table2", "Show adduct families", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
+          prettyCheckbox("show_add_stats2", "Show adduct statistics", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_nl_table2",  "Show neutral loss hits", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_isf_table2", "Show fragment clusters", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           
@@ -1548,6 +1549,7 @@ ui <- fluidPage(
     
           conditionalPanel(condition = "input.show_iso_table2", h4("Isotopes table:"), DTOutput("iso2_table")),
           conditionalPanel(condition = "input.show_add_table2", h4("Adducts table:"), DTOutput("add2_table")),
+          conditionalPanel(condition = "input.show_add_stats2", h4("Adduct Frequencies:"), DTOutput("add2_stats_table")),
           conditionalPanel(condition = "input.show_nl_table2",  h4("Neutral Loses table:"), DTOutput("nl2_table")),
           conditionalPanel(condition = "input.show_isf_table2", h4("In-Source Fragments table:"), DTOutput("isf2_table")),
     
@@ -3548,6 +3550,54 @@ observeEvent(input$clear_shared, {
                     backgroundColor = styleEqual(c("kept (no group)", "kept (no corr-family)", "keep_rep", "filtered"), 
                                                  c("#dff0d8", "#dff0d8", "#dff0d8", "#f2dede")))
     }, server = F)
+    
+    output$add2_stats_table <- renderDT({
+      req(input$show_add_stats2)
+      tbl <- ms_state$add_table 
+      
+      if (is.null(tbl) || nrow(tbl) == 0) {
+        return(datatable(data.frame(Note="No adduct families found (or skipped).")))
+      }
+      
+      # Filter out rows with no annotated adducts
+      tbl_sub <- tbl[tbl$adducts != "none" & !is.na(tbl$adducts), ]
+      if(nrow(tbl_sub) == 0) {
+        return(datatable(data.frame(Note="No specific adducts annotated.")))
+      }
+      
+      # Split concatenated strings (e.g., "M+H; M+Na") and unlist into a flat vector
+      all_adds <- unlist(strsplit(tbl_sub$adducts, ";\\s*"))
+      
+      # Count frequencies
+      add_freq <- as.data.frame(table(all_adds), stringsAsFactors = FALSE)
+      colnames(add_freq) <- c("Adduct Type", "Total Count")
+      
+      # Sort by highest count
+      add_freq <- add_freq[order(-add_freq$`Total Count`), ]
+      
+      datatable(
+        add_freq, 
+        extensions = 'Buttons', 
+        rownames = FALSE,
+        options = list(
+          pageLength = 10, 
+          scrollX = TRUE, 
+          order = list(list(1, 'desc')),
+          dom = 'Bfrtip',        
+          buttons = list(        
+            list(
+              extend = "csvHtml5",
+              text   = "Download CSV",
+              filename = paste0(tools::file_path_sans_ext(basename(shared$name %||% "dataset")), " adduct_stats"),
+              exportOptions = list(
+                modifier = list(page = "all")
+              )
+            )
+          )
+        )
+      ) %>%
+        formatStyle('Adduct Type', fontWeight = 'bold')
+    }, server = FALSE)
     
     output$nl2_table <- renderDT({
       req(input$show_nl_table2)
