@@ -4894,7 +4894,7 @@ output$help_body <- renderUI({
       ),
       div(class="highlight", "Rule: Filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, and In-Source Fragments. We recommend to keep the order to avoid misannotation."),
       br(),
-      div(class="highlight", "Note: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes."),
+      div(class="highlight", "Note: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes. Adduct statistics table shows the frequency distribution for each determined adduct type and can be used to refine Adduct list."),
       br(),
       div(class="highlight", "Note: Any MS filter relies on correlation, so maintain a sufficient number of samples and missing values."),
       br(),
