@@ -1556,6 +1556,54 @@ observeEvent(input$clear_shared, {
                                                  c("#dff0d8", "#dff0d8", "#dff0d8", "#f2dede")))
     }, server = F)
 
+    output$add2_stats_table <- renderDT({
+      req(input$show_add_stats2)
+      tbl <- ms_state$add_table
+
+      if (is.null(tbl) || nrow(tbl) == 0) {
+        return(datatable(data.frame(Note="No adduct families found (or skipped).")))
+      }
+
+      # Filter out rows with no annotated adducts
+      tbl_sub <- tbl[tbl$adducts != "none" & !is.na(tbl$adducts), ]
+      if(nrow(tbl_sub) == 0) {
+        return(datatable(data.frame(Note="No specific adducts annotated.")))
+      }
+
+      # Split concatenated strings (e.g., "M+H; M+Na") and unlist into a flat vector
+      all_adds <- unlist(strsplit(tbl_sub$adducts, ";\\s*"))
+
+      # Count frequencies
+      add_freq <- as.data.frame(table(all_adds), stringsAsFactors = FALSE)
+      colnames(add_freq) <- c("Adduct Type", "Total Count")
+
+      # Sort by highest count
+      add_freq <- add_freq[order(-add_freq$`Total Count`), ]
+
+      datatable(
+        add_freq,
+        extensions = 'Buttons',
+        rownames = FALSE,
+        options = list(
+          pageLength = 10,
+          scrollX = TRUE,
+          order = list(list(1, 'desc')),
+          dom = 'Bfrtip',
+          buttons = list(
+            list(
+              extend = "csvHtml5",
+              text   = "Download CSV",
+              filename = paste0(tools::file_path_sans_ext(basename(shared$name %||% "dataset")), " adduct_stats"),
+              exportOptions = list(
+                modifier = list(page = "all")
+              )
+            )
+          )
+        )
+      ) %>%
+        formatStyle('Adduct Type', fontWeight = 'bold')
+    }, server = FALSE)
+
     output$nl2_table <- renderDT({
       req(input$show_nl_table2)
       if (is.null(ms_state$nl_table) || nrow(ms_state$nl_table) == 0) datatable(data.frame(Note="No neutral loss hits (or skipped)."))
@@ -2851,7 +2899,7 @@ output$help_body <- renderUI({
       ),
       div(class="highlight", "Rule: Filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, and In-Source Fragments. We recommend to keep the order to avoid misannotation."),
       br(),
-      div(class="highlight", "Note: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes."),
+      div(class="highlight", "Note: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes. Adduct statistics table shows the frequency distribution for each determined adduct type and can be used to refine Adduct list."),
       br(),
       div(class="highlight", "Note: Any MS filter relies on correlation, so maintain a sufficient number of samples and missing values."),
       br(),

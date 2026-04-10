@@ -639,6 +639,7 @@ shiny::fluidPage(
           tags$hr(),
           prettyCheckbox("show_iso_table2", "Show isotope/dimer groups", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_add_table2", "Show adduct families", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
+          prettyCheckbox("show_add_stats2", "Show adduct statistics", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_nl_table2",  "Show neutral loss hits", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_isf_table2", "Show fragment clusters", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
 
@@ -668,6 +669,7 @@ shiny::fluidPage(
 
           conditionalPanel(condition = "input.show_iso_table2", h4("Isotopes table:"), DTOutput("iso2_table")),
           conditionalPanel(condition = "input.show_add_table2", h4("Adducts table:"), DTOutput("add2_table")),
+          conditionalPanel(condition = "input.show_add_stats2", h4("Adduct Frequencies:"), DTOutput("add2_stats_table")),
           conditionalPanel(condition = "input.show_nl_table2",  h4("Neutral Loses table:"), DTOutput("nl2_table")),
           conditionalPanel(condition = "input.show_isf_table2", h4("In-Source Fragments table:"), DTOutput("isf2_table")),
 
