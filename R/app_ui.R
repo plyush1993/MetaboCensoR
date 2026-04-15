@@ -234,7 +234,7 @@ shiny::fluidPage(
                 inputId = "btn",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: -45px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: -40px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -267,7 +267,7 @@ shiny::fluidPage(
                 inputId = "btned",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "position: absolute; top: 12px; left: 165px; border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px;"
+                style = "position: absolute; top: 12px; left: 170px; border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -360,7 +360,7 @@ shiny::fluidPage(
                 inputId = "btn1",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: -5px"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -442,7 +442,7 @@ shiny::fluidPage(
                 inputId = "btnli",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -496,7 +496,7 @@ shiny::fluidPage(
                 inputId = "btnla",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -551,7 +551,7 @@ shiny::fluidPage(
                 inputId = "btnlnl",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -606,7 +606,7 @@ shiny::fluidPage(
                 inputId = "btnlf",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
