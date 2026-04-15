@@ -44,7 +44,7 @@ MetaboCensoR::run_metabocensor()
 <br>
 
 > [!IMPORTANT]
->The App was compiled using [R version 4.1.2](https://cran.r-project.org/bin/windows/base/old/4.1.2/)<br/>
+> The App was compiled using [R version 4.5.0](https://cran.r-project.org/bin/windows/base/old/4.5.0/)<br/>
 > [`Full App Session Info`](https://github.com/plyush1993/MetaboCensoR/blob/main/session_info.txt)
 <br>
 
