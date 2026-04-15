@@ -41,6 +41,8 @@ remotes::install_github("plyush1993/MetaboCensoR", INSTALL_opts = "--no-multiarc
 ```r
 MetaboCensoR::run_metabocensor()
 ```
+Alternatively, Windows users can launch the app automatically using a [`.bat`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR.bat) file. After installing R, and MetaboCensoR, edit the batch file so that `REXE` points to your `Rscript.exe.`
+
 <br>
 
 > [!IMPORTANT]
