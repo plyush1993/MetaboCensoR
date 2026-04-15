@@ -1114,7 +1114,7 @@ ui <- fluidPage(
                 inputId = "btn", 
                 label = "?", 
                 class = "btn-primary btn-xs", 
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: -45px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: -40px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -1147,7 +1147,7 @@ ui <- fluidPage(
                 inputId = "btned", 
                 label = "?", 
                 class = "btn-primary btn-xs", 
-                style = "position: absolute; top: 12px; left: 165px; border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px;"
+                style = "position: absolute; top: 12px; left: 170px; border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -1240,7 +1240,7 @@ ui <- fluidPage(
                 inputId = "btn1", 
                 label = "?", 
                 class = "btn-primary btn-xs", 
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: -5px"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -1322,7 +1322,7 @@ ui <- fluidPage(
                 inputId = "btnli", 
                 label = "?", 
                 class = "btn-primary btn-xs", 
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -1376,7 +1376,7 @@ ui <- fluidPage(
                 inputId = "btnla", 
                 label = "?", 
                 class = "btn-primary btn-xs", 
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -1431,7 +1431,7 @@ ui <- fluidPage(
                 inputId = "btnlnl", 
                 label = "?", 
                 class = "btn-primary btn-xs", 
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -1486,7 +1486,7 @@ ui <- fluidPage(
                 inputId = "btnlf", 
                 label = "?", 
                 class = "btn-primary btn-xs", 
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -2547,36 +2547,57 @@ observeEvent(input$clear_shared, {
   })
 
   blank_plot_data <- eventReactive(input$plot_blank, {
-    req(ds0_with_label(), input$groups_to_remove)
+    req(ds0_with_label(), input$groups_to_remove, input$blank_mode)
     ds <- ds0_with_label()
     groups <- input$groups_to_remove
     feats <- numeric_feature_names(ds)
     validate(need(length(feats) > 0, "No numeric features to plot."))
 
-    # Calculate means for all groups
-    mean_table <- ds %>%
-      group_by(Label) %>%
-      summarise(across(all_of(feats), ~ mean(.x, na.rm = TRUE)), .groups = "drop")
+    mode <- input$blank_mode
 
-    # Get Blank means
-    blanks <- mean_table %>% filter(Label %in% groups) %>% select(-Label)
-    validate(need(nrow(blanks) > 0, "Selected Blank groups not found in data."))
-    blank_means <- blanks %>% summarise(across(everything(), ~ mean(.x, na.rm = TRUE)))
-    blank_vec <- as.numeric(blank_means[1, ])
+    if (mode == "mean_cutoff") {
+      # --- MODE 1: Ratio Cutoff ---
+      # Calculate means for all groups
+      mean_table <- ds %>%
+        group_by(Label) %>%
+        summarise(across(all_of(feats), ~ mean(.x, na.rm = TRUE)), .groups = "drop")
 
-    # Get Experimental maximum means
-    exps <- mean_table %>% filter(!Label %in% groups) %>% select(-Label)
-    validate(need(nrow(exps) > 0, "No experimental groups remaining to compare against."))
-    max_exp <- vapply(exps, function(x) max(x, na.rm = TRUE), numeric(1))
+      # Get Blank means
+      blanks <- mean_table %>% filter(Label %in% groups) %>% select(-Label)
+      validate(need(nrow(blanks) > 0, "Selected Blank groups not found in data."))
+      blank_means <- blanks %>% summarise(across(everything(), ~ mean(.x, na.rm = TRUE)))
+      blank_vec <- as.numeric(blank_means[1, ])
 
-    # Calculate Ratio: Mean(Blank) / Max(Mean(Experimental))
-    # Replace 0s in max_exp with a tiny number to avoid Infinity errors when dividing
-    max_exp_safe <- ifelse(max_exp == 0, 1e-9, max_exp)
-    ratio <- blank_vec / max_exp_safe
+      # Get Experimental maximum means
+      exps <- mean_table %>% filter(!Label %in% groups) %>% select(-Label)
+      validate(need(nrow(exps) > 0, "No experimental groups remaining to compare against."))
+      max_exp <- vapply(exps, function(x) max(x, na.rm = TRUE), numeric(1))
 
-    df <- tibble::tibble(Feature = feats, Ratio = ratio)
-    df <- df[is.finite(df$Ratio), , drop = FALSE]
-    df
+      # Calculate Ratio
+      max_exp_safe <- ifelse(max_exp == 0, 1e-9, max_exp)
+      ratio <- blank_vec / max_exp_safe
+
+      df <- tibble::tibble(Feature = feats, Ratio = ratio)
+      df <- df[is.finite(df$Ratio), , drop = FALSE]
+      
+      return(list(mode = "mean_cutoff", data = df))
+
+    } else if (mode == "drop_detected") {
+      # --- MODE 2: Drop Detected ---
+      blanks <- ds %>% filter(Label %in% groups)
+      validate(need(nrow(blanks) > 0, "Selected Blank groups not found in data."))
+
+      # Check if feature has ANY signal > 0 in the blank groups
+      detected <- vapply(feats, function(f) any(blanks[[f]] > 0, na.rm = TRUE), logical(1))
+      
+      df <- tibble::tibble(
+        Feature = feats, 
+        Detected = detected,
+        Status = ifelse(detected, "Filtered", "Kept")
+      )
+      
+      return(list(mode = "drop_detected", data = df))
+    }
   }, ignoreInit = TRUE)
 
   # Flag to trigger the UI ConditionalPanel
@@ -2585,38 +2606,70 @@ observeEvent(input$clear_shared, {
 
   # Render the Plotly histogram
   output$blank_plot <- renderPlotly({
-    df <- blank_plot_data()
+    res <- blank_plot_data()
+    req(res)
+    
+    mode <- res$mode
+    df <- res$data
     req(nrow(df) > 0)
     
-    current_cutoff <- input$blank_cutoff %||% 0.10
-    
-    # Calculate % to be filtered
     total_feats <- nrow(df)
-    removed_count <- sum(df$Ratio >= current_cutoff, na.rm = TRUE)
-    perc_removed <- round((removed_count / total_feats) * 100, 1)
 
-    gg <- ggplot(df, aes(x = Ratio)) +
-      geom_histogram(alpha = 0.8, color = "black", fill = "royalblue3", bins = 50) +
-      geom_vline(xintercept = current_cutoff, color = "red", linetype = "dashed", size = 1) +
-      theme_minimal() +
-      labs(x = "Ratio: Mean(Blank) / Max(Mean(Sample)) (log10 scale)", 
-           y = "Count",
-           title = "Blank to Sample Ratio Distribution") + 
-      scale_x_continuous(trans = log10_plus_one_trans())
+    if (mode == "mean_cutoff") {
+      # --- PLOT 1: Histogram for Ratio ---
+      current_cutoff <- input$blank_cutoff %||% 0.10
+      removed_count <- sum(df$Ratio >= current_cutoff, na.rm = TRUE)
+      perc_removed <- round((removed_count / total_feats) * 100, 1)
 
-    # Convert to plotly and add the annotation via plotly's layout
-    # This is much more stable than ggplot2's annotate()
-    ggplotly(gg) %>% 
-      layout(
-        annotations = list(
-          x = 0.95, y = 0.95, # Relative coordinates (top right)
-          text = paste0("<b>Filtered: ", perc_removed, "%</b>"),
-          showarrow = FALSE,
-          xref = 'paper', yref = 'paper',
-          font = list(color = "red", size = 16)
-        ),
-        margin = list(t = 50)
-      )
+      gg <- ggplot(df, aes(x = Ratio)) +
+        geom_histogram(alpha = 0.8, color = "black", fill = "royalblue3", bins = 50) +
+        geom_vline(xintercept = current_cutoff, color = "red", linetype = "dashed", size = 1) +
+        theme_minimal() +
+        labs(x = "Ratio: Mean(Blank) / Max(Mean(Sample)) (log10 scale)", 
+             y = "Count",
+             title = "Blank to Sample Ratio Distribution") + 
+        scale_x_continuous(trans = log10_plus_one_trans())
+
+      p <- ggplotly(gg) %>% 
+        layout(
+          annotations = list(
+            x = 0.95, y = 0.95, 
+            text = paste0("<b>Filtered: ", perc_removed, "%</b>"),
+            showarrow = FALSE, xref = 'paper', yref = 'paper',
+            font = list(color = "red", size = 16)
+          ),
+          margin = list(t = 50)
+        )
+      return(p)
+
+    } else if (mode == "drop_detected") {
+      # --- PLOT 2: Bar chart for Drop Detected ---
+      removed_count <- sum(df$Detected, na.rm = TRUE)
+      perc_removed <- round((removed_count / total_feats) * 100, 1)
+
+      # Create summary table for ggplot
+      summary_df <- as.data.frame(table(df$Status))
+      names(summary_df) <- c("Status", "Count")
+
+      gg <- ggplot(summary_df, aes(x = Status, y = Count, fill = Status)) +
+        geom_bar(stat = "identity", alpha = 0.8, color = "black", width = 0.5) +
+        scale_fill_manual(values = c("Filtered" = "indianred", "Kept" = "mediumseagreen")) +
+        theme_minimal() +
+        labs(x = "", y = "Feature Count", title = "Blank Detection Status") +
+        theme(legend.position = "none")
+
+      p <- ggplotly(gg, tooltip = c("y", "x")) %>% 
+        layout(
+          annotations = list(
+            x = 0.95, y = 0.95, 
+            text = paste0("<b>Filtered: ", perc_removed, "%</b>"),
+            showarrow = FALSE, xref = 'paper', yref = 'paper',
+            font = list(color = "red", size = 16)
+          ),
+          margin = list(t = 50)
+        )
+      return(p)
+    }
   })
   
   run_step1_blank <- function() {
@@ -4135,37 +4188,76 @@ observeEvent(input$clear_shared, {
     sel <- res$sel
     plots <- list()
 
-    # m/z vs RT Scatter (handles vertical RT line and horizontal m/z line)
+    total_feats <- nrow(dd)
+
+    # Helper function to create a consistent, highly visible annotation box
+    make_annot <- function(text) {
+      list(
+        x = 0.98, y = 0.98, # Near top right corner
+        text = text,
+        showarrow = FALSE, 
+        xref = 'paper', yref = 'paper',
+        xanchor = 'right', yanchor = 'top',
+        font = list(color = "#e74c3c", size = 14),
+        bgcolor = "rgba(255,255,255,0.85)", 
+        bordercolor = "#e74c3c", 
+        borderpad = 5
+      )
+    }
+
+    # 1. m/z vs RT Scatter (Combined plot)
     if (any(c("mz","rt") %in% sel)) {
       p_mzrt <- ggplot(dd, aes(x = RT, y = mz)) +
         geom_point(alpha = 0.7, size = 3, color = "black", shape = 21, fill = "lightblue") +
         theme_minimal() +
         labs(x = "RT (min)", y = "m/z", title = "m/z vs RT")
       
+      fail_mz <- rep(FALSE, total_feats)
+      fail_rt <- rep(FALSE, total_feats)
+
       if ("rt" %in% sel) {
         if (isTRUE(input$rt_min_enable)) {
           rtmin <- input$peak_rt_min %||% 1
           p_mzrt <- p_mzrt + geom_vline(xintercept = rtmin, color = "red", linetype = "dashed", linewidth = 1)
+          fail_rt <- fail_rt | (dd$RT < rtmin)
         }
         if (isTRUE(input$rt_max_enable)) {
           rtmax <- input$peak_rt_max %||% 30
           p_mzrt <- p_mzrt + geom_vline(xintercept = rtmax, color = "red", linetype = "dashed", linewidth = 1)
+          fail_rt <- fail_rt | (dd$RT > rtmax)
         }
       }
       if ("mz" %in% sel) {
         if (isTRUE(input$mz_min_enable)) {
           mzmin <- input$peak_mz_min %||% 200
           p_mzrt <- p_mzrt + geom_hline(yintercept = mzmin, color = "red", linetype = "dashed", linewidth = 1)
+          fail_mz <- fail_mz | (dd$mz < mzmin)
         }
         if (isTRUE(input$mz_max_enable)) {
           mzmax <- input$peak_mz_max %||% 1500
           p_mzrt <- p_mzrt + geom_hline(yintercept = mzmax, color = "red", linetype = "dashed", linewidth = 1)
+          fail_mz <- fail_mz | (dd$mz > mzmax)
         }
       }
-      plots[["mzrt"]] <- ggplotly(p_mzrt)
+      
+      # Calculate removed counts for the annotation
+      rem_mz <- sum(fail_mz, na.rm = TRUE)
+      rem_rt <- sum(fail_rt, na.rm = TRUE)
+      rem_both <- sum(fail_mz | fail_rt, na.rm = TRUE)
+      
+      annot_text <- ""
+      if ("mz" %in% sel && "rt" %in% sel) {
+        annot_text <- paste0("<b>Filtered m/z: ", rem_mz, "<br>Filtered rt: ", rem_rt, "<br>Total Filtered: ", rem_both, "</b>")
+      } else if ("mz" %in% sel) {
+        annot_text <- paste0("<b>Filtered m/z: ", rem_mz, "</b>")
+      } else {
+        annot_text <- paste0("<b>Filtered rt: ", rem_rt, "</b>")
+      }
+
+      plots[["mzrt"]] <- ggplotly(p_mzrt) %>% layout(annotations = list(make_annot(annot_text)))
     }
 
-    # RMD Scatter (handles upper and lower horizontal bounds)
+    # 2. RMD Scatter
     if ("rmd" %in% sel) {
       dd2 <- dd[is.finite(dd$RMD), , drop = FALSE]
       if (nrow(dd2) > 0) {
@@ -4174,19 +4266,27 @@ observeEvent(input$clear_shared, {
           theme_minimal() +
           labs(x = "m/z", y = "RMD (ppm)", title = "RMD vs m/z")
         
+        fail_rmd <- rep(FALSE, nrow(dd2))
+        
         if (isTRUE(input$rmd_min_enable)) {
           rmin <- input$peak_rmd_min %||% -2000
           p_rmd <- p_rmd + geom_hline(yintercept = rmin, color = "red", linetype = "dashed", linewidth = 1)
+          fail_rmd <- fail_rmd | (dd2$RMD < rmin)
         }
         if (isTRUE(input$rmd_max_enable)) {
           rmax <- input$peak_rmd_max %||% 2000
           p_rmd <- p_rmd + geom_hline(yintercept = rmax, color = "red", linetype = "dashed", linewidth = 1)
+          fail_rmd <- fail_rmd | (dd2$RMD > rmax)
         }
-        plots[["rmd"]] <- ggplotly(p_rmd)
+        
+        rem_rmd <- sum(fail_rmd, na.rm = TRUE)
+        annot_text <- paste0("<b>Filtered RMD: ", rem_rmd, "</b>")
+
+        plots[["rmd"]] <- ggplotly(p_rmd) %>% layout(annotations = list(make_annot(annot_text)))
       }
     }
 
-    # AMD Scatter (handles upper and lower horizontal bounds)
+    # 3. AMD Scatter
     if ("amd" %in% sel) {
       dd3 <- dd[is.finite(dd$AMD), , drop = FALSE]
       if (nrow(dd3) > 0) {
@@ -4195,22 +4295,32 @@ observeEvent(input$clear_shared, {
           theme_minimal() +
           labs(x = "m/z", y = "AMD (Da)", title = "AMD vs m/z")
         
+        fail_amd <- rep(FALSE, nrow(dd3))
+        
         if (isTRUE(input$amd_min_enable)) {
           amin <- input$peak_amd_min %||% 0.00
           p_amd <- p_amd + geom_hline(yintercept = amin, color = "red", linetype = "dashed", linewidth = 1)
+          fail_amd <- fail_amd | (dd3$AMD < amin)
         }
         if (isTRUE(input$amd_max_enable)) {
           amax <- input$peak_amd_max %||% 0.50
           p_amd <- p_amd + geom_hline(yintercept = amax, color = "red", linetype = "dashed", linewidth = 1)
+          fail_amd <- fail_amd | (dd3$AMD > amax)
         }
-        plots[["amd"]] <- ggplotly(p_amd)
+        
+        rem_amd <- sum(fail_amd, na.rm = TRUE)
+        annot_text <- paste0("<b>Filtered AMD: ", rem_amd, "</b>")
+
+        plots[["amd"]] <- ggplotly(p_amd) %>% layout(annotations = list(make_annot(annot_text)))
       }
     }
 
     validate(need(length(plots) > 0, "Nothing to plot for the current selection."))
+    
     if (length(plots) == 1) {
       plots[[1]]
     } else {
+      # Use Plotly's subplot feature to combine the graphs dynamically
       subplot(plots, nrows = length(plots), shareX = FALSE, shareY = FALSE, titleX = TRUE, titleY = TRUE, margin = 0.08) %>%
         layout(title = "")
     }
