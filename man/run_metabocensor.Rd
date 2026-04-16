@@ -16,3 +16,12 @@ Run the MetaboCensoR Application locally. Shiny deployment
 \references{
 To be updated.
 }
+\examples{
+\dontrun{
+# Launch the MetaboCensoR application with default settings (5GB limit)
+run_metabocensor()
+
+# Launch the application allowing up to 10GB for file uploads
+run_metabocensor(max_size_gb = 10)
+}
+}
