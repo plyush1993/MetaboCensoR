@@ -1100,12 +1100,12 @@ shiny::fluidPage(
         "Select a section:",
         choices = c(
           "Quick start"   = "quick",
-          "Data upload"   = "upload",
+          "Upload Data"   = "upload",
           "Blank filters" = "blank",
           "MS filters"    = "ms",
           "QC filters"    = "qc",
           "Peak filters"  = "peak",
-          "Final summary" = "final",
+          "Final Summary" = "final",
           "Troubleshooting" = "trouble",
           "Project Details" = "about"
         ),
