@@ -37,6 +37,11 @@ if (!require("remotes", quietly = TRUE)) {
 }
 remotes::install_github("plyush1993/MetaboCensoR", INSTALL_opts = "--no-multiarch")
 ```
+or
+```r
+if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")
+pak::pak("plyush1993/MetaboCensoR")
+```
 **Run Locally**
 ```r
 MetaboCensoR::run_metabocensor()
