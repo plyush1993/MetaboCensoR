@@ -1,5 +1,5 @@
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-![](https://img.shields.io/github/release/plyush1993/MetaboCensoR?color=teal&logoColor=teal)
+![](https://img.shields.io/github/v/release/plyush1993/MetaboCensoR?color=teal&logo=github&logoColor=white&label=)
 [![](https://img.shields.io/badge/R≥4.1.2-2986cc.svg?style=flat&logo=r&logoColor=white?)](https://cran.r-project.org/index.html)
 [![License](https://img.shields.io/badge/GPLv3-indianred.svg?style=flat&maxAge=2678400)](https://choosealicense.com/licenses/gpl-3.0/)
 # MetaboCensoR <img src="metabocensor_logo_4x.png" align="right" height="200" width="180">
