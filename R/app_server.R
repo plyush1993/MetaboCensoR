@@ -702,9 +702,9 @@ observeEvent(input$clear_shared, {
     blank_state$stats$removed_blank <- blank_state$stats$before - blank_state$stats$after
 
     if (!isTRUE(input$enable_blank)) {
-      showNotification("Blank filter disabled. Step 1 frozen as pass-through.", type="message", duration=4)
+      showNotification("Blank Filters disabled. Step 1 frozen as pass-through.", type="message", duration=4)
     } else if (blank_state$stats$after == 0) {
-      showNotification("Blank filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
+      showNotification("Blank Filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
     } else {
       showNotification(sprintf("Step 1 frozen: kept %d of %d features.", blank_state$stats$after, blank_state$stats$before), type="message", duration=4)
     }
@@ -767,14 +767,14 @@ observeEvent(input$clear_shared, {
     summary_table_ui(
       "Filtering results — Step 1 (Blank Filters)",
       tibble::tibble(
-        Metric = c("Features before", "Removed by Blank filter", "Features after"),
+        Metric = c("Features before", "Removed by Blank Filters", "Features after"),
         Value  = c(before, removed_blank, after)
       )
     )
   })
 
     # --------------------------
-    # STEP 2 state: MS filters (REPLACEMENT)
+    # STEP 2 state: MS Filters (REPLACEMENT)
     # --------------------------
     ms_state <- reactiveValues(
       applied = FALSE,
@@ -1443,9 +1443,9 @@ observeEvent(input$clear_shared, {
       any_ms_enabled <- isTRUE(input$enable_iso2) || isTRUE(input$enable_add2) || isTRUE(input$enable_nl2) || isTRUE(input$enable_isf2)
 
       if (!any_ms_enabled) {
-        showNotification("No MS filters enabled. Step 2 frozen as pass-through.", type="message", duration=4)
+        showNotification("No MS Filters enabled. Step 2 frozen as pass-through.", type="message", duration=4)
       } else if (ms_state$stats$after == 0) {
-        showNotification("MS filters removed all features. Try relaxing parameters.", type="error", duration=5)
+        showNotification("MS Filters removed all features. Try relaxing parameters.", type="error", duration=5)
       } else {
         showNotification(sprintf("Step 2 frozen: kept %d of %d features.", ms_state$stats$after, ms_state$stats$before), type="message", duration=4)
       }
@@ -1776,7 +1776,7 @@ observeEvent(input$clear_shared, {
   })
 
   # --------------------------
-  # STEP 3 state: QC filters
+  # STEP 3 state: QC Filters
   # --------------------------
   qc_state <- reactiveValues(
     applied = FALSE,
@@ -2014,9 +2014,9 @@ observeEvent(input$clear_shared, {
     qc_state$kept <- keep
 
     if (length(input$value_filters %||% character(0)) == 0) {
-      showNotification("No QC filters selected. Step 3 frozen as pass-through.", type="message", duration=4)
+      showNotification("No QC Filters selected. Step 3 frozen as pass-through.", type="message", duration=4)
     } else if (qc_state$stats$after_final == 0) {
-      showNotification("QC filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
+      showNotification("QC Filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
     } else {
       showNotification(sprintf("Step 3 frozen: kept %d of %d features.", qc_state$stats$after_final, qc_state$stats$before), type="message", duration=4)
     }
@@ -2457,9 +2457,9 @@ observeEvent(input$clear_shared, {
     peak_state$kept <- ids_kept
 
     if (length(sel) == 0) {
-      showNotification("No Peak filters selected. Step 4 frozen as pass-through.", type="message", duration=4)
+      showNotification("No Peak Filters selected. Step 4 frozen as pass-through.", type="message", duration=4)
     } else if (length(ids_kept) == 0) {
-      showNotification("Peak filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
+      showNotification("Peak Filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
     } else {
       showNotification(sprintf("Step 4 frozen: kept %d of %d features.", after, before), type="message", duration=4)
     }
@@ -2902,13 +2902,13 @@ output$help_body <- renderUI({
 
   if (sec == "quick") {
     return(div(
-      h3("Quick start"),
+      h3("Quick Start"),
       tags$ol(
         tags$li(tags$b("Upload Data:"), " Upload your CSV, choose correct sample column names keywords (identifiers) + mz & rt columns."),
-        tags$li(tags$b("Blank filters:"), " Define Blank group, set Blank filter -> Apply."),
-        tags$li(tags$b("MS filters:"), " Enable Deleting Isotopes/Adducts/Neutral Loses/Fragments -> Apply."),
-        tags$li(tags$b("QC filters:"), " Define groups, choose Zero/RSD/Mean/Min filters -> Apply."),
-        tags$li(tags$b("Peak filters:"), " Choose mz/rt/RMD/AMD cutoffs -> Apply. "),
+        tags$li(tags$b("Blank Filters:"), " Define Blank group, set Blank filter -> Apply."),
+        tags$li(tags$b("MS Filters:"), " Enable Deleting Isotopes/Adducts/Neutral Loses/Fragments -> Apply."),
+        tags$li(tags$b("QC Filters:"), " Define groups, choose Zero/RSD/Mean/Min filters -> Apply."),
+        tags$li(tags$b("Peak Filters:"), " Choose mz/rt/RMD/AMD cutoffs -> Apply. "),
         tags$li(tags$b("Final Summary:"), " Compile summary & export final dataset."),
         tags$li(tags$b("About:"), " Description, Project Details, References.")
       ),
@@ -2973,7 +2973,7 @@ output$help_body <- renderUI({
 
   if (sec == "blank") {
     return(div(
-      h3("Blank filters"),
+      h3("Blank Filters"),
       tags$ul(
         tags$li(tags$b("Labels:"), " choose label (group) source from sample names (token + separator) or upload labels in CSV (one column no headers)."),
         tags$li(tags$b("Blank filter:"), " select blank group(s) (at least one) -> mode (by cutoff or any peak) -> Apply blank filter."),
@@ -2990,7 +2990,7 @@ output$help_body <- renderUI({
 
   if (sec == "ms") {
     return(div(
-      h3("MS filters"),
+      h3("MS Filters"),
       tags$ul(
         tags$li(tags$b("Isotopes/Dimers:"), " define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5). Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains most intense isotope/dimer in each family.",
                 tags$br(),
@@ -3042,7 +3042,7 @@ output$help_body <- renderUI({
 
   if (sec == "qc") {
     return(div(
-      h3("QC filters"),
+      h3("QC Filters"),
       tags$ul(
         tags$li(tags$b("Labels:"), " choose label (group) source from sample names (token + separator) or upload labels in CSV (one column no headers)."),
         tags$li(tags$b("Value filters:"), " choose group for removal -> specify value(s): zeros(by counts or %) / mean / rsd / min -> mode of filtering (ANY/EVERY/POOLED) -> Apply value filters.",
@@ -3054,14 +3054,14 @@ output$help_body <- renderUI({
                         )),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically."),
         br(),
-        div(class="highlight", "Note: We recommend to apply QC filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while all other filters should be applied strictly before them.")
+        div(class="highlight", "Note: We recommend to apply QC Filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while all other filters should be applied strictly before them.")
       )
     ))
   }
 
   if (sec == "peak") {
     return(div(
-      h3("Peak filters"),
+      h3("Peak Filters"),
       tags$ul(
         tags$li(tags$b("Overview:"), " alows to filter peaks by m/z, rt and mass defect (absolute and relative) values."),
         tags$li(tags$b("Pick filters:"), " m/z, rt, RMD, and AMD bounds."),

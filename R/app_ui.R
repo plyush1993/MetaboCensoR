@@ -874,7 +874,7 @@ shiny::fluidPage(
           #helpText("Filters features by peak meta (m/z, rt, RMD, AMD) after QC."),
 
           tags$hr(),
-          h3(class = "highlight", "Peak filters"),
+          h3(class = "highlight", "Peak Filters"),
 
           div(style = "position: relative; margin-bottom: 15px;",
               div(
@@ -1099,12 +1099,12 @@ shiny::fluidPage(
         "help_section",
         "Select a section:",
         choices = c(
-          "Quick start"   = "quick",
+          "Quick Start"   = "quick",
           "Upload Data"   = "upload",
-          "Blank filters" = "blank",
-          "MS filters"    = "ms",
-          "QC filters"    = "qc",
-          "Peak filters"  = "peak",
+          "Blank Filters" = "blank",
+          "MS Filters"    = "ms",
+          "QC Filters"    = "qc",
+          "Peak Filters"  = "peak",
           "Final Summary" = "final",
           "Troubleshooting" = "trouble",
           "Project Details" = "about"
