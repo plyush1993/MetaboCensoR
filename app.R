@@ -1980,12 +1980,12 @@ ui <- fluidPage(
         "Select a section:",
         choices = c(
           "Quick start"   = "quick",
-          "Data upload"   = "upload",
+          "Upload Data"   = "upload",
           "Blank filters" = "blank",
           "MS filters"    = "ms",
           "QC filters"    = "qc",
           "Peak filters"  = "peak",
-          "Final summary" = "final",
+          "Final Summary" = "final",
           "Troubleshooting" = "trouble",
           "Project Details" = "about"
         ),
@@ -4899,12 +4899,12 @@ output$help_body <- renderUI({
     return(div(
       h3("Quick start"),
       tags$ol(
-        tags$li(tags$b("Data upload:"), " Upload your CSV, choose correct sample column names keywords (identifiers) + mz & rt columns."),
+        tags$li(tags$b("Upload Data:"), " Upload your CSV, choose correct sample column names keywords (identifiers) + mz & rt columns."),
         tags$li(tags$b("Blank filters:"), " Define Blank group, set Blank filter -> Apply."),
         tags$li(tags$b("MS filters:"), " Enable Deleting Isotopes/Adducts/Neutral Loses/Fragments -> Apply."),
         tags$li(tags$b("QC filters:"), " Define groups, choose Zero/RSD/Mean/Min filters -> Apply."),
         tags$li(tags$b("Peak filters:"), " Choose mz/rt/RMD/AMD cutoffs -> Apply. "),
-        tags$li(tags$b("Final summary:"), " Compile summary & export final dataset."),
+        tags$li(tags$b("Final Summary:"), " Compile summary & export final dataset."),
         tags$li(tags$b("About:"), " Description, Project Details, References.")
       ),
       div(class="highlight", "Rule: The last “Apply” click is saved."),
@@ -4932,7 +4932,7 @@ output$help_body <- renderUI({
 
   if (sec == "upload") {
     return(div(
-      h3("Data upload"),
+      h3("Upload Data"),
       tags$ul(
         tags$li(tags$b("Upload Peak Table (csv):"), " choose peak table type and then select specified columns."),
         tags$li(tags$b("Check preview:"), " to confirm that sample columns were detected correctly."),
@@ -5068,7 +5068,7 @@ output$help_body <- renderUI({
 
   if (sec == "final") {
     return(div(
-      h3("Final summary"),
+      h3("Final Summary"),
       tags$ul(
         tags$li(tags$b("Compile summary & final datasets:"), " final filtered peak table after all applied filters."),
         tags$li(tags$b("MGF filtering:"), " activated after final compile. Filters MGF file based on final filtered table. Feature/Peak ID in MGF should match with selected Feature ID in peak table.")
