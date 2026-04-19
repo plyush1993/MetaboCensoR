@@ -2015,7 +2015,8 @@ ui <- fluidPage(
 # Server ----
 # ==============================
 server <- function(input, output, session) {
-
+  
+options(shiny.maxRequestSize = 1024 * 1024^2)
   # --------------------------
   # Shared upload hub (Tab 0)
   # --------------------------
