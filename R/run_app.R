@@ -31,5 +31,6 @@ run_metabocensor <- function(max_size_gb = 5, ...) {
     }, add = TRUE)
 
   shiny::addResourcePath("www", system.file("www", package = "MetaboCensoR"))
+  shiny::shinyOptions(app_max_size_gb = max_size_gb)
   shiny::shinyApp(ui = app_ui(), server = app_server, ...)
 }
