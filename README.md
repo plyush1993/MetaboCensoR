@@ -57,7 +57,7 @@ Alternatively, Windows users can launch the app automatically using a [`.bat`](h
 <br>
 
 ### Citation :link:
-If you use **`MetaboCensoR`** in your study, please cite this paper:
+If you use **`MetaboCensoR`**, please cite:
 
 > [To be updated](https://doi.org/)
 <br/>
