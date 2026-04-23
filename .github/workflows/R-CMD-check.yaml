@@ -27,13 +27,8 @@ jobs:
         with:
           extra-packages: any::rcmdcheck
           needs: check
+          pak-verbose: true
 
       - uses: r-lib/actions/check-r-package@v2
         with:
           error-on: '"error"'
-
-      - uses: r-lib/actions/setup-r-dependencies@v2
-       with:
-        extra-packages: any::rcmdcheck
-        needs: check
-        pak-verbose: true
