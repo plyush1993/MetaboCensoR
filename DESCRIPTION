@@ -32,9 +32,6 @@ Imports:
     tools,
     vroom,
     waiter
-Remotes: 
-    bioc::Spectra,
-    bioc::MsBackendMgf
 biocViews: MassSpectrometry, Metabolomics
 Depends: 
     R (>= 4.1.2)
