@@ -1758,9 +1758,10 @@ observeEvent(input$clear_shared, {
   })
 
   qc_label_vector <- reactive({
-    req(sample_names(), label_vector_blank())
+    req(sample_names())
     src <- input$qc_label_source %||% "inherit"
     if (identical(src, "inherit")) {
+      req(label_vector_blank())
       label_vector_blank()
     } else if (identical(src, "from_custom")) {
       qc_custom_labels()
