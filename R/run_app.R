@@ -10,6 +10,12 @@
 #' @importFrom crayon blue red cyan bold %+%
 #' @export
 run_metabocensor <- function(max_size_gb = 5, ...) {
+
+  app_version <- tryCatch(
+    as.character(utils::packageVersion("MetaboCensoR")),
+    error = function(e) "Dev"
+  )
+
   cat("\n")
   cat(crayon::cyan("             +====================+\n"))
   app_name <- paste0(
@@ -18,6 +24,7 @@ run_metabocensor <- function(max_size_gb = 5, ...) {
   )
   cat(crayon::cyan("             | "), app_name, crayon::cyan(" |\n"), sep = "")
   cat(crayon::cyan("             +====================+\n"))
+  cat(crayon::cyan("                 Version: ", app_version, "\n", sep = ""))
   cat("\n")
   cat(crayon::cyan(crayon::bold("Shiny App for filtering redundant features in LC-MS\n")))
   cat("\n")

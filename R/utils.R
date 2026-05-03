@@ -693,7 +693,7 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
     ds_sub <- if ("Label" %in% names(ds) && length(labs)) filter(ds, Label %in% labs) else ds
     if (!nrow(ds_sub)) return(character(0))
     vec <- vapply(ds_sub[feats], calc_rsd, numeric(1))
-    return(names(vec)[is.finite(vec) & vec <= rcut])
+    return(names(vec)[is.na(vec) | (is.finite(vec) & vec <= rcut)])
   }
 
   st <- ds %>%
@@ -703,7 +703,7 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
   if (!nrow(st)) return(character(0))
 
   pred <- if (mode == "group_every") all else any
-  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(.x <= rcut, na.rm = TRUE)))
+  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(is.na(.x) | .x <= rcut, na.rm = TRUE)))
   keep_true_cols(keep_df)
 }
 

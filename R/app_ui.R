@@ -761,7 +761,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnqcv",
-                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage",
+                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage<br><br>RSD calculation requires at least 2 samples per group",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
