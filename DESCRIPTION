@@ -1,6 +1,6 @@
 Package: MetaboCensoR
 Title: Shiny App for filtering redundant features in LC-MS
-Version: 0.1
+Version: 1.0.0
 Authors@R: 
     person("Ivan", "Plyushchenko", , "plyushchenko.ivan@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3883-4695"))

@@ -732,7 +732,7 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
     ds_sub <- if ("Label" %in% names(ds) && length(labs)) filter(ds, Label %in% labs) else ds
     if (!nrow(ds_sub)) return(character(0))
     vec <- vapply(ds_sub[feats], calc_rsd, numeric(1))
-    return(names(vec)[is.finite(vec) & vec <= rcut])
+    return(names(vec)[is.na(vec) | (is.finite(vec) & vec <= rcut)])
   }
 
   st <- ds %>%
@@ -742,7 +742,7 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
   if (!nrow(st)) return(character(0))
 
   pred <- if (mode == "group_every") all else any
-  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(.x <= rcut, na.rm = TRUE)))
+  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(is.na(.x) | .x <= rcut, na.rm = TRUE)))
   keep_true_cols(keep_df)
 }
 
@@ -1641,7 +1641,7 @@ ui <- fluidPage(
               ")),
               bsTooltip(
                 id = "btnqcv", 
-                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage", 
+                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage<br><br>RSD calculation requires at least 2 samples per group", 
                 placement = "right", 
                 trigger = "click", 
                 options = list(container = "body", html = TRUE)
@@ -2629,7 +2629,11 @@ observeEvent(input$clear_shared, {
         labs(x = "Ratio: Mean(Blank) / Max(Mean(Sample)) (log10 scale)", 
              y = "Count",
              title = "Blank to Sample Ratio Distribution") + 
-        scale_x_continuous(trans = log10_plus_one_trans())
+        scale_x_continuous(trans = log10_plus_one_trans(), breaks = function(limits) {
+                                                                                      max_val <- max(limits, na.rm = TRUE)
+                                                                                      if (!is.finite(max_val) || max_val <= 0) return(0)
+                                                                                      c(0, 10^seq(1, ceiling(log10(max_val))))
+                                                                                    })
 
       p <- ggplotly(gg) %>% 
         layout(
@@ -3946,7 +3950,11 @@ observeEvent(input$clear_shared, {
         labs(x = NULL, y = "Count") # Native ggplot axis
 
       if (md$metric %in% c("mean", "min")) {
-        gg <- gg + scale_x_continuous(trans = log10_plus_one_trans())
+        gg <- gg + scale_x_continuous(trans = log10_plus_one_trans(), breaks = function(limits) {
+                                                                                      max_val <- max(limits, na.rm = TRUE)
+                                                                                      if (!is.finite(max_val) || max_val <= 0) return(0)
+                                                                                      c(0, 10^seq(1, ceiling(log10(max_val))))
+                                                                                    })
       }
       
       # 4. FORCE PLOTLY AXES: Tell Plotly not to drop the labels
@@ -3960,7 +3968,12 @@ observeEvent(input$clear_shared, {
     }
 
     # 5. Assemble Subplots
-    if (length(plots_list) == 1) {
+    if (length(plots_list) == 0) {
+      # Catch the empty list before Plotly crashes
+      validate(
+        need(FALSE, "Not enough valid data points to generate the plot (e.g., groups may have too few samples to calculate RSD).")
+      )
+    } else if (length(plots_list) == 1) {
       plots_list[[1]]
     } else {
       subplot(plots_list, nrows = length(plots_list), shareX = FALSE, shareY = FALSE, titleX = TRUE, titleY = TRUE, margin = 0.06) %>% 
@@ -5050,7 +5063,9 @@ output$help_body <- renderUI({
                         )),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically."),
         br(),
-        div(class="highlight", "Note: We recommend to apply QC Filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while all other filters should be applied strictly before them.")
+        div(class="highlight", "Note: We recommend to apply QC Filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while all other filters should be applied strictly before them."),
+        br(),
+        div(class="highlight", "Note: RSD calculation requires at least 2 samples per group.")
       )
     ))
   }
