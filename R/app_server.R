@@ -312,11 +312,11 @@ observeEvent(input$clear_shared, {
         selectizeInput(
           "sample_keyword0",
           "Sample column keywords (pick/add multiple):",
-          choices  = c(".mzML", ".mzXML", ".raw", "_Area", "_Height", "Area", "Height"),
+          choices  = c(".mzML", ".mzXML", ".raw", ".d", "Peak area", "Area", "_Area"),
           selected = c(".mzML", ".mzXML"),
           multiple = TRUE,
           options  = list(create = TRUE, createOnBlur = TRUE,
-                          placeholder = "Type to add (e.g. _Area) and press Enter")
+                          placeholder = "Type to add (e.g. Area) and press Enter")
         )
       ),
 
@@ -2926,6 +2926,12 @@ output$help_body <- renderUI({
         tags$li(tags$b("Final Summary:"), " Compile summary & export final dataset."),
         tags$li(tags$b("About:"), " Description, Project Details, References.")
       ),
+      div(class = "highlight",
+      "Quick Start Guide: ",
+      tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf", "Tutorial", target = "_blank"),
+      "."
+      ),
+      br(),
       div(class="highlight", "Rule: The last “Apply” click is saved."),
       br(),
       div(class="highlight", "Rule: Filters are applied sequentially. Changes made on later tabs do not affect the results of previous tabs."),
@@ -3116,7 +3122,26 @@ output$help_body <- renderUI({
       " repository."),
       tags$li(tags$b("Disconnected from the server:"), " could be caused by memory limit, try to compile and run it locally. Instructions in the ",
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR", "GitHub", target = "_blank", style = "color: #ffcc00; font-weight: bold;"),
-      " repository.")
+      " repository."),
+
+tags$div(
+  style = "position: relative; background-color: #f6f8fa; border-radius: 6px; padding: 2px 2px; margin-top: 6px; margin-bottom: 6px; border: 1px solid #d0d7de; text-align: left; direction: ltr;",
+  tags$button(
+    "Copy",
+    style = "position: absolute; top: 4px; right: 4px; font-size: 15px; padding: 2px 2px; cursor: pointer; border-radius: 4px; border: 1px solid #d0d7de; background-color: #ffffff; color: #24292f;",
+    onclick = "var codeText = document.getElementById('plotly-fix-code').innerText; var textArea = document.createElement('textarea'); textArea.value = codeText; document.body.appendChild(textArea); textArea.select(); document.execCommand('copy'); document.body.removeChild(textArea); this.innerText = 'Copied!'; setTimeout(() => this.innerText = 'Copy', 2000);"
+  ),
+
+  tags$pre(
+    style = "margin: 0; background: transparent; border: none; overflow-x: auto; text-align: left; direction: ltr; line-height: 1.25;",
+    tags$code(
+      id = "plotly-fix-code",
+      style = "font-family: monospace; font-size: 14px; color: #24292f; text-align: left; direction: ltr; display: block; white-space: pre; padding: 0; margin: 0;",
+      "if (!requireNamespace(\"devtools\", quietly = TRUE)) install.packages(\"devtools\")\ndevtools::install_version(\"ggplot2\", version = \"3.4.4\", repos = \"http://cran.us.r-project.org\")\ndevtools::install_version(\"plotly\", version = \"4.10.4\", repos = \"http://cran.us.r-project.org\")"
+    )
+  )
+)
+
     )
   ))
   }
