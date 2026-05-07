@@ -3124,6 +3124,11 @@ output$help_body <- renderUI({
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR", "GitHub", target = "_blank", style = "color: #ffcc00; font-weight: bold;"),
       " repository."),
 
+tags$li(
+  style = "text-align: left !important;",
+  tags$b("Error 'subscript out of bounds' for any plot:"),
+  " This can occur on local machines even with example datasets due to a known version mismatch between ", tags$code("ggplot2"), " and ", tags$code("plotly"), ". ",
+  "You can fix this by explicitly installing matched stable versions:",
 tags$div(
   style = "position: relative; background-color: #f6f8fa; border-radius: 6px; padding: 2px 2px; margin-top: 6px; margin-bottom: 6px; border: 1px solid #d0d7de; text-align: left; direction: ltr;",
   tags$button(
@@ -3140,7 +3145,7 @@ tags$div(
       "if (!requireNamespace(\"devtools\", quietly = TRUE)) install.packages(\"devtools\")\ndevtools::install_version(\"ggplot2\", version = \"3.4.4\", repos = \"http://cran.us.r-project.org\")\ndevtools::install_version(\"plotly\", version = \"4.10.4\", repos = \"http://cran.us.r-project.org\")"
     )
   )
-)
+))
 
     )
   ))
