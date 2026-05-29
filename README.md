@@ -19,7 +19,7 @@ Check compatibility with [`examples of inputs`](https://github.com/plyush1993/Me
 :bulb:<ins>**Learn More**</ins>: Check out the [`Tutorial`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf) for a full GUI walkthrough.
 
 <details>
-  <summary><b>Server Map&nbsp;&nbsp;</b></summary>
+  <summary><b>Server GUI Map&nbsp;&nbsp;</b></summary>
   <br/>
 </a><a href="DOI:">
 <img src="Server_Map.png" align="center" width="700" height="500">
