@@ -16,7 +16,7 @@ Check compatibility with [`examples of inputs`](https://github.com/plyush1993/Me
 - Compile the final filtered peak table, and filter [`MGF file`](https://fiehnlab.ucdavis.edu/projects/lipidblast/mgf-files) according to the final peak table.
 - Instructions and details.
 
-:bulb:<ins>**Learn More**</ins>: Check out the [`Tutorial`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf) for a full walkthrough.
+:bulb:<ins>**Learn More**</ins>: Check out the [`Tutorial`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf) for a full GUI walkthrough.
 
 <details>
   <summary><b>Server Map&nbsp;&nbsp;</b></summary>
