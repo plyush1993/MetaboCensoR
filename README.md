@@ -17,7 +17,8 @@ Check compatibility with [`examples of inputs`](https://github.com/plyush1993/Me
 - Instructions, references, and details.
 
 :bulb:<ins>**Learn More**</ins>: Check out the [`Tutorial`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf) for a full GUI walkthrough.<br>
-:test_tube:<ins>**See it in Action**</ins>: Check out our [`Examples`](https://github.com/plyush1993/MetaboCensoR_Examples) repository for case studies.
+:book:<ins>**Manuscript**</ins>: Read our [`Publication`](https://doi.org/) for the detailed methodology and performance benchmarking.<br>
+:test_tube:<ins>**Case Studies**</ins>: Visit the [`Examples`](https://github.com/plyush1993/MetaboCensoR_Examples) repository for application examples.
 
 <details>
   <summary><b>Server GUI Map&nbsp;&nbsp;</b></summary>
