@@ -130,13 +130,18 @@ observeEvent(input$clear_shared, {
     ms_state$del_add <- character(0)
     ms_state$del_nl  <- character(0)
     ms_state$del_isf <- character(0)
+    ms_state$del_mis  <- character(0)
+    ms_state$del_ring <- character(0)
 
+    ms_state$mis_merge_map <- NULL
     ms_state$iso_table <- NULL
     ms_state$add_table <- NULL
     ms_state$nl_table  <- NULL
     ms_state$isf_table <- NULL
+    ms_state$mis_table  <- NULL
+    ms_state$ring_table <- NULL
 
-    ms_state$stats <- list(before=0L, after=0L, removed_iso=0L, removed_add=0L, removed_nl=0L, removed_isf=0L)
+    ms_state$stats <- list(before=0L, after=0L, removed_iso=0L, removed_add=0L, removed_nl=0L, removed_isf=0L, removed_mis = 0L, removed_ring = 0L)
 
     # 6. Reset Step 3 (QC)
     qc_state$applied <- FALSE
@@ -184,7 +189,7 @@ observeEvent(input$clear_shared, {
         updateSelectInput(session, "data_type0", selected = "mzmine")
 
         # 2. Use the RAW GitHub URL (vroom needs the raw CSV, not the HTML page)
-        example_url <- system.file("extdata", "orbi_iimn_gnps_quant.csv", package = "MetaboCensoR")
+        example_url <- "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/Input_Examples/orbi_iimn_gnps_quant.csv"
 
         # 3. Read data directly from GitHub
         df0 <- as.data.frame(vroom::vroom(example_url, delim = ",", show_col_types = FALSE))
@@ -532,7 +537,7 @@ observeEvent(input$clear_shared, {
         "groups_to_remove",
         "Choose blank/media group(s):",
         choices = labs, multiple = TRUE,
-        options = list(placeholder = "Pick one or more (e.g., Media, Blank)…")
+        options = list(placeholder = "Pick one or more (e.g., Media, Blank)")
       ),
       radioButtons(
         "blank_mode", "Filtering mode:",
@@ -789,17 +794,22 @@ observeEvent(input$clear_shared, {
       del_add = character(0),
       del_nl  = character(0),
       del_isf = character(0),
+      del_mis = character(0),
+      del_ring = character(0),
 
+      mis_merge_map = NULL,
       iso_table = NULL,
       add_table = NULL,
       nl_table  = NULL,
       isf_table = NULL,
+      mis_table = NULL,
+      ring_table = NULL,
 
       isf_status = NULL,
 
       stats = list(
         before = 0L, after = 0L,
-        removed_iso = 0L, removed_add = 0L, removed_nl = 0L, removed_isf = 0L
+        removed_iso = 0L, removed_add = 0L, removed_nl = 0L, removed_isf = 0L, removed_mis = 0L, removed_ring = 0L
       )
     )
 
@@ -821,20 +831,27 @@ observeEvent(input$clear_shared, {
 
       ms_state$isf_status <- NULL
       ms_state$stats$before <- ncol(ds)
-      ms_state$stats$removed_iso <- 0L
-      ms_state$stats$removed_add <- 0L
-      ms_state$stats$removed_nl  <- 0L
-      ms_state$stats$removed_isf <- 0L
+      ms_state$stats$removed_iso  <- 0L
+      ms_state$stats$removed_add  <- 0L
+      ms_state$stats$removed_nl   <- 0L
+      ms_state$stats$removed_isf  <- 0L
+      ms_state$stats$removed_mis  <- 0L
+      ms_state$stats$removed_ring <- 0L
 
-      ms_state$del_iso <- character(0)
-      ms_state$del_add <- character(0)
-      ms_state$del_nl  <- character(0)
-      ms_state$del_isf <- character(0)
+      ms_state$del_iso  <- character(0)
+      ms_state$del_add  <- character(0)
+      ms_state$del_nl   <- character(0)
+      ms_state$del_isf  <- character(0)
+      ms_state$del_mis  <- character(0)
+      ms_state$del_ring <- character(0)
 
-      ms_state$iso_table <- NULL
-      ms_state$add_table <- NULL
-      ms_state$nl_table  <- NULL
-      ms_state$isf_table <- NULL
+      ms_state$mis_merge_map <- NULL
+      ms_state$iso_table  <- NULL
+      ms_state$add_table  <- NULL
+      ms_state$nl_table   <- NULL
+      ms_state$isf_table  <- NULL
+      ms_state$mis_table  <- NULL
+      ms_state$ring_table <- NULL
 
       # helper to refresh intensity after each filtering step
       refresh_ft <- function(ds, ft) {
@@ -922,7 +939,7 @@ observeEvent(input$clear_shared, {
       # ==========================
       # B) Adduct families collapse (neutral mass)
       # ==========================
-      if (!is.null(hostess)) hostess$set(35)
+      if (!is.null(hostess)) hostess$set(25)
       if (isTRUE(input$enable_add2) && ncol(ds) > 0) {
         pol <- input$add_pol2 %||% "positive"
 
@@ -963,7 +980,7 @@ observeEvent(input$clear_shared, {
         )
 
         min_NM <- as.numeric(input$add_min_nm2 %||% 50)
-        rt_tol_add <- as.numeric(input$add_rt2 %||% 0.01)
+        rt_tol_add <- as.numeric(input$add_rt2 %||% 0.005)
 
         peaks <- pk %>%
           dplyr::transmute(
@@ -1046,7 +1063,7 @@ observeEvent(input$clear_shared, {
                 dplyr::inner_join(group_map, by = "peak_id") %>%
                 dplyr::group_by(group_id) %>%
                 dplyr::arrange(ret, .by_group = TRUE) %>%
-                dplyr::mutate(rt_group = split_rt_strict(ret, as.numeric(input$add_rt2 %||% 0.01))) %>%
+                dplyr::mutate(rt_group = split_rt_strict(ret, as.numeric(input$add_rt2 %||% 0.005))) %>%
                 dplyr::ungroup()
 
               # 2. Filter hits_corr to ONLY keep edges where both nodes share the same strict RT group
@@ -1161,7 +1178,7 @@ observeEvent(input$clear_shared, {
       # ==========================
       # C) Neutral losses collapse
       # ==========================
-      if (!is.null(hostess)) hostess$set(65)
+      if (!is.null(hostess)) hostess$set(55)
       if (isTRUE(input$enable_nl2) && ncol(ds) > 0) {
         nl_pol <- input$nl_pol2 %||% "positive"
         nl_df <- safe_read_csv_any(input$nl_file2)
@@ -1319,7 +1336,7 @@ observeEvent(input$clear_shared, {
       # ==========================
       # D) Fragments (ISF) collapse
       # ==========================
-      if (!is.null(hostess)) hostess$set(85)
+      if (!is.null(hostess)) hostess$set(65)
       if (isTRUE(input$enable_isf2) && ncol(ds) > 0) {
         pk <- ft %>%
           dplyr::transmute(Feature, mz = as.numeric(mz), rt = as.numeric(rt), intensity = as.numeric(intensity)) %>%
@@ -1437,6 +1454,102 @@ observeEvent(input$clear_shared, {
 
       }
 
+      # ==========================
+      # E) Mispicked ions collapse
+      # ==========================
+      if (!is.null(hostess)) hostess$set(75)
+      if (isTRUE(input$enable_mis2) && ncol(ds) > 0) {
+        pk <- ft %>%
+          dplyr::transmute(Feature, mz = as.numeric(mz), rt = as.numeric(rt), intensity = as.numeric(intensity)) %>%
+          dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds))
+
+        tol_fun <- mz_tol_fun_factory(
+          type = input$mis_tol_type2 %||% "ppm",
+          mz_tol_da = as.numeric(input$mis_mz_tol2 %||% 0.005),
+          ppm = as.numeric(input$mis_ppm2 %||% 10)
+        )
+
+        edges <- make_mispicked_edges(pk = pk, rt_tol = as.numeric(input$mis_rt2 %||% 0.002), tol_fun = tol_fun)
+
+        if (nrow(edges) > 0) {
+          X <- as.matrix(ds)
+          idx1 <- match(edges$Feature1, colnames(X))
+          idx2 <- match(edges$Feature2, colnames(X))
+          edges$r <- cor_for_pairs(X, idx1, idx2)
+          rm(X); gc()
+
+          edges <- edges %>% dplyr::filter(is.finite(r), r >= as.numeric(input$mis_cor2 %||% 0.80))
+        }
+
+        res_mis <- collapse_components_keep_most_intense(edges, pk, group_col = "mis_group")
+
+        ms_state$mis_table <- res_mis$table
+        ms_state$mis_merge_map <- res_mis$merge_map
+
+        # Sum mispicked ion intensities into representative ion
+        if (!is.null(ms_state$mis_merge_map) && nrow(ms_state$mis_merge_map) > 0) {
+          ds <- apply_merge_map_to_matrix(ds, ms_state$mis_merge_map)
+        }
+
+        # Delete non-representative features after summing
+        ms_state$del_mis <- setdiff(colnames(ds), res_mis$keep)
+        ms_state$stats$removed_mis <- length(ms_state$del_mis)
+
+        if (length(ms_state$del_mis) > 0) {
+          ds <- ds[, setdiff(colnames(ds), ms_state$del_mis), drop = FALSE]
+          ft <- refresh_ft(ds, ft)
+        }
+
+        suppressWarnings(rm(edges, res_mis)); gc()
+      }
+
+      # ==========================
+      # F) Saturated ions (Ringing) collapse
+      # ==========================
+      if (!is.null(hostess)) hostess$set(85)
+      if (isTRUE(input$enable_ring2) && ncol(ds) > 0) {
+        pk <- ft %>%
+          dplyr::transmute(Feature, mz = as.numeric(mz), rt = as.numeric(rt), intensity = as.numeric(intensity)) %>%
+          dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds))
+
+        tol_fun_ring <- mz_tol_fun_factory(
+          type = input$ring_tol_type2 %||% "da",
+          mz_tol_da = as.numeric(input$ring_mz_tol2 %||% 0.95),
+          ppm = as.numeric(input$ring_ppm2 %||% 500)
+        )
+
+        edges <- make_ringing_edges(
+          pk = pk,
+          rt_tol = as.numeric(input$ring_rt2 %||% 0.05),
+          tol_fun = tol_fun_ring,
+          min_anchor_int = as.numeric(input$ring_min_anch2 %||% 1e5),
+          max_ratio = as.numeric(input$ring_ratio2 %||% 10),
+          bidirectional = isTRUE(input$ring_bidirectional2)
+        )
+
+        if (nrow(edges) > 0) {
+          X <- as.matrix(ds)
+          idx1 <- match(edges$Feature1, colnames(X))
+          idx2 <- match(edges$Feature2, colnames(X))
+          edges$r <- cor_for_pairs(X, idx1, idx2)
+          rm(X); gc()
+
+          edges <- edges %>% dplyr::filter(is.finite(r), r >= as.numeric(input$ring_cor2 %||% 0.80))
+        }
+
+        res_ring <- collapse_components_keep_most_intense(edges, pk, group_col = "ring_group")
+
+        ms_state$ring_table <- res_ring$table
+        ms_state$del_ring <- setdiff(colnames(ds), res_ring$keep)
+        ms_state$stats$removed_ring <- length(ms_state$del_ring)
+
+        if (length(ms_state$del_ring) > 0) {
+          ds <- ds[, setdiff(colnames(ds), ms_state$del_ring), drop = FALSE]
+          ft <- refresh_ft(ds, ft)
+        }
+        suppressWarnings(rm(edges, res_ring)); gc()
+      }
+
       # finalize
       if (!is.null(hostess)) hostess$set(100)
       ms_state$matrix <- ds
@@ -1444,7 +1557,12 @@ observeEvent(input$clear_shared, {
       ms_state$show_summary <- TRUE
       ms_state$stats$after <- ncol(ds)
 
-      any_ms_enabled <- isTRUE(input$enable_iso2) || isTRUE(input$enable_add2) || isTRUE(input$enable_nl2) || isTRUE(input$enable_isf2)
+      any_ms_enabled <- isTRUE(input$enable_iso2) ||
+      isTRUE(input$enable_add2) ||
+      isTRUE(input$enable_nl2) ||
+      isTRUE(input$enable_isf2) ||
+      isTRUE(input$enable_mis2) ||
+      isTRUE(input$enable_ring2)
 
       if (!any_ms_enabled) {
         showNotification("No MS Filters enabled. Step 2 frozen as pass-through.", type="message", duration=4)
@@ -1492,20 +1610,34 @@ observeEvent(input$clear_shared, {
       ms_state$matrix <- NULL
       ms_state$isf_status <- NULL
 
-      ms_state$del_iso <- character(0)
-      ms_state$del_add <- character(0)
-      ms_state$del_nl  <- character(0)
-      ms_state$del_isf <- character(0)
+      ms_state$del_iso  <- character(0)
+      ms_state$del_add  <- character(0)
+      ms_state$del_nl   <- character(0)
+      ms_state$del_isf  <- character(0)
+      ms_state$del_mis  <- character(0)
+      ms_state$del_ring <- character(0)
 
-      ms_state$iso_table <- NULL
-      ms_state$add_table <- NULL
-      ms_state$nl_table  <- NULL
-      ms_state$isf_table <- NULL
+      ms_state$mis_merge_map <- NULL
+      ms_state$iso_table  <- NULL
+      ms_state$add_table  <- NULL
+      ms_state$nl_table   <- NULL
+      ms_state$isf_table  <- NULL
+      ms_state$mis_table  <- NULL
+      ms_state$ring_table <- NULL
 
-      ms_state$stats <- list(before=0L, after=0L, removed_iso=0L, removed_add=0L, removed_nl=0L, removed_isf=0L)
+      ms_state$stats <- list(
+        before = 0L,
+        after = 0L,
+        removed_iso = 0L,
+        removed_add = 0L,
+        removed_nl = 0L,
+        removed_isf = 0L,
+        removed_mis = 0L,
+        removed_ring = 0L
+      )
 
       showNotification("Step 2 reset: pass-through.", type = "message", duration = 3)
-    }, ignoreInit = TRUE)
+      }, ignoreInit = TRUE)
 
     mat_ms_out <- reactive({
       req(mat_ms_in())
@@ -1517,11 +1649,21 @@ observeEvent(input$clear_shared, {
     df <- raw_after_blank()
     if (!isTRUE(ms_state$applied)) return(df)
 
+    if (!is.null(ms_state$mis_merge_map) && nrow(ms_state$mis_merge_map) > 0) {
+    df <- apply_merge_map_to_raw(
+      raw_df_fid = df,
+      merge_map  = ms_state$mis_merge_map,
+      sample_cols = sample_cols0()
+    )
+    }
+
     del_ms <- unique(c(
       ms_state$del_iso %||% character(0),
       ms_state$del_add %||% character(0),
       ms_state$del_nl  %||% character(0),
-      ms_state$del_isf %||% character(0)
+      ms_state$del_isf %||% character(0),
+      ms_state$del_mis %||% character(0),
+      ms_state$del_ring %||% character(0)
     ))
     if (length(del_ms) > 0) {
       df <- df[!df$.FID %in% del_ms, , drop = FALSE]
@@ -1547,6 +1689,7 @@ observeEvent(input$clear_shared, {
       tbl <- ms_state$iso_table
       if (is.null(tbl) || nrow(tbl) == 0)
         return(datatable(data.frame(Note="No isotope/dimer groups found (or skipped).")))
+      tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
       tbl$iso_group <- suppressWarnings(as.integer(tbl$iso_group))
       i <- match("iso_group", names(tbl))
       datatable(
@@ -1583,6 +1726,7 @@ observeEvent(input$clear_shared, {
       if (is.null(tbl) || nrow(tbl) == 0) {
         return(datatable(data.frame(Note="No adduct families found (or skipped).")))
       }
+      tbl <- tbl[, setdiff(names(tbl), "keep_rep"), drop = FALSE]
       idx_group <- match("group_id", names(tbl))
       idx_family <- match("family_id", names(tbl))
       datatable(
@@ -1718,6 +1862,58 @@ observeEvent(input$clear_shared, {
                     backgroundColor = styleEqual(c("kept", "filtered"), c("#dff0d8", "#f2dede")))
     }, server = F)
 
+    output$mis2_table <- renderDT({
+      req(input$show_mis_table2)
+      tbl <- ms_state$mis_table
+      if (is.null(tbl) || nrow(tbl) == 0)
+        return(datatable(data.frame(Note="No mispicked ions clusters identified.")))
+      tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+      tbl$mis_group <- suppressWarnings(as.integer(tbl$mis_group))
+      i <- match("mis_group", names(tbl))
+      datatable(tbl, extensions = 'Buttons', options = list(pageLength = 10, scrollX = TRUE, dom = 'Bfrtip',
+                                                            buttons = list(
+          list(
+            extend = "csvHtml5",
+            text   = "Download CSV",
+            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " mispicked ions"),
+            exportOptions = list(
+              modifier = list(page = "all")
+            )
+          )
+        ),
+                                                            order = list(list(i, "desc")))) %>%
+        DT::formatRound(columns = c("mz"), digits = 4) %>%
+        DT::formatRound(columns = c("rt"), digits = 3) %>%
+        DT::formatRound(columns = c("intensity"), digits = 1) %>%
+        formatStyle('status', backgroundColor = styleEqual(c("kept", "keep_rep", "filtered"), c("#dff0d8", "#dff0d8", "#f2dede")))
+    }, server = F)
+
+    output$ring2_table <- renderDT({
+      req(input$show_ring_table2)
+      tbl <- ms_state$ring_table
+      if (is.null(tbl) || nrow(tbl) == 0)
+        return(datatable(data.frame(Note="No saturated (ringing) ions identified.")))
+      tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+      tbl$ring_group <- suppressWarnings(as.integer(tbl$ring_group))
+      i <- match("ring_group", names(tbl))
+      datatable(tbl, extensions = 'Buttons', options = list(pageLength = 10, scrollX = TRUE, dom = 'Bfrtip',
+                                                            buttons = list(
+          list(
+            extend = "csvHtml5",
+            text   = "Download CSV",
+            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " saturated ions"),
+            exportOptions = list(
+              modifier = list(page = "all")
+            )
+          )
+        ),
+                                                            order = list(list(i, "desc")))) %>%
+        DT::formatRound(columns = c("mz"), digits = 4) %>%
+        DT::formatRound(columns = c("rt"), digits = 3) %>%
+        DT::formatRound(columns = c("intensity"), digits = 1) %>%
+        formatStyle('status', backgroundColor = styleEqual(c("kept", "keep_rep", "filtered"), c("#dff0d8", "#dff0d8", "#f2dede")))
+    }, server = F)
+
     output$ms_filter_summary <- renderUI({
       req(ms_state$applied)
       req(isTRUE(ms_state$show_summary))
@@ -1729,6 +1925,8 @@ observeEvent(input$clear_shared, {
       removed_add <- ms_state$stats$removed_add %||% 0L
       removed_nl  <- ms_state$stats$removed_nl  %||% 0L
       removed_isf <- ms_state$stats$removed_isf %||% 0L
+      removed_mis  <- ms_state$stats$removed_mis  %||% 0L
+      removed_ring <- ms_state$stats$removed_ring %||% 0L
       removed_total <- before - after
 
       summary_table_ui(
@@ -1740,10 +1938,12 @@ observeEvent(input$clear_shared, {
             "Removed by Adduct families",
             "Removed by Neutral losses",
             "Removed by Fragments",
+            "Removed by Mispicked Ions",
+            "Removed by Saturated Ions",
             "Total removed",
             "Features after"
           ),
-          Value = c(before, removed_iso, removed_add, removed_nl, removed_isf, removed_total, after)
+          Value = c(before, removed_iso, removed_add, removed_nl, removed_isf, removed_mis, removed_ring, removed_total, after)
         )
       )
     })
@@ -1873,7 +2073,6 @@ observeEvent(input$clear_shared, {
       }
       res_list[["rsd"]] <- list(metric="rsd", mode=mode, data=long)
     }
-
     res_list
   }, ignoreInit = TRUE)
 
@@ -2139,12 +2338,11 @@ observeEvent(input$clear_shared, {
                  removed_mz=0L, removed_rt=0L, removed_rmd=0L, removed_amd=0L, removed_total=0L)
   )
 
-  # Align raw table to current pipeline input (blank + merge + MS deletions + QC kept)
+  # Align raw table to current pipeline input (blank + MS deletions + QC kept)
   peak_table_in_raw <- reactive({
     req(raw_zeroed(), sample_cols0())
 
     blank_keep <- if (isTRUE(blank_state$applied)) blank_state$kept else NULL
-    merge_map  <- NULL
 
     del_ms <- character(0)
     if (isTRUE(ms_state$applied)) {
@@ -2152,7 +2350,9 @@ observeEvent(input$clear_shared, {
         ms_state$del_iso %||% character(0),
         ms_state$del_add %||% character(0),
         ms_state$del_nl  %||% character(0),
-        ms_state$del_isf %||% character(0)
+        ms_state$del_isf %||% character(0),
+        ms_state$del_mis  %||% character(0),
+        ms_state$del_ring %||% character(0)
       ))
     }
     final_keep <- if (isTRUE(qc_state$applied)) qc_state$kept else NULL
@@ -2161,7 +2361,7 @@ observeEvent(input$clear_shared, {
     raw_df_fid  = raw_zeroed(),
     sample_cols = sample_cols0(),
     blank_keep = blank_keep,
-    merge_map  = merge_map,
+    merge_map   = ms_state$mis_merge_map,
     del_ms     = del_ms,
     final_keep = final_keep
     )
@@ -2583,10 +2783,9 @@ observeEvent(input$clear_shared, {
   shinyjs::disable("compile_final")
   shinyjs::delay(50, {
     tryCatch({
-      req(raw_fid(), input$sample_keyword0)
+      req(raw_zeroed(), sample_cols0())
 
       blank_keep <- if (isTRUE(blank_state$applied)) blank_state$kept else NULL
-      merge_map  <- NULL
 
       del_ms <- character(0)
       if (isTRUE(ms_state$applied)) {
@@ -2594,7 +2793,9 @@ observeEvent(input$clear_shared, {
           ms_state$del_iso %||% character(0),
           ms_state$del_add %||% character(0),
           ms_state$del_nl  %||% character(0),
-          ms_state$del_isf %||% character(0)
+          ms_state$del_isf %||% character(0),
+          ms_state$del_mis  %||% character(0),
+          ms_state$del_ring %||% character(0)
         ))
       }
 
@@ -2610,9 +2811,9 @@ observeEvent(input$clear_shared, {
       # 1) build internal FINAL table (keeps .FID)
       ftbl <- build_final_feature_table(
         raw_df_fid       = raw_zeroed(),
-        sample_keywords  = input$sample_keyword0 %||% ".mzML",
+        sample_cols = sample_cols0(),
         blank_keep       = blank_keep,
-        merge_map        = merge_map,
+        merge_map   = ms_state$mis_merge_map,
         del_ms           = del_ms,
         final_keep       = final_keep
       )
@@ -2653,7 +2854,7 @@ observeEvent(input$clear_shared, {
         tags$li(sprintf("Step 2 MS Filters: %s", if (isTRUE(ms_state$applied)) "APPLIED" else "not applied")),
         tags$li(sprintf("Step 3 QC Filters: %s", if (isTRUE(qc_state$applied)) "APPLIED" else "not applied")),
         tags$li(sprintf("Step 4 Peak Filters: %s", if (isTRUE(peak_state$applied)) "APPLIED" else "not applied")),
-        tags$li(sprintf("FINAL table rows: %s", if (!is.null(final_table())) nrow(final_table()) else "not compiled"))
+        tags$li(sprintf("Final table rows: %s", if (!is.null(final_table())) nrow(final_table()) else "not compiled"))
       )
     )
   })
@@ -2920,7 +3121,7 @@ output$help_body <- renderUI({
       tags$ol(
         tags$li(tags$b("Upload Data:"), " Upload your CSV, choose correct sample column names keywords (identifiers) + mz & rt columns."),
         tags$li(tags$b("Blank Filters:"), " Define Blank group, set Blank filter -> Apply."),
-        tags$li(tags$b("MS Filters:"), " Enable Deleting Isotopes/Adducts/Neutral Loses/Fragments -> Apply."),
+        tags$li(tags$b("MS Filters:"), " Enable Deleting Isotopes/Adducts/Neutral Loses/Fragments/Mispicked/Saturated -> Apply."),
         tags$li(tags$b("QC Filters:"), " Define groups, choose Zero/RSD/Mean/Min filters -> Apply."),
         tags$li(tags$b("Peak Filters:"), " Choose mz/rt/RMD/AMD cutoffs -> Apply. "),
         tags$li(tags$b("Final Summary:"), " Compile summary & export final dataset."),
@@ -2932,22 +3133,22 @@ output$help_body <- renderUI({
       "."
       ),
       br(),
-      div(class="highlight", "Rule: The last “Apply” click is saved."),
+      div(class="highlight", "Rule & Tip: Filters are applied sequentially. Changes made on later tabs do not affect the results of previous tabs. To change the order of applied filters (e.g., 'Peak Filters' before 'Blank Filters'), run the application sequentially several times, using the output from one run as the input for the next."),
       br(),
-      div(class="highlight", "Rule: Filters are applied sequentially. Changes made on later tabs do not affect the results of previous tabs."),
+      div(class="highlight", "Rule: The last 'Apply' click is saved."),
       br(),
-      div(class="highlight", "Rule: Click “Clear” to skip any previous calculation in the tab."),
+      div(class="highlight", "Rule: Output Tables reflect the last 'Apply' run."),
+      br(),
+      div(class="highlight", "Rule: Click 'Clear' to skip any previous calculation in the tab."),
       br(),
       div(class="highlight", "Rule: Click the question mark icon to toggle the information tooltip."),
-      br(),
-      div(class="highlight", "Rule: Output Tables reflect the last “Apply” run."),
       br(),
       div(class="highlight", "Rule: Plots are displayed and updated only after clicking the plot buttons, cutoff value on them is updated dynamically."),
       br(),
       div(class="highlight", "Rule: Isotopes-Dimers/Adducts/Neutral Loses/In-Source Fragments tables are displayed after activating the checkbox."),
       br(),
       tags$img(
-        src = "www/Server_Map.png",
+        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/Server_Map.png",
         width = "800px",
         height = "420px",
         style = "display: block; margin-bottom: 20px;" # Adds a little space below it
@@ -2976,7 +3177,7 @@ output$help_body <- renderUI({
     Available in the
     <a href='https://github.com/plyush1993/MetaboCensoR/blob/main/Input_Examples/orbi_iimn_gnps_quant.csv' target='_blank'>GitHub</a>.")),
       br(),
-      div(class="highlight", "Tip: If “No sample columns” message, your sample keywords don’t match sample column names."),
+      div(class="highlight", "Tip: If 'No sample columns' message, your sample keywords don’t match sample column names."),
       br(),
       div(class="highlight", "Note: The `feature_id` column is auto-generated by default. To avoid conflicts, please do not include a column with this exact name in your uploaded dataset."),
       br(),
@@ -2995,10 +3196,12 @@ output$help_body <- renderUI({
     return(div(
       h3("Blank Filters"),
       tags$ul(
-        tags$li(tags$b("Labels:"), " choose label (group) source from sample names (token + separator) or upload labels in CSV (one column no headers)."),
+        tags$li(tags$b("Labels:"), " choose label (group) source from sample names (token + separator). For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample.",
+        br(),
+        "Or upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)."),
         tags$li(tags$b("Blank filter:"), " select blank group(s) (at least one) -> mode (by cutoff or any peak) -> Apply blank filter."),
         tags$ul(
-                  tags$li(tags$b("Cutoff mode:"), " calculates Mean values for Blank group(s) and keeps feature if it is lower than cutoff * maximum mean value among experimental (other) group(s). The default is 0.1, meaning the blank signal should be less than 10% of the signal in the sample group in which it is most abundant"),
+                  tags$li(tags$b("Cutoff mode:"), " calculates Mean values for Blank group(s) and keeps feature if it is lower than cutoff * maximum mean value among experimental (other) group(s). The default is 0.1, meaning the blank signal should be less than 10% of the signal in the sample group in which it is the most abundant"),
                   tags$li(tags$b("Drop any mode:"), "deletes any feature detected in Blank group(s)")
                         ),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically."),
@@ -3012,26 +3215,34 @@ output$help_body <- renderUI({
     return(div(
       h3("MS Filters"),
       tags$ul(
-        tags$li(tags$b("Isotopes/Dimers:"), " define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5). Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains most intense isotope/dimer in each family.",
+        tags$li(tags$b("Isotopes/Dimers:"), " define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5). Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains the most intense isotope/dimer in each family.",
                 tags$br(),
                 "Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1 and n_d 3."),
-        tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains most intense adduct in each family.",
+        tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family.",
                 tags$br(),
                 "Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph."),
-        tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral loses features by graph and retains ion with highest m/z in each family.",
+        tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral loses features by graph and retains ion with the highest m/z in each family.",
                 tags$br(),
                 "Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph."),
-        tags$li(tags$b("In-Source Fragments:"), " uses RT shift + correlation threshold to detect in-source fragment features by graph and retains ion with highest m/z in each family.",
+        tags$li(tags$b("In-Source Fragments:"), " uses RT shift + correlation threshold to detect in-source fragment features by graph and retains ion with the highest m/z in each family.",
                 tags$br(),
                 "Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph.",
                 tags$br(),
-                "Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio.")
+                "Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio."),
+        tags$li(tags$b("Mispicked Ions:"), " uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others.",
+                tags$br(),
+                "Note: we recommend using this filter with caution, and only if you expect poor integration."),
+        tags$li(tags$b("Saturated Ions:"), " uses m/z and RT shifts + correlation threshold to detect saturated ions by graph and retains the most intense ion in each family.",
+                tags$br(),
+                "Note: we recommend to disable `Bidirectional search` option, and remaining saturated artifacts to be strictly higher than anchor ion; also consider min intensity for the saturated (anchor) ion and its ratio with artifacts.",
+                tags$br(),
+                "Note: we recommend using this filter with caution, and only if you expect poor integration or supersaturated signals with TOF instruments.")
       ),
-      div(class="highlight", "Rule: Filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, and In-Source Fragments. We recommend to keep the order to avoid misannotation."),
+      div(class="highlight", "Rule: Filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, In-Source Fragments, Mispicked Ions, and Saturated Ions. We recommend to keep the order to avoid misannotation."),
       br(),
-      div(class="highlight", "Note: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes. Adduct statistics table shows the frequency distribution for each determined adduct type and can be used to refine Adduct list."),
+      div(class="highlight", "Tip: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes. Adduct statistics table shows the frequency distribution for each determined adduct type and can be used to refine Adduct list."),
       br(),
-      div(class="highlight", "Note: Any MS filter relies on correlation, so maintain a sufficient number of samples and missing values."),
+      div(class="highlight", "Tip: Both 'Mispicked Ion Merging' and 'Saturated Ion Cleaning' could be potentially use for the determination and removing additional isotopes or misaligned peaks. For refined isotope-like artifact search, Saturated Ion Cleaning can be used in Biderictional mode with controlled intensity ratio and refined parameters (e.g. m/z: 0.05 Da, intensity: 10 000). Be aware to misidentify isomeric peaks."),
       br(),
       div(class = "highlight",
       "Tip: See Isotopes & Dimers shift table ",
@@ -3064,7 +3275,9 @@ output$help_body <- renderUI({
     return(div(
       h3("QC Filters"),
       tags$ul(
-        tags$li(tags$b("Labels:"), " choose label (group) source from sample names (token + separator) or upload labels in CSV (one column no headers)."),
+        tags$li(tags$b("Labels:"), " choose label (group) source from Blank Tab (by Default), or sample names (token + separator). For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample.",
+        br(),
+        "Or upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)."),
         tags$li(tags$b("Value filters:"), " choose group for removal -> specify value(s): zeros(by counts or %) / mean / rsd / min -> mode of filtering (ANY/EVERY/POOLED) -> Apply value filters.",
                 tags$ul(
                         tags$li(tags$b("ANY"), " - satisfies threshold in at least one of the selected groups"),
@@ -3089,7 +3302,7 @@ output$help_body <- renderUI({
         tags$li(tags$b("Pick filters:"), " m/z, rt, RMD, and AMD bounds."),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically.")
       ),
-      div(class="highlight", "Note: optional step to filter peaks based on apriori information")
+      div(class="highlight", "Note: optional step to filter peaks based on a priori information")
     ))
   }
 
@@ -3161,10 +3374,15 @@ tags$div(
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
           Ivan Plyushchenko
        </a>')),
-      tags$li(HTML('Citation:&nbsp;
+      tags$li(HTML('Publication:&nbsp;
        <a href="https://www.doi.org/" target="_blank"
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
           DOI
+       </a>')),
+      tags$li(HTML('Tutorial:&nbsp;
+       <a href="https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf" target="_blank"
+          style="color:#ffcc00; font-weight:700; text-decoration:none;">
+          PDF
        </a>')),
       tags$li(HTML('Project Page:&nbsp;
        <a href="https://github.com/plyush1993/MetaboCensoR" target="_blank"
@@ -3181,11 +3399,52 @@ tags$div(
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
           Issues
        </a>')),
-      tags$li(HTML('Feedback:&nbsp;
-       <a href="mailto:plyushchenko.ivan@gmail.com" target="_blank"
-          style="color:#ffcc00; font-weight:700; text-decoration:none;">
-         <i class="fa fa-envelope" style="margin-right: 4px;"></i>
-       </a>'))
+      tags$li(
+        "Contact: ",
+        tags$input(
+          id = "feedback_email_copy",
+          type = "text",
+          value = "plyushchenko.ivan@gmail.com",
+          readonly = "readonly",
+          style = "position:absolute; left:-9999px;"
+        ),
+        tags$button(
+          type = "button",
+          onclick = "
+            var emailInput = document.getElementById('feedback_email_copy');
+            emailInput.select();
+            emailInput.setSelectionRange(0, 99999);
+
+            try {
+              var ok = document.execCommand('copy');
+              if (ok) {
+                this.innerHTML = '<i class=\"fa fa-check\"></i> Copied';
+                var btn = this;
+                setTimeout(function() {
+                  btn.innerHTML = '<i class=\"fa fa-envelope\"></i>';
+                }, 1500);
+              } else {
+                window.prompt('Copy email address:', emailInput.value);
+              }
+            } catch(e) {
+              window.prompt('Copy email address:', emailInput.value);
+            }
+          ",
+          style = "
+            margin-left: 8px;
+            border: 1px solid #ffcc00;
+            border-radius: 5px;
+            background: transparent;
+            color: #ffcc00;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 2px 7px;
+            font-size: 12px;
+          ",
+          tags$i(class = "fa fa-envelope"),
+          " "
+        )
+      )
     )
     ))
     }

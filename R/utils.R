@@ -377,9 +377,20 @@ labels_from_sample_names <- function(sample_names, token_sep = "_", token_index 
 
   parts <- strsplit(sample_names, token_sep, fixed = TRUE)
   has_ix <- vapply(parts, function(v) length(v) >= token_index, logical(1))
-  if (!all(has_ix)) stop(sprintf("Token %d missing in some sample names.", token_index))
-  labs <- vapply(parts, function(v) v[[token_index]], FUN.VALUE = character(1))
-  if (!all(nzchar(labs))) stop("Parsed empty labels — adjust separator/index.")
+  if (!all(has_ix)) {
+    msg <- sprintf("Warning: Token %d missing in some sample names. Falling back to the full sample name.", token_index)
+    warning(msg)
+    if (!is.null(shiny::getDefaultReactiveDomain())) {
+      shiny::showNotification(msg, type = "warning", duration = 8)
+    }
+  }
+  labs <- vapply(seq_along(parts), function(i) {
+    if (has_ix[i] && nzchar(parts[[i]][[token_index]])) {
+      parts[[i]][[token_index]]
+    } else {
+      sample_names[i]
+    }
+  }, FUN.VALUE = character(1))
   labs
 }
 
@@ -547,35 +558,250 @@ make_mass_shift_edges <- function(pk, shifts, rt_tol, tol_fun) {
 collapse_components_keep_most_intense <- function(edges_df, pk, group_col = "group_id") {
   # edges_df: Feature1, Feature2
   if (nrow(edges_df) == 0) {
-    return(list(keep = pk$Feature, delete = character(0),
-                table = pk %>% dplyr::mutate(!!group_col := NA_integer_, status="kept")))
+    return(list(
+      keep = pk$Feature,
+      delete = character(0),
+      table = pk %>% dplyr::mutate(!!group_col := NA_integer_, status = "kept"),
+      merge_map = tibble::tibble(
+        Feature = character(),
+        Rep = character(),
+        group = integer()
+      )
+    ))
   }
 
-  g <- igraph::graph_from_data_frame(edges_df[, c("Feature1","Feature2")], directed = FALSE)
+  g <- igraph::graph_from_data_frame(edges_df[, c("Feature1", "Feature2")], directed = FALSE)
   memb <- igraph::components(g)$membership
 
-  comp_tbl <- tibble::tibble(Feature = names(memb), !!group_col := as.integer(memb)) %>%
+  comp_tbl <- tibble::tibble(
+    Feature = names(memb),
+    !!group_col := as.integer(memb)
+  ) %>%
     dplyr::left_join(pk, by = "Feature")
 
-  reps <- comp_tbl %>%
+  reps_tbl <- comp_tbl %>%
     dplyr::group_by(.data[[group_col]]) %>%
     dplyr::arrange(dplyr::desc(intensity), mz, .by_group = TRUE) %>%
     dplyr::slice(1) %>%
     dplyr::ungroup() %>%
-    dplyr::pull(Feature)
+    dplyr::transmute(
+      !!group_col := .data[[group_col]],
+      Rep = Feature
+    )
 
-  all_in_graph <- unique(comp_tbl$Feature)
+  comp_tbl2 <- comp_tbl %>%
+    dplyr::left_join(reps_tbl, by = group_col)
+
+  reps <- unique(comp_tbl2$Rep)
+  all_in_graph <- unique(comp_tbl2$Feature)
   delete <- setdiff(all_in_graph, reps)
 
-  # features not in graph are kept
+  # Features not in graph are kept unchanged
   keep <- union(setdiff(pk$Feature, all_in_graph), reps)
 
   out_tbl <- pk %>%
-    dplyr::left_join(comp_tbl %>% dplyr::select(Feature, !!group_col), by="Feature") %>%
-    dplyr::mutate(status = dplyr::if_else(Feature %in% delete, "filtered",
-                          dplyr::if_else(Feature %in% reps, "keep_rep", "kept")))
+    dplyr::left_join(
+      comp_tbl2 %>% dplyr::select(Feature, !!group_col, Rep),
+      by = "Feature"
+    ) %>%
+    dplyr::mutate(
+      status = dplyr::if_else(
+        Feature %in% delete,
+        "filtered",
+        dplyr::if_else(Feature %in% reps, "keep_rep", "kept")
+      )
+    )
 
-  list(keep = keep, delete = delete, table = out_tbl)
+  merge_map <- comp_tbl2 %>%
+    dplyr::transmute(
+      Feature = Feature,
+      Rep = Rep,
+      group = .data[[group_col]]
+    )
+
+  list(
+    keep = keep,
+    delete = delete,
+    table = out_tbl,
+    merge_map = merge_map
+  )
+}
+
+make_mispicked_edges <- function(pk, rt_tol, tol_fun) {
+  pk <- pk[is.finite(pk$mz) & is.finite(pk$rt), , drop = FALSE]
+  if (nrow(pk) <= 1) return(tibble::tibble(Feature1=character(), Feature2=character()))
+
+  o <- order(pk$mz)
+  pk <- pk[o, , drop = FALSE]
+
+  edges <- list()
+  n <- nrow(pk)
+  for (i in 1:(n-1)) {
+    j <- i + 1L
+    while (j <= n) {
+      dm <- pk$mz[j] - pk$mz[i]
+      tol <- tol_fun(mean(c(pk$mz[i], pk$mz[j])))
+      if (dm > tol) break
+
+      if (abs(pk$rt[j] - pk$rt[i]) <= rt_tol) {
+        edges[[length(edges)+1]] <- tibble::tibble(Feature1 = pk$Feature[i], Feature2 = pk$Feature[j])
+      }
+      j <- j + 1L
+    }
+  }
+  if (!length(edges)) return(tibble::tibble(Feature1=character(), Feature2=character()))
+  dplyr::bind_rows(edges)
+}
+
+make_ringing_edges <- function(pk, rt_tol, tol_fun, min_anchor_int, max_ratio, bidirectional) {
+  pk <- pk[is.finite(pk$mz) & is.finite(pk$rt), , drop = FALSE]
+
+  if (nrow(pk) <= 1) {
+    return(tibble::tibble(
+      Feature1 = character(),
+      Feature2 = character(),
+      delta_mz = numeric()
+    ))
+  }
+
+  o <- order(pk$mz)
+  pk <- pk[o, , drop = FALSE]
+
+  edges <- list()
+  n <- nrow(pk)
+
+  for (i in 1:(n - 1)) {
+    j <- i + 1L
+
+    while (j <= n) {
+      dm <- pk$mz[j] - pk$mz[i]
+
+      tol <- tol_fun(mean(c(pk$mz[i], pk$mz[j])))
+
+      if (dm > tol) break
+
+      if (abs(pk$rt[j] - pk$rt[i]) <= rt_tol) {
+        int_i <- pk$intensity[i]
+        int_j <- pk$intensity[j]
+
+        if (bidirectional) {
+          max_int <- max(int_i, int_j, na.rm = TRUE)
+          min_int <- min(int_i, int_j, na.rm = TRUE)
+
+          if (is.finite(max_int) &&
+              is.finite(min_int) &&
+              min_int > 0 &&
+              max_int >= min_anchor_int &&
+              (max_int / min_int) >= max_ratio) {
+
+            if (int_i >= int_j) {
+              edges[[length(edges) + 1]] <- tibble::tibble(
+                Feature1 = pk$Feature[i],
+                Feature2 = pk$Feature[j],
+                delta_mz = dm
+              )
+            } else {
+              edges[[length(edges) + 1]] <- tibble::tibble(
+                Feature1 = pk$Feature[j],
+                Feature2 = pk$Feature[i],
+                delta_mz = -dm
+              )
+            }
+          }
+
+        } else {
+          # Strict TOF mode:
+          # lower m/z = strong anchor
+          # higher m/z = weak ringing artifact
+          if (is.finite(int_i) &&
+              is.finite(int_j) &&
+              int_j > 0 &&
+              int_i >= min_anchor_int &&
+              (int_i / int_j) >= max_ratio) {
+
+            edges[[length(edges) + 1]] <- tibble::tibble(
+              Feature1 = pk$Feature[i],
+              Feature2 = pk$Feature[j],
+              delta_mz = dm
+            )
+          }
+        }
+      }
+
+      j <- j + 1L
+    }
+  }
+
+  if (!length(edges)) {
+    return(tibble::tibble(
+      Feature1 = character(),
+      Feature2 = character(),
+      delta_mz = numeric()
+    ))
+  }
+
+  dplyr::bind_rows(edges)
+}
+
+apply_merge_map_to_matrix <- function(ds, merge_map) {
+  if (is.null(merge_map) || nrow(merge_map) == 0) return(ds)
+
+  mm <- as.data.frame(merge_map, stringsAsFactors = FALSE)
+  mm <- mm[mm$Feature %in% colnames(ds) & mm$Rep %in% colnames(ds), , drop = FALSE]
+
+  if (!nrow(mm)) return(ds)
+
+  for (rep in unique(mm$Rep)) {
+    members <- unique(mm$Feature[mm$Rep == rep])
+    members <- intersect(members, colnames(ds))
+
+    if (length(members) <= 1) next
+
+    ds[, rep] <- rowSums(
+      as.data.frame(lapply(ds[, members, drop = FALSE], function(x) suppressWarnings(as.numeric(x)))),
+      na.rm = TRUE
+    )
+  }
+
+  ds
+}
+
+apply_merge_map_to_raw <- function(raw_df_fid, merge_map, sample_cols) {
+  raw_df_fid <- as.data.frame(raw_df_fid, check.names = FALSE, stringsAsFactors = FALSE)
+
+  if (is.null(merge_map) || nrow(merge_map) == 0) return(raw_df_fid)
+  if (!".FID" %in% names(raw_df_fid)) return(raw_df_fid)
+
+  sample_cols <- intersect(sample_cols, names(raw_df_fid))
+  if (!length(sample_cols)) return(raw_df_fid)
+
+  mm <- as.data.frame(merge_map, stringsAsFactors = FALSE)
+  mm <- mm[mm$Feature %in% raw_df_fid$.FID & mm$Rep %in% raw_df_fid$.FID, , drop = FALSE]
+
+  if (!nrow(mm)) return(raw_df_fid)
+
+  for (rep in unique(mm$Rep)) {
+    members <- unique(mm$Feature[mm$Rep == rep])
+    members <- intersect(members, raw_df_fid$.FID)
+
+    if (length(members) <= 1) next
+
+    rep_idx <- match(rep, raw_df_fid$.FID)
+    member_idx <- match(members, raw_df_fid$.FID)
+
+    for (sc in sample_cols) {
+      raw_df_fid[rep_idx, sc] <- sum(
+        suppressWarnings(as.numeric(raw_df_fid[member_idx, sc])),
+        na.rm = TRUE
+      )
+    }
+  }
+
+  # Remove non-representative merged rows
+  remove_features <- setdiff(unique(mm$Feature), unique(mm$Rep))
+  raw_df_fid <- raw_df_fid[!raw_df_fid$.FID %in% remove_features, , drop = FALSE]
+
+  raw_df_fid
 }
 
 built_in_adducts_full <- function() {
@@ -795,7 +1021,9 @@ run_qc_value_filters <- function(ds_with_label, feats_base,
 # --------------------------
 # Final table builder (aligned)
 # --------------------------
-build_final_feature_table <- function(raw_df_fid, sample_keywords = NULL, sample_cols = NULL,
+build_final_feature_table <- function(raw_df_fid,
+                                      sample_keywords = NULL,
+                                      sample_cols = NULL,
                                       blank_keep = NULL,
                                       merge_map = NULL,
                                       del_ms = character(0),
@@ -804,50 +1032,46 @@ build_final_feature_table <- function(raw_df_fid, sample_keywords = NULL, sample
   raw_df_fid <- as.data.frame(raw_df_fid, check.names = FALSE, stringsAsFactors = FALSE)
   cols <- names(raw_df_fid)
 
+  if (!".FID" %in% cols) {
+    stop("Internal .FID column is missing in final table builder.")
+  }
+
+  # Validate sample columns; optional merging/summing may be applied via merge_map
   if (!is.null(sample_cols) && length(sample_cols)) {
-  sample_cols <- intersect(sample_cols, cols)
-  if (!length(sample_cols)) stop("No sample columns found for final build (explicit selection).")
+    sample_cols <- intersect(sample_cols, cols)
+    if (!length(sample_cols)) {
+      stop("No sample columns found for final build (explicit selection).")
+    }
   } else {
-  sample_idx <- multi_sample_idx(cols, sample_keywords)
-  if (!length(sample_idx)) stop("No sample columns found for final build; check sample keywords.")
-  sample_cols <- cols[sample_idx]
+    sample_idx <- multi_sample_idx(cols, sample_keywords)
+    if (!length(sample_idx)) {
+      stop("No sample columns found for final build; check sample keywords.")
+    }
+    sample_cols <- cols[sample_idx]
   }
 
-  if (!is.null(blank_keep) && length(blank_keep)) {
-    raw_df_fid <- raw_df_fid[raw_df_fid$.FID %in% blank_keep, , drop = FALSE]
-  }
-  if (!nrow(raw_df_fid)) return(raw_df_fid)
+  raw2 <- raw_df_fid
 
-  # Merge: sum intensities but keep representative metadata
-  if (!is.null(merge_map) && nrow(merge_map) > 0) {
-    mm <- as.data.frame(merge_map, stringsAsFactors = FALSE)
-    grp_map <- setNames(mm$Group, mm$Feature)
-
-    raw_df_fid$.Group <- ifelse(raw_df_fid$.FID %in% names(grp_map), unname(grp_map[raw_df_fid$.FID]), raw_df_fid$.FID)
-
-    reps <- raw_df_fid %>%
-      group_by(.Group) %>%
-      arrange(desc(as.numeric(rowMeans(across(all_of(sample_cols)), na.rm = TRUE))), .by_group = TRUE) %>%
-      slice(1) %>%
-      ungroup()
-
-    summed <- raw_df_fid %>%
-      group_by(.Group) %>%
-      summarise(across(all_of(sample_cols), ~ sum(suppressWarnings(as.numeric(.x)), na.rm = TRUE)), .groups = "drop")
-
-    reps2 <- reps %>% select(-all_of(sample_cols))
-    merged_table <- reps2 %>%
-      left_join(summed, by = c(".Group" = ".Group")) %>%
-      mutate(.FID = .Group) %>%
-      select(-.Group)
-
-    raw2 <- merged_table
-  } else {
-    raw2 <- raw_df_fid
+  # Step 1: blank/media filter
+  if (!is.null(blank_keep)) {
+    raw2 <- raw2[raw2$.FID %in% blank_keep, , drop = FALSE]
   }
 
-  if (length(del_ms)) raw2 <- raw2[!raw2$.FID %in% del_ms, , drop = FALSE]
-  if (!is.null(final_keep) && length(final_keep)) raw2 <- raw2[raw2$.FID %in% final_keep, , drop = FALSE]
+  # Step 2a: optional real merging for selected MS filters
+  # Metadata is kept from representative feature; sample intensities are summed.
+    if (!is.null(merge_map) && nrow(merge_map) > 0) {
+      raw2 <- apply_merge_map_to_raw(raw2, merge_map, sample_cols)
+    }
+
+    # Step 2b: remove non-representative redundant/artifact features
+    if (length(del_ms)) {
+      raw2 <- raw2[!raw2$.FID %in% del_ms, , drop = FALSE]
+    }
+
+  # Steps 3/4: QC + peak filters
+  if (!is.null(final_keep)) {
+    raw2 <- raw2[raw2$.FID %in% final_keep, , drop = FALSE]
+  }
 
   clean_mzmine_export(raw2)
 }

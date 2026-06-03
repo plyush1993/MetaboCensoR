@@ -16,7 +16,7 @@ app_ui <- function() {
 shiny::fluidPage(
   use_waiter(),
   use_hostess(),
-  theme = shinythemes::shinytheme("flatly"),
+  theme = shinytheme("flatly"),
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
   useShinyjs(),
 
@@ -25,9 +25,8 @@ shiny::fluidPage(
     tags$link(
       rel  = "icon",
       type = "image/png",
-      href = "www/metabocensor_logo_web.png"
+      href = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/metabocensor_logo_web.png"
     ),
-
     tags$style(HTML("
       .shiny-output-error-validation { color:#000 !important; font-size: 22px !important; font-weight:800 !important; padding:12px; }
       .highlight { background:#fff; border:2px solid #000; color:#000; padding:8px; border-radius:8px; font-weight:bold; }
@@ -191,7 +190,7 @@ shiny::fluidPage(
       href   = "https://github.com/plyush1993/MetaboCensoR",
       target = "_blank",
       tags$img(
-        src = "www/metabocensor_logo.png",
+        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/metabocensor_logo.png",
         alt = "MetaboCensoR logo"
       )
     )
@@ -200,11 +199,39 @@ shiny::fluidPage(
   div(class = "app-footer", HTML('
     <span class="footer-text">by Plyushchenko I.V.</span>
     <span class="footer-sep">&nbsp;|&nbsp;</span>
-    <span class="footer-text">2026</span>
+    <span class="footer-text">GPLv3</span>
     <span class="footer-sep">&nbsp;|&nbsp;</span>
-    <a class="footer-link" href="https://github.com/plyush1993/MetaboCensoR" target="_blank">GitHub</a>
+     <a id="latest-release-link"
+     class="footer-link"
+     href="https://github.com/plyush1993/MetaboCensoR/releases/latest"
+     target="_blank">v. </a>
     <span class="footer-sep">&nbsp;|&nbsp;</span>
-    <a class="footer-link" href="https://www.doi.org/" target="_blank">Cite</a>
+    <a class="footer-link" href="https://www.doi.org/" target="_blank">Publication</a>
+
+    <script>
+    fetch("https://api.github.com/repos/plyush1993/MetaboCensoR/releases/latest")
+      .then(function(response) {
+        if (!response.ok) throw new Error("GitHub release request failed");
+        return response.json();
+      })
+      .then(function(data) {
+        var link = document.getElementById("latest-release-link");
+        if (link && data.tag_name) {
+          link.textContent = "v. " + data.tag_name;
+          if (data.html_url) {
+            link.href = data.html_url;
+          }
+        }
+      })
+      .catch(function(error) {
+        var link = document.getElementById("latest-release-link");
+        if (link) {
+          link.textContent = "Latest release";
+          link.href = "https://github.com/plyush1993/MetaboCensoR/releases/latest";
+        }
+      });
+  </script>
+
   ')),
 
   tabsetPanel(id = "tabs",
@@ -326,7 +353,7 @@ shiny::fluidPage(
           tags$hr(),
               bsTooltip(
                 id = "btnl2",
-                title = "<b>Choose Label/Group source for your table</b><br><br>From sample names (token + separator)<br><br>Upload labels in CSV (one column no headers)",
+                title = "<b>Choose Label/Group source for your table</b><br><br>From sample names (token + separator)<br>For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>Upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -360,7 +387,7 @@ shiny::fluidPage(
                 inputId = "btn1",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: -5px"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 10px; margin-top: 0px"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -371,7 +398,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btn1",
-                title = "<b>Filter peaks by presence in Blank group(s)</b><br><br>Select Blank group(s) for removal (at least one)<br><br>By cutoff: keep if Mean(Blank group) < cutoff * Max(Mean(Other group(s))), the default is 0.1, meaning the blank signal should be less than 10% of the signal in the sample group in which it is most abundant<br><br>Drop any: delete any feature detected in Blank group(s)",
+                title = "<b>Filter peaks by presence in Blank group(s)</b><br><br>Select Blank group(s) for removal (at least one)<br><br>By cutoff: keep if Mean(Blank group) < cutoff * Max(Mean(Other group(s))), the default is 0.1, meaning the blank signal should be less than 10% of the signal in the sample group in which it is the most abundant<br><br>Drop any: delete any feature detected in Blank group(s)",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -442,7 +469,7 @@ shiny::fluidPage(
                 inputId = "btnli",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -453,7 +480,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnli",
-                title = "<b>Enable isotope and dimer filtering</b><br><br>Define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5), see details in About Tab<br><br>Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains most intense isotope/dimer in each family<br><br>Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1 and n_d 3",
+                title = "<b>Enable isotope and dimer filtering</b><br><br>Define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5), see details in About Tab<br><br>Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains the most intense isotope/dimer in each family<br><br>Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1 and n_d 3",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -462,7 +489,7 @@ shiny::fluidPage(
 
           conditionalPanel(
             condition = "input.enable_iso2",
-            numericInput("iso_cor2", "Correlation ≥", value = 0.80, min = 0, max = 1, step = 0.01),
+            numericInput("iso_cor2", HTML("Correlation &ge;"), value = 0.80, min = 0, max = 1, step = 0.01),
             numericInput("iso_rt2",  "rt tolerance (min)", value = 0.01, min = 0, step = 0.001),
 
             radioButtons("iso_tol_type2", "m/z tolerance type:", choices = c("Da"="da","ppm"="ppm"),
@@ -486,7 +513,7 @@ shiny::fluidPage(
           # -------------------------
           # B) Adduct families
           # -------------------------
-          h3(class = "highlight", "B) Adduct families (neutral mass)"),
+          h3(class = "highlight", "B) Adduct Families"),
           div(style = "display: flex; align-items: center; margin-bottom: 12px;",
               div(
                 style = "margin-bottom: -15px;",
@@ -496,7 +523,7 @@ shiny::fluidPage(
                 inputId = "btnla",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -507,7 +534,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnla",
-                title = "<b>Enable adduct filtering</b><br><br>Define polarity and minimal neutral mass<br><br>Uses m/z and RT shifts + correlation threshold to detect adduct features by graph and retains most intense adduct in each family<br><br>Note: By default employs built-in Adducts list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph",
+                title = "<b>Enable adduct filtering</b><br><br>Define polarity and minimal neutral mass<br><br>Uses m/z and RT shifts + correlation threshold to detect adduct features by graph and retains the most intense adduct in each family<br><br>Note: By default employs built-in Adducts list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -520,7 +547,7 @@ shiny::fluidPage(
             fileInput("adduct_file2", "Adducts CSV (optional)", accept = ".csv", placeholder = "Built-in list"),
             #helpText("If not uploaded, uses a built-in list."),
 
-            numericInput("add_cor2", "Correlation ≥", value = 0.80, min = 0, max = 1, step = 0.01),
+            numericInput("add_cor2", HTML("Correlation &ge;"), value = 0.80, min = 0, max = 1, step = 0.01),
             numericInput("add_rt2",  "rt tolerance (min)", value = 0.005, min = 0, step = 0.001),
             radioButtons("add_tol_type2", "m/z tolerance type:", choices = c("Da"="da","ppm"="ppm"),
                          selected = "da", inline = TRUE),
@@ -541,7 +568,7 @@ shiny::fluidPage(
           # -------------------------
           # C) Neutral losses
           # -------------------------
-          h3(class = "highlight", "C) Neutral losses"),
+          h3(class = "highlight", "C) Neutral Losses"),
           div(style = "display: flex; align-items: center; margin-bottom: 12px;",
               div(
                 style = "margin-bottom: -15px;",
@@ -551,7 +578,7 @@ shiny::fluidPage(
                 inputId = "btnlnl",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -562,7 +589,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnlnl",
-                title = "<b>Enable neutral loses filtering</b><br><br>Define polarity<br><br>Uses m/z and RT shifts + correlation threshold to detect neutral loses features by graph and retains ion with highest m/z in each family<br><br>Note: By default employs built-in Neutral Losses list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph",
+                title = "<b>Enable neutral loses filtering</b><br><br>Define polarity<br><br>Uses m/z and RT shifts + correlation threshold to detect neutral loses features by graph and retains ion with the highest m/z in each family<br><br>Note: By default employs built-in Neutral Losses list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -574,7 +601,7 @@ shiny::fluidPage(
             #helpText("If not uploaded, uses a built-in list."),
 
             radioButtons("nl_pol2", "Polarity", choices = c("positive","negative"), selected = "positive", inline = TRUE),
-            numericInput("nl_cor2", "Correlation ≥", value = 0.95, min = 0, max = 1, step = 0.01),
+            numericInput("nl_cor2", HTML("Correlation &ge;"), value = 0.95, min = 0, max = 1, step = 0.01),
             numericInput("nl_rt2",  "rt tolerance (min)", value = 0.002, min = 0, step = 0.001),
 
             radioButtons("nl_tol_type2", "m/z tolerance type:", choices = c("Da"="da","ppm"="ppm"),
@@ -596,7 +623,7 @@ shiny::fluidPage(
           # -------------------------
           # D) Fragments (ISF)
           # -------------------------
-          h3(class = "highlight", "D) In-source fragments"),
+          h3(class = "highlight", "D) In-Source Fragments"),
           div(style = "display: flex; align-items: center; margin-bottom: 12px;",
               div(
                 style = "margin-bottom: -15px;",
@@ -606,7 +633,7 @@ shiny::fluidPage(
                 inputId = "btnlf",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: -7px;"
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -617,7 +644,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnlf",
-                title = "<b>Enable in-source fragment filtering</b><br><br>Uses RT shift + correlation threshold to detect in-source fragment features by graph and retains ion with highest m/z in each family<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph<br><br>Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio",
+                title = "<b>Enable in-source fragment filtering</b><br><br>Uses RT shift + correlation threshold to detect in-source fragment features by graph and retains ion with the highest m/z in each family<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph<br><br>Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -625,15 +652,110 @@ shiny::fluidPage(
             ),
           conditionalPanel(
             condition = "input.enable_isf2",
-            numericInput("isf_cor2", "Correlation ≥", value = 0.95, min = 0, max = 1, step = 0.01),
+            numericInput("isf_cor2", HTML("Correlation &ge;"), value = 0.95, min = 0, max = 1, step = 0.01),
             numericInput("isf_rt2",  "rt tolerance (min)", value = 0.002, min = 0, step = 0.001),
             prettyCheckbox("isf_strict_rt2", "Strict RT split inside clusters", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
             prettyCheckbox("isf_control_int2", "Control intensity ratio", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
             conditionalPanel(
               condition = "input.isf_control_int2",
-              numericInput("isf_ratio_min2", "frag/prec ≥", value = 0.001, min = 0, step = 0.001),
-              numericInput("isf_ratio_max2", "frag/prec ≤", value = 2.5, min = 0, step = 0.1)
+              numericInput("isf_ratio_min2", HTML("frag/prec &ge;"), value = 0.001, min = 0, step = 0.001),
+              numericInput("isf_ratio_max2", HTML("frag/prec &le;"), value = 2.5, min = 0, step = 0.1)
             )
+          ),
+          tags$hr(),
+
+          # -------------------------
+          # E) Mispicked ions
+          # -------------------------
+          h3(class = "highlight", "E) Mispicked Ions"),
+          div(style = "display: flex; align-items: center; margin-bottom: 12px;",
+              div(style = "margin-bottom: -15px;",
+                  materialSwitch("enable_mis2", "Enable mispicked ions merging", FALSE, status = "danger")
+              ),
+              actionButton(
+                inputId = "btnmp",
+                label = "?",
+                class = "btn-primary btn-xs",
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"
+              ),
+              tags$style(HTML("
+                .tooltip-inner {
+                  text-align: left; /* Changes alignment from center to left */
+                  font-size: 16px;
+                  max-width: 550px;  /* Optional: gives the text more room to breathe */
+                }
+              ")),
+              bsTooltip(
+                id = "btnmp",
+                title = "<b>Enable mispicked ions merging</b><br><br>Uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others<br><br>Note: we recommend using this filter with caution, and only if you expect poor integration",
+                placement = "right",
+                trigger = "click",
+                options = list(container = "body", html = TRUE)
+              )
+          ),
+          conditionalPanel(
+            condition = "input.enable_mis2",
+            numericInput("mis_cor2", HTML("Correlation &ge;"), value = 0.80, min = 0, max = 1, step = 0.01),
+            numericInput("mis_rt2",  "rt tolerance (min)", value = 0.002, min = 0, step = 0.001),
+            radioButtons("mis_tol_type2", "m/z tolerance type:", choices = c("Da"="da","ppm"="ppm"),
+                         selected = "ppm", inline = TRUE),
+            conditionalPanel(
+              condition = "input.mis_tol_type2 == 'da'",
+              numericInput("mis_mz_tol2", "m/z tolerance (Da)", value = 0.005, min = 0, step = 0.001)
+            ),
+            conditionalPanel(
+              condition = "input.mis_tol_type2 == 'ppm'",
+              numericInput("mis_ppm2", "m/z tolerance (ppm)", value = 10, min = 0, step = 0.5)
+            )
+          ),
+          tags$hr(),
+
+          # -------------------------
+          # F) Saturated ions (Ringing)
+          # -------------------------
+          h3(class = "highlight", "F) Saturated Ions"),
+          div(style = "display: flex; align-items: center; margin-bottom: 12px;",
+              div(style = "margin-bottom: -15px;",
+                  materialSwitch("enable_ring2", "Enable saturated ions collapse", FALSE, status = "danger")
+              ),
+              actionButton(
+                inputId = "btnsat",
+                label = "?",
+                class = "btn-primary btn-xs",
+                style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"
+              ),
+              tags$style(HTML("
+                .tooltip-inner {
+                  text-align: left; /* Changes alignment from center to left */
+                  font-size: 16px;
+                  max-width: 550px;  /* Optional: gives the text more room to breathe */
+                }
+              ")),
+              bsTooltip(
+                id = "btnsat",
+                title = "<b>Enable saturated (ringing) ions filtering</b><br><br>Uses m/z and RT shifts + correlation threshold to detect saturated ions by graph and retains the most intense ion in each family<br><br>Note: we recommend to disable `Bidirectional search` option, and remaining saturated artifacts to be strictly higher than anchor ion; also consider min intensity for the saturated (anchor) ion and its ratio with artifacts<br><br>Note: we recommend using this filter with caution, and only if you expect poor integration or supersaturated signals with TOF instruments",
+                placement = "right",
+                trigger = "click",
+                options = list(container = "body", html = TRUE)
+              )
+          ),
+          conditionalPanel(
+            condition = "input.enable_ring2",
+            numericInput("ring_cor2", HTML("Correlation &ge;"), value = 0.80, min = 0, max = 1, step = 0.01),
+            numericInput("ring_rt2",  "rt tolerance (min)", value = 0.05, min = 0, step = 0.001),
+            radioButtons("ring_tol_type2", "m/z tolerance type:", choices = c("Da"="da","ppm"="ppm"),
+                         selected = "da", inline = TRUE),
+            conditionalPanel(
+              condition = "input.ring_tol_type2 == 'da'",
+              numericInput("ring_mz_tol2", "Max m/z distance (Da)", value = 0.95, min = 0, step = 0.01)
+            ),
+            conditionalPanel(
+              condition = "input.ring_tol_type2 == 'ppm'",
+              numericInput("ring_ppm2", "Max m/z distance (ppm)", value = 500, min = 0, step = 10)
+            ),
+            numericInput("ring_min_anch2", "Min anchor intensity", value = 1e5, min = 0, step = 1000),
+            numericInput("ring_ratio2", "Min fold difference (Anchor/Artifact)", value = 10, min = 1, step = 0.5),
+            prettyCheckbox("ring_bidirectional2", "Bidirectional search", FALSE, icon = icon("check"), status = "primary", animation = "jelly")
           ),
 
           tags$hr(),
@@ -642,6 +764,8 @@ shiny::fluidPage(
           prettyCheckbox("show_add_stats2", "Show adduct statistics", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_nl_table2",  "Show neutral loss hits", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
           prettyCheckbox("show_isf_table2", "Show fragment clusters", FALSE,icon = icon("check"), status = "primary", animation = "jelly"),
+          prettyCheckbox("show_mis_table2", "Show mispicked ions groups", FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
+          prettyCheckbox("show_ring_table2", "Show saturated ions groups", FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
 
           tags$hr(),
           actionButton("apply_ms", "Apply", class = "btn btn-info"),
@@ -672,6 +796,8 @@ shiny::fluidPage(
           conditionalPanel(condition = "input.show_add_stats2", h4("Adduct Frequencies:"), DTOutput("add2_stats_table")),
           conditionalPanel(condition = "input.show_nl_table2",  h4("Neutral Loses table:"), DTOutput("nl2_table")),
           conditionalPanel(condition = "input.show_isf_table2", h4("In-Source Fragments table:"), DTOutput("isf2_table")),
+          conditionalPanel(condition = "input.show_mis_table2", h4("Mispicked Ions table:"), DTOutput("mis2_table")),
+          conditionalPanel(condition = "input.show_ring_table2", h4("Saturated Ions table:"), DTOutput("ring2_table")),
 
           withSpinner(uiOutput("ms_filter_summary"), type = 8, color = "white", size = 2)
         )
@@ -691,7 +817,7 @@ shiny::fluidPage(
               div(
                 style = "margin-bottom: -15px;",
           radioButtons("qc_label_source", "Label source:",
-                       c("Use labels from Blank step" = "inherit",
+                       c("Use labels from Blank Tab" = "inherit",
                          "From sample names" = "from_rows",
                          "From custom CSV (one column, no header)" = "from_custom"),
                        selected = "inherit")
@@ -711,7 +837,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnllqc",
-                title = "<b>Choose Label/Group source for your table</b><br><br>From Blank tab<br><br>From sample names (token + separator)<br><br>Upload labels in CSV (one column no headers)",
+                title = "<b>Choose Label/Group source for your table</b><br><br>From Blank tab<br><br>From sample names (token + separator)<br>For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>Upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -797,7 +923,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnqcm",
-                title = "<b>Choose type of filtering for selected groups</b><br><br>Select groups for filtering and specify type of filtering<br><br>ANY-satisfies threshold in at least one of the selected groups<br><br>EVERY-in any of the selected groups<br><br>POOLED-calculates average values among all of the selected groups and then compares<br><br>If no group is selected, all groups are considered",
+                title = "<b>Choose type of filtering for selected groups</b><br><br>Select groups for filtering and specify type of filtering<br><br>ANY-satisfies threshold in at least one of the selected groups<br><br>EVERY-in all of the selected groups<br><br>POOLED-calculates average values among all of the selected groups and then compares<br><br>If no group is selected, all groups are considered",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -917,11 +1043,11 @@ shiny::fluidPage(
             condition = "input.peak_filters.indexOf('mz') >= 0",
             fluidRow(
               column(6,
-                prettyCheckbox("mz_min_enable", "m/z ≥", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("mz_min_enable", HTML("m/z &ge;"), TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.mz_min_enable", numericInput("peak_mz_min", label = NULL, value = 200, min = 0, step = 0.1))
               ),
               column(6,
-                prettyCheckbox("mz_max_enable", "m/z ≤", FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("mz_max_enable", HTML("m/z &le;"), FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.mz_max_enable", numericInput("peak_mz_max", label = NULL, value = 1500, min = 0, step = 0.1))
               )
             )
@@ -930,11 +1056,11 @@ shiny::fluidPage(
             condition = "input.peak_filters.indexOf('rt') >= 0",
             fluidRow(
               column(6,
-                prettyCheckbox("rt_min_enable", "rt ≥ (min)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("rt_min_enable", HTML("rt &ge; (min)"), TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.rt_min_enable", numericInput("peak_rt_min", label = NULL, value = 1, min = 0, step = 0.1))
               ),
               column(6,
-                prettyCheckbox("rt_max_enable", "rt ≤ (min)", FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("rt_max_enable", HTML("rt &le; (min)"), FALSE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.rt_max_enable", numericInput("peak_rt_max", label = NULL, value = 30, min = 0, step = 0.1))
               )
             )
@@ -943,11 +1069,11 @@ shiny::fluidPage(
             condition = "input.peak_filters.indexOf('rmd') >= 0",
             fluidRow(
               column(6,
-                prettyCheckbox("rmd_min_enable", "RMD ≥ (ppm)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("rmd_min_enable", HTML("RMD &ge; (ppm)"), TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.rmd_min_enable", numericInput("peak_rmd_min", label = NULL, value = -2000, min = -1000000, max = 1000000, step = 100))
               ),
               column(6,
-                prettyCheckbox("rmd_max_enable", "RMD ≤ (ppm)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("rmd_max_enable", HTML("RMD &le; (ppm)"), TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.rmd_max_enable", numericInput("peak_rmd_max", label = NULL, value =  2000, min = -1000000, max = 1000000, step = 100))
               )
             )
@@ -956,11 +1082,11 @@ shiny::fluidPage(
             condition = "input.peak_filters.indexOf('amd') >= 0",
             fluidRow(
               column(6,
-                prettyCheckbox("amd_min_enable", "AMD ≥ (Da)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("amd_min_enable", HTML("AMD &ge; (Da)"), TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.amd_min_enable", numericInput("peak_amd_min", label = NULL, value = 0.00, min = -1, max = 1, step = 0.001))
               ),
               column(6,
-                prettyCheckbox("amd_max_enable", "AMD ≤ (Da)", TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
+                prettyCheckbox("amd_max_enable", HTML("AMD &le; (Da)"), TRUE, icon = icon("check"), status = "primary", animation = "jelly"),
                 conditionalPanel("input.amd_max_enable", numericInput("peak_amd_max", label = NULL, value = 0.50, min = -1, max = 1, step = 0.001))
               )
             )
@@ -1077,7 +1203,9 @@ shiny::fluidPage(
           ),
           conditionalPanel(
             condition = "output.sharedUploaded && !output.finalReady",
-            div(class="highlight", "FINAL not compiled yet. Click 'Compile FINAL (aligned)'.")
+            div(class="alert alert-warning text-center",
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;",
+            icon("exclamation-triangle"), " Not compiled yet. Click 'Compile output'.")
           ),
 
           uiOutput("final_report_header"),
