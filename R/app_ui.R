@@ -14,7 +14,7 @@
 #' @import plotly
 app_ui <- function() {
 shiny::fluidPage(
-  use_waiter(),
+ use_waiter(),
   use_hostess(),
   theme = shinytheme("flatly"),
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
@@ -333,8 +333,9 @@ shiny::fluidPage(
               div(
                 style = "margin-bottom: -15px;",
           radioButtons("label_source", "Label source:",
-                       c("From sample names" = "from_rows",
-                         "From custom CSV (one column, no header)" = "from_custom"),
+                       c("From sample names (by token)" = "from_rows",
+                         "From custom CSV (one column, no header)" = "from_custom",
+    "Manual editable table" = "manual"),
                        selected = "from_rows")
               ),
               actionButton(
@@ -353,7 +354,16 @@ shiny::fluidPage(
           tags$hr(),
               bsTooltip(
                 id = "btnl2",
-                title = "<b>Choose Label/Group source for your table</b><br><br>From sample names (token + separator)<br>For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>Upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)",
+                title = paste0(
+  "<b>Choose Blank Label/Group source</b><br><br>",
+  "<b>From sample names:</b><br>",
+  "Labels are generated from sample column names using token index and token separator. For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>",
+  "<b>From custom CSV:</b><br>",
+  "Upload a one-column CSV without header. Label order must match sample column order<br><br>",
+  "<b>Manual editable table:</b><br>",
+  "The editable label table is filled from the current token-based labels. ",
+  "Double-click cells in the <b>Label</b> column to manually correct group names"
+),
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -368,6 +378,61 @@ shiny::fluidPage(
             condition = "input.label_source == 'from_custom'",
             fileInput("meta_csv", "Upload labels CSV", accept = ".csv")
           ),
+    conditionalPanel(
+          condition = "input.label_source == 'manual'",
+          div(
+  style = "display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px;",
+
+  actionButton(
+  "apply_auto_labels_blank",
+  label = tags$span(
+    HTML("Fill editable table from<br>current token labels"),
+    style = "line-height: 1.1;"
+  ),
+  class = "btn-primary",
+  style = "
+    font-size: 12px;
+    padding: 4px 8px;
+    line-height: 1.1;
+    width: 145px;
+    white-space: normal;
+  "
+),
+
+  actionButton(
+    inputId = "btn_apply_auto_labels_blank_help",
+    label = "?",
+    class = "btn-primary btn-xs",
+    style = "
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      line-height: 1;
+      font-size: 12px;
+    "
+  ),
+
+  bsTooltip(
+    id = "btn_apply_auto_labels_blank_help",
+    title = paste0(
+      "<b>Fill editable label table</b><br><br>",
+      "This button fills the editable table using labels generated from sample names with the current token index and token separator<br><br>",
+      "<b>How to edit:</b><br>",
+      "Double-click a cell in the <b>Label</b> column, and change the group name<br><br>",
+      "<b>Default behavior:</b><br>",
+      "Labels are first generated from the sample-name parsing settings in this section<br><br>",
+      "<b>Using raw sample names:</b><br>",
+      "To start from the full raw sample names, enter a token index larger than the number of available tokens ",
+      "In this case, the app falls back to the full sample name."
+    ),
+    placement = "right",
+    trigger = "click",
+    options = list(container = "body", html = TRUE)
+  )
+)
+        ),
+    tags$hr(),
           prettyCheckbox("show_labels_table", "Show labels table", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
 
           tags$hr(),
@@ -589,7 +654,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnlnl",
-                title = "<b>Enable neutral loses filtering</b><br><br>Define polarity<br><br>Uses m/z and RT shifts + correlation threshold to detect neutral loses features by graph and retains ion with the highest m/z in each family<br><br>Note: By default employs built-in Neutral Losses list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph",
+                title = "<b>Enable neutral losses filtering</b><br><br>Define polarity<br><br>Uses m/z and RT shifts + correlation threshold to detect neutral losses features by graph and retains ion with the highest m/z in each family<br><br>Note: By default employs built-in Neutral Losses list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -794,7 +859,7 @@ shiny::fluidPage(
           conditionalPanel(condition = "input.show_iso_table2", h4("Isotopes table:"), DTOutput("iso2_table")),
           conditionalPanel(condition = "input.show_add_table2", h4("Adducts table:"), DTOutput("add2_table")),
           conditionalPanel(condition = "input.show_add_stats2", h4("Adduct Frequencies:"), DTOutput("add2_stats_table")),
-          conditionalPanel(condition = "input.show_nl_table2",  h4("Neutral Loses table:"), DTOutput("nl2_table")),
+          conditionalPanel(condition = "input.show_nl_table2",  h4("Neutral Losses table:"), DTOutput("nl2_table")),
           conditionalPanel(condition = "input.show_isf_table2", h4("In-Source Fragments table:"), DTOutput("isf2_table")),
           conditionalPanel(condition = "input.show_mis_table2", h4("Mispicked Ions table:"), DTOutput("mis2_table")),
           conditionalPanel(condition = "input.show_ring_table2", h4("Saturated Ions table:"), DTOutput("ring2_table")),
@@ -818,8 +883,9 @@ shiny::fluidPage(
                 style = "margin-bottom: -15px;",
           radioButtons("qc_label_source", "Label source:",
                        c("Use labels from Blank Tab" = "inherit",
-                         "From sample names" = "from_rows",
-                         "From custom CSV (one column, no header)" = "from_custom"),
+                         "From sample names (by token)" = "from_rows",
+                         "From custom CSV (one column, no header)" = "from_custom",
+    "Manual editable table" = "manual"),
                        selected = "inherit")
               ),
               actionButton(
@@ -837,7 +903,18 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnllqc",
-                title = "<b>Choose Label/Group source for your table</b><br><br>From Blank tab<br><br>From sample names (token + separator)<br>For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>Upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)",
+                title = paste0(
+  "<b>Choose QC Label/Group source</b><br><br>",
+  "<b>Use labels from Blank Tab:</b><br>",
+  "QC filtering inherits the labels defined in the Blank Filters tab.<br><br>",
+  "<b>From sample names:</b><br>",
+  "Labels are generated from sample column names using token index and token separator. For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>",
+  "<b>From custom CSV:</b><br>",
+  "Upload a one-column CSV without header. Label order must match sample column order<br><br>",
+  "<b>Manual editable table:</b><br>",
+  "The editable label table is filled from the current token-based labels. ",
+  "Double-click cells in the <b>Label</b> column to manually correct group names"
+),
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -853,6 +930,61 @@ shiny::fluidPage(
             condition = "input.qc_label_source == 'from_custom'",
             fileInput("qc_meta_csv", "Upload labels CSV", accept = ".csv")
           ),
+    conditionalPanel(
+        condition = "input.qc_label_source == 'manual'",
+        div(
+  style = "display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px;",
+
+  actionButton(
+  "apply_auto_labels_qc",
+  label = tags$span(
+    HTML("Fill editable table from<br>current token labels"),
+    style = "line-height: 1.1;"
+  ),
+  class = "btn-primary",
+  style = "
+    font-size: 12px;
+    padding: 4px 8px;
+    line-height: 1.1;
+    width: 145px;
+    white-space: normal;
+  "
+),
+
+  actionButton(
+    inputId = "btn_apply_auto_labels_qc_help",
+    label = "?",
+    class = "btn-primary btn-xs",
+    style = "
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      line-height: 1;
+      font-size: 12px;
+    "
+  ),
+
+  bsTooltip(
+    id = "btn_apply_auto_labels_qc_help",
+    title = paste0(
+      "<b>Fill editable label table</b><br><br>",
+      "This button fills the editable table using labels generated from sample names with the current token index and token separator<br><br>",
+      "<b>How to edit:</b><br>",
+      "Double-click a cell in the <b>Label</b> column, and change the group name<br><br>",
+      "<b>Default behavior:</b><br>",
+      "Labels are first generated from the sample-name parsing settings in this section<br><br>",
+      "<b>Using raw sample names:</b><br>",
+      "To start from the full raw sample names, enter a token index larger than the number of available tokens ",
+      "In this case, the app falls back to the full sample name."
+    ),
+    placement = "right",
+    trigger = "click",
+    options = list(container = "body", html = TRUE)
+  )
+)
+      ),
+    tags$hr(),
           prettyCheckbox("show_qc_labels_table", "Show labels table", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
 
           tags$hr(),

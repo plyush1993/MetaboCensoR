@@ -21,6 +21,7 @@
 #' @import shinyBS
 app_server <- function(input, output, session) {
 
+  options(shiny.maxRequestSize = 1024 * 1024^2)
   # --------------------------
   # Shared upload hub (Tab 0)
   # --------------------------
@@ -485,29 +486,149 @@ observeEvent(input$clear_shared, {
 
   # ---- Labels for Blank step ----
   custom_labels_blank <- reactive({
-    req(input$meta_csv, sample_names())
-    ext <- tools::file_ext(input$meta_csv$name)
-    validate(need(ext == "csv", "Upload a .csv for labels (one column, no header)."))
-    vec <- vroom::vroom(input$meta_csv$datapath, col_names = FALSE, delim = ",") |> pull(1)
-    validate(need(length(vec) == length(sample_names()),
-                  sprintf("Label count (%d) must match #samples (%d).", length(vec), length(sample_names()))))
-    as.character(vec)
-  })
+  req(input$meta_csv, sample_names())
 
-  label_vector_blank <- reactive({
-    req(sample_names())
-    if (input$label_source == "from_custom") {
-      custom_labels_blank()
+  ext <- tools::file_ext(input$meta_csv$name)
+  validate(need(ext == "csv", "Upload a .csv for labels (one column, no header)."))
+
+  vec <- vroom::vroom(input$meta_csv$datapath, col_names = FALSE, delim = ",") |> pull(1)
+
+  validate(
+    need(
+      length(vec) == length(sample_names()),
+      sprintf("Label count (%d) must match #samples (%d).", length(vec), length(sample_names()))
+    )
+  )
+
+  as.character(vec)
+})
+
+manual_labels_blank <- reactiveVal(NULL)
+
+observeEvent(sample_names(), {
+  req(sample_names())
+
+  auto_labs <- labels_from_sample_names(
+    sample_names(),
+    token_sep = input$token_sep %||% "_",
+    token_index = input$label_index %||% 2
+  )
+
+  manual_labels_blank(
+    make_label_table(sample_names(), auto_labs)
+  )
+}, ignoreInit = FALSE)
+
+observeEvent(input$apply_auto_labels_blank, {
+  req(sample_names())
+
+  auto_labs <- labels_from_sample_names(
+    sample_names(),
+    token_sep = input$token_sep %||% "_",
+    token_index = input$label_index %||% 2
+  )
+
+  manual_labels_blank(
+    make_label_table(sample_names(), auto_labs)
+  )
+
+  showNotification(
+    "Editable Blank label table was filled from current token labels.",
+    type = "message",
+    duration = 3
+  )
+}, ignoreInit = TRUE)
+
+observeEvent(input$labels_table_cell_edit, {
+  info <- input$labels_table_cell_edit
+
+  tbl <- manual_labels_blank()
+  req(tbl)
+
+  row_i <- as.integer(info$row)
+
+  validate(
+    need(row_i >= 1 && row_i <= nrow(tbl), "Edited row is outside label table.")
+  )
+
+  # Only Label column should be editable in the UI,
+  # so always write the edited value into Label.
+  tbl$Label[row_i] <- trimws(as.character(info$value))
+
+  manual_labels_blank(tbl)
+
+  showNotification(
+    paste0("Label updated: ", tbl$Sample[row_i], " -> ", tbl$Label[row_i]),
+    type = "message",
+    duration = 2
+  )
+}, ignoreInit = TRUE)
+
+label_vector_blank <- reactive({
+  req(sample_names())
+
+  src <- input$label_source %||% "from_rows"
+
+  if (identical(src, "from_custom")) {
+
+    custom_labels_blank()
+
+  } else if (identical(src, "manual")) {
+
+    tbl <- manual_labels_blank()
+    req(tbl)
+
+    validate(
+      need(nrow(tbl) == length(sample_names()),
+           "Manual label table must match the number of samples."),
+      need(!any(is.na(tbl$Label) | tbl$Label == ""),
+           "All samples must have labels.")
+    )
+
+    as.character(tbl$Label)
+
+  } else {
+
+    labels_from_sample_names(
+      sample_names(),
+      token_sep = input$token_sep %||% "_",
+      token_index = input$label_index %||% 2
+    )
+  }
+})
+
+output$labels_table <- renderDT({
+  req(sample_names(), label_vector_blank())
+
+  src <- input$label_source %||% "from_rows"
+
+  tbl <- if (identical(src, "manual")) {
+    manual_labels_blank()
+  } else {
+    make_label_table(sample_names(), label_vector_blank())
+  }
+
+  req(tbl)
+
+  datatable(
+    tbl,
+    editable = if (identical(src, "manual")) {
+      list(
+        target = "cell",
+        disable = list(columns = c(0)) # do not edit Sample column
+      )
     } else {
-      labels_from_sample_names(sample_names(), token_sep = input$token_sep %||% "_", token_index = input$label_index %||% 2)
-    }
-  })
-
-  output$labels_table <- renderDT({
-    req(sample_names(), label_vector_blank())
-    datatable(tibble(Sample = sample_names(), Label = label_vector_blank()),
-              options = list(pageLength = 6, scrollX = TRUE), rownames = FALSE)
-  })
+      FALSE
+    },
+    options = list(
+      pageLength = 6,
+      scrollX = TRUE,
+  ordering = FALSE,
+  searching = FALSE
+    ),
+    rownames = FALSE
+  )
+}, server = FALSE)
 
   # --------------------------
   # STEP 1 state: Blank filter
@@ -1952,33 +2073,152 @@ observeEvent(input$clear_shared, {
   # QC Labels
   # --------------------------
   qc_custom_labels <- reactive({
-    req(input$qc_meta_csv, sample_names())
-    ext <- tools::file_ext(input$qc_meta_csv$name)
-    validate(need(ext == "csv", "Upload a .csv for QC labels (one column, no header)."))
-    vec <- vroom::vroom(input$qc_meta_csv$datapath, col_names = FALSE, delim = ",") |> pull(1)
-    validate(need(length(vec) == length(sample_names()),
-                  sprintf("QC label count (%d) must match #samples (%d).", length(vec), length(sample_names()))))
-    as.character(vec)
-  })
+  req(input$qc_meta_csv, sample_names())
 
-  qc_label_vector <- reactive({
-    req(sample_names())
-    src <- input$qc_label_source %||% "inherit"
-    if (identical(src, "inherit")) {
-      req(label_vector_blank())
-      label_vector_blank()
-    } else if (identical(src, "from_custom")) {
-      qc_custom_labels()
+  ext <- tools::file_ext(input$qc_meta_csv$name)
+  validate(need(ext == "csv", "Upload a .csv for QC labels (one column, no header)."))
+
+  vec <- vroom::vroom(input$qc_meta_csv$datapath, col_names = FALSE, delim = ",") |> pull(1)
+
+  validate(
+    need(
+      length(vec) == length(sample_names()),
+      sprintf("QC label count (%d) must match #samples (%d).", length(vec), length(sample_names()))
+    )
+  )
+
+  as.character(vec)
+})
+
+manual_labels_qc <- reactiveVal(NULL)
+
+observeEvent(sample_names(), {
+  req(sample_names())
+
+  auto_labs <- labels_from_sample_names(
+    sample_names(),
+    token_sep = input$qc_token_sep %||% "_",
+    token_index = input$qc_label_index %||% 2
+  )
+
+  manual_labels_qc(
+    make_label_table(sample_names(), auto_labs)
+  )
+}, ignoreInit = FALSE)
+
+observeEvent(input$apply_auto_labels_qc, {
+  req(sample_names())
+
+  auto_labs <- labels_from_sample_names(
+    sample_names(),
+    token_sep = input$qc_token_sep %||% "_",
+    token_index = input$qc_label_index %||% 2
+  )
+
+  manual_labels_qc(
+    make_label_table(sample_names(), auto_labs)
+  )
+
+  showNotification(
+    "Editable QC label table was filled from current token labels.",
+    type = "message",
+    duration = 3
+  )
+}, ignoreInit = TRUE)
+
+observeEvent(input$qc_labels_table_cell_edit, {
+  info <- input$qc_labels_table_cell_edit
+
+  tbl <- manual_labels_qc()
+  req(tbl)
+
+  row_i <- as.integer(info$row)
+
+  validate(
+    need(row_i >= 1 && row_i <= nrow(tbl), "Edited row is outside QC label table.")
+  )
+
+  tbl$Label[row_i] <- trimws(as.character(info$value))
+
+  manual_labels_qc(tbl)
+
+  showNotification(
+    paste0("QC label updated: ", tbl$Sample[row_i], " -> ", tbl$Label[row_i]),
+    type = "message",
+    duration = 2
+  )
+}, ignoreInit = TRUE)
+
+qc_label_vector <- reactive({
+  req(sample_names())
+
+  src <- input$qc_label_source %||% "inherit"
+
+  if (identical(src, "inherit")) {
+
+    req(label_vector_blank())
+    label_vector_blank()
+
+  } else if (identical(src, "from_custom")) {
+
+    qc_custom_labels()
+
+  } else if (identical(src, "manual")) {
+
+    tbl <- manual_labels_qc()
+    req(tbl)
+
+    validate(
+      need(nrow(tbl) == length(sample_names()),
+           "Manual QC label table must match the number of samples."),
+      need(!any(is.na(tbl$Label) | tbl$Label == ""),
+           "All QC samples must have labels.")
+    )
+
+    as.character(tbl$Label)
+
+  } else {
+
+    labels_from_sample_names(
+      sample_names(),
+      token_sep = input$qc_token_sep %||% "_",
+      token_index = input$qc_label_index %||% 2
+    )
+  }
+})
+
+output$qc_labels_table <- renderDT({
+  req(sample_names(), qc_label_vector())
+
+  src <- input$qc_label_source %||% "inherit"
+
+  tbl <- if (identical(src, "manual")) {
+    manual_labels_qc()
+  } else {
+    make_label_table(sample_names(), qc_label_vector())
+  }
+
+  req(tbl)
+
+  datatable(
+    tbl,
+    editable = if (identical(src, "manual")) {
+      list(
+        target = "cell",
+        disable = list(columns = c(0)) # do not edit Sample column
+      )
     } else {
-      labels_from_sample_names(sample_names(), token_sep = input$qc_token_sep %||% "_", token_index = input$qc_label_index %||% 2)
-    }
-  })
-
-  output$qc_labels_table <- renderDT({
-    req(sample_names(), qc_label_vector())
-    datatable(tibble(Sample = sample_names(), Label = qc_label_vector()),
-              options = list(pageLength = 6, scrollX = TRUE), rownames = FALSE)
-  })
+      FALSE
+    },
+    options = list(
+      pageLength = 6,
+      scrollX = TRUE,
+  ordering = FALSE,
+  searching = FALSE
+    ),
+    rownames = FALSE
+  )
+}, server = FALSE)
 
   # --------------------------
   # STEP 3 state: QC Filters
@@ -3196,9 +3436,25 @@ output$help_body <- renderUI({
     return(div(
       h3("Blank Filters"),
       tags$ul(
-        tags$li(tags$b("Labels:"), " choose label (group) source from sample names (token + separator). For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample.",
-        br(),
-        "Or upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)."),
+        tags$li(
+  tags$b("Labels:"),
+  " choose how sample groups are assigned before Blank filtering.",
+  tags$br(),
+  tags$b("From sample names:"),
+  " labels are extracted from sample column names using the selected token index and token separator. ",
+  "For example: Sample name -> Orbi_Sample_A.mzML; separator: _; token index: 2; resulting label: Sample.",
+  tags$br(),
+  tags$b("From custom CSV:"),
+  " upload a one-column CSV file without a header. The number and order of labels must match the detected sample columns in the uploaded peak table.",
+  tags$br(),
+  tags$b("Manual editable table:"),
+  " fills the label table from the current token-based labels and allows manual correction.",
+  "Double-click a cell in the Label column to edit the group name.",
+  tags$br(),
+  "Click the button 'Fill editable ...' to update the cuttent labels after changing.",
+  tags$br(),
+  "To start from full raw sample names, use a token index larger than the number of available tokens; the app will fall back to the full sample name. "
+),
         tags$li(tags$b("Blank filter:"), " select blank group(s) (at least one) -> mode (by cutoff or any peak) -> Apply blank filter."),
         tags$ul(
                   tags$li(tags$b("Cutoff mode:"), " calculates Mean values for Blank group(s) and keeps feature if it is lower than cutoff * maximum mean value among experimental (other) group(s). The default is 0.1, meaning the blank signal should be less than 10% of the signal in the sample group in which it is the most abundant"),
@@ -3221,7 +3477,7 @@ output$help_body <- renderUI({
         tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family.",
                 tags$br(),
                 "Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph."),
-        tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral loses features by graph and retains ion with the highest m/z in each family.",
+        tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral losses features by graph and retains ion with the highest m/z in each family.",
                 tags$br(),
                 "Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph."),
         tags$li(tags$b("In-Source Fragments:"), " uses RT shift + correlation threshold to detect in-source fragment features by graph and retains ion with the highest m/z in each family.",
@@ -3275,9 +3531,28 @@ output$help_body <- renderUI({
     return(div(
       h3("QC Filters"),
       tags$ul(
-        tags$li(tags$b("Labels:"), " choose label (group) source from Blank Tab (by Default), or sample names (token + separator). For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample.",
-        br(),
-        "Or upload labels in CSV (one column no header, must match the order of the sample columns in the uploaded peak table)."),
+                tags$li(
+  tags$b("Labels:"),
+  " choose how sample groups are assigned before QC filtering.",
+  tags$br(),
+  tags$b("Use labels from Blank Tab:"),
+  " QC filtering inherits the labels already defined in the Blank Filters tab. ",
+  tags$br(),
+  tags$b("From sample names:"),
+  " labels are extracted from sample column names using the selected token index and token separator. ",
+  "For example: Sample name -> Orbi_Sample_A.mzML; separator: _; token index: 2; resulting label: Sample.",
+  tags$br(),
+  tags$b("From custom CSV:"),
+  " upload a one-column CSV file without a header. The number and order of labels must match the detected sample columns in the uploaded peak table.",
+  tags$br(),
+  tags$b("Manual editable table:"),
+  " fills the label table from the current token-based labels and allows manual correction.",
+  "Double-click a cell in the Label column to edit the group name.",
+  tags$br(),
+  "Click the button 'Fill editable ...' to update the cuttent labels after changing.",
+  tags$br(),
+  "To start from full raw sample names, use a token index larger than the number of available tokens; the app will fall back to the full sample name. "
+),
         tags$li(tags$b("Value filters:"), " choose group for removal -> specify value(s): zeros(by counts or %) / mean / rsd / min -> mode of filtering (ANY/EVERY/POOLED) -> Apply value filters.",
                 tags$ul(
                         tags$li(tags$b("ANY"), " - satisfies threshold in at least one of the selected groups"),

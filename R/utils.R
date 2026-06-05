@@ -394,6 +394,13 @@ labels_from_sample_names <- function(sample_names, token_sep = "_", token_index 
   labs
 }
 
+make_label_table <- function(sample_names, labels) {
+  tibble::tibble(
+    Sample = as.character(sample_names),
+    Label  = as.character(labels)
+  )
+}
+
 # --------------------------
 # STEP 1: Blank / Media Removal
 # --------------------------
