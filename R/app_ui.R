@@ -370,7 +370,7 @@ shiny::fluidPage(
               )
             ),
           conditionalPanel(
-            condition = "input.label_source == 'from_rows'",
+            condition = "input.label_source == 'from_rows' || input.label_source == 'manual'",
             numericInput("label_index", "Token index", value = 2, min = 1, step = 1),
             textInput("token_sep", "Token separator", value = "_")
           ),
@@ -432,7 +432,7 @@ shiny::fluidPage(
   )
 )
         ),
-    tags$hr(),
+
           prettyCheckbox("show_labels_table", "Show labels table", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
 
           tags$hr(),
@@ -922,7 +922,7 @@ shiny::fluidPage(
             ),
           tags$hr(),
           conditionalPanel(
-            condition = "input.qc_label_source == 'from_rows'",
+            condition = "input.qc_label_source == 'from_rows' || input.qc_label_source == 'manual'",
             numericInput("qc_label_index", "Token index", value = 2, min = 1, step = 1),
             textInput("qc_token_sep", "Token separator", value = "_")
           ),
@@ -984,7 +984,7 @@ shiny::fluidPage(
   )
 )
       ),
-    tags$hr(),
+
           prettyCheckbox("show_qc_labels_table", "Show labels table", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
 
           tags$hr(),
