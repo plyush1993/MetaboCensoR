@@ -16,3 +16,9 @@
 ### **`V.1.1.0`** 2026.06.03
 - Added two new MS filters: Mispicked Ion Merging and Saturated/Ringing Ion Cleaning
 - Minor Documentation and UI refinements
+
+<br>
+<br>
+
+### **`V.1.2.0`** 2026.06.06
+- Introducing the Manual Edition of Labels
