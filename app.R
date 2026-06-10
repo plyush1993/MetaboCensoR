@@ -4878,7 +4878,7 @@ output$qc_labels_table <- renderDT({
         theme_minimal() +
         theme(strip.text = element_text(size = 12, face = "bold", color = "#2c3e50"),
               strip.background = element_rect(fill = "#ecf0f1", color = NA)) +
-        labs(x = NULL, y = "Count") # Native ggplot axis
+        labs(x = NULL, y = NULL) # Native ggplot axis
 
       if (md$metric %in% c("mean", "min")) {
         gg <- gg + scale_x_continuous(trans = log10_plus_one_trans(), breaks = function(limits) {
