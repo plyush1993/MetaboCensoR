@@ -554,7 +554,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnli",
-                title = "<b>Enable isotope and dimer filtering</b><br><br>Define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5), see details in About Tab<br><br>Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains the most intense isotope/dimer in each family<br><br>Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1 and n_d 3",
+                title = "<b>Enable isotope and dimer filtering</b><br><br>Define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5), see details in About Tab<br><br>Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains the most intense isotope/dimer in each family<br><br>Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1, if you do not expect isotope patterns other than the regular 13C ladder",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -761,7 +761,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnmp",
-                title = "<b>Enable mispicked ions merging</b><br><br>Uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others<br><br>Note: we recommend using this filter with caution, and only if you expect poor integration",
+                title = "<b>Enable mispicked ions merging</b><br><br>Uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others<br><br>Note: we recommend using this filter with caution, and only if you expect poor integration. Be aware of incorrectly merging isomeric peaks",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)

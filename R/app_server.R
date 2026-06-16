@@ -3473,7 +3473,7 @@ output$help_body <- renderUI({
       tags$ul(
         tags$li(tags$b("Isotopes/Dimers:"), " define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5). Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains the most intense isotope/dimer in each family.",
                 tags$br(),
-                "Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1 and n_d 3."),
+                "Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1, if you do not expect isotope patterns other than the regular 13C ladder."),
         tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family.",
                 tags$br(),
                 "Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph."),
@@ -3487,7 +3487,7 @@ output$help_body <- renderUI({
                 "Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio."),
         tags$li(tags$b("Mispicked Ions:"), " uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others.",
                 tags$br(),
-                "Note: we recommend using this filter with caution, and only if you expect poor integration."),
+                "Note: we recommend using this filter with caution, and only if you expect poor integration. Be aware of incorrectly merging isomeric peaks."),
         tags$li(tags$b("Saturated Ions:"), " uses m/z and RT shifts + correlation threshold to detect saturated ions by graph and retains the most intense ion in each family.",
                 tags$br(),
                 "Note: we recommend to disable `Bidirectional search` option, and remaining saturated artifacts to be strictly higher than anchor ion; also consider min intensity for the saturated (anchor) ion and its ratio with artifacts.",
@@ -3498,8 +3498,18 @@ output$help_body <- renderUI({
       br(),
       div(class="highlight", "Tip: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes. Adduct statistics table shows the frequency distribution for each determined adduct type and can be used to refine Adduct list."),
       br(),
-      div(class="highlight", "Tip: Both 'Mispicked Ion Merging' and 'Saturated Ion Cleaning' could be potentially use for the determination and removing additional isotopes or misaligned peaks. For refined isotope-like artifact search, Saturated Ion Cleaning can be used in Biderictional mode with controlled intensity ratio and refined parameters (e.g. m/z: 0.05 Da, intensity: 10 000). Be aware to misidentify isomeric peaks."),
-      br(),
+      div(class="highlight", HTML("Tip: Additional isotope refinement<br><br>
+
+In the default isotope search, using <b>n = 1</b> is conservative: the algorithm first searches for the first <sup>13</sup>C isotope before grouping higher isotope peaks such as <b>M+2</b> or <b>M+3</b>. This reduces the risk of incorrectly clustering two independent compounds that are separated by approximately <b>2.0067 Da</b> or <b>3.0101 Da</b>, especially when the intermediate <b>M+1</b> peak is absent.<br><br>
+
+This assumption usually works well because isotope peaks detected in peak tables are most commonly dominated by the <sup>13</sup>C isotope ladder. However, depending on the sample type and metabolite class, additional isotope patterns may be relevant. For example, large carbon-rich molecules such as lipids, saponins, flavonoid glycosides, peptides, and lipopeptides may show clear <b>M+2</b> or <b>M+3</b> isotope peaks. In addition, chlorinated or brominated metabolites can produce strong isotope peaks near the <b>M+2</b> region.<br><br>
+
+For these cases, a more permissive isotope search can be performed by increasing the isotope order to <b>n = 3</b> and using a wider m/z tolerance, for example <b>0.015 Da</b>. A broader tolerance such as <b>0.05 Da</b> should be treated as a diagnostic/refinement search and interpreted carefully.<br><br>
+
+Both <b>Mispicked Ion Merging</b> and <b>Saturated Ion Cleaning</b> can potentially be used to detect and remove additional isotope-like signals, heteroatom isotope patterns, or misaligned peaks. For refined isotope-like artifact search, <b>Saturated Ion Cleaning</b> can be used in <b>bidirectional mode</b> with a controlled intensity ratio and adjusted parameters, for example <b>m/z tolerance = 0.05 Da</b> and <b>minimum intensity = 10,000</b>.<br><br>
+
+Be aware that wide m/z tolerances increase the risk of incorrectly grouping unrelated coeluting compounds, such as lipid species differing only by the number of double bonds. Results from permissive isotope refinement should therefore be manually inspected.")),
+          br(),
       div(class = "highlight",
       "Tip: See Isotopes & Dimers shift table ",
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/Isotopes&Dimers.md", "here", target = "_blank"),
