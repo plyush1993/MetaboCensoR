@@ -1186,6 +1186,15 @@ ui <- fluidPage(
         padding: 5px;
       }
 
+      /* input box created during editing */
+      .dataTables_wrapper input,
+      .dataTables_wrapper textarea {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+        caret-color: #000000 !important;
+      }
+
       /* 4. Ensure Tooltip is 100% solid and readable */
       .tooltip {
         opacity: 1 !important; /* Forces the outer wrapper to be solid */
