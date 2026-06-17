@@ -22,3 +22,9 @@
 
 ### **`V.1.2.0`** 2026.06.06
 - Introducing the Manual Edition of Labels
+
+<br>
+<br>
+
+### **`V.1.2.1`** 2026.06.17
+- Minor Documentation and UI refinements
