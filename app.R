@@ -5992,20 +5992,6 @@ output$help_body <- renderUI({
       ),
       div(class="highlight", "Rule: Filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, In-Source Fragments, Mispicked Ions, and Saturated Ions. We recommend to keep the order to avoid misannotation."),
       br(),
-      div(class="highlight", "Tip: You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes. Adduct statistics table shows the frequency distribution for each determined adduct type and can be used to refine Adduct list."),
-      br(),
-      div(class="highlight", HTML("Tip: Additional isotope refinement<br><br>
-
-In the default isotope search, using <b>n = 1</b> is conservative: the algorithm first searches for the first <sup>13</sup>C isotope before grouping higher isotope peaks such as <b>M+2</b> or <b>M+3</b>. This reduces the risk of incorrectly clustering two independent compounds that are separated by approximately <b>2.0067 Da</b> or <b>3.0101 Da</b>, especially when the intermediate <b>M+1</b> peak is absent.<br><br>
-
-This assumption usually works well because isotope peaks detected in peak tables are most commonly dominated by the <sup>13</sup>C isotope ladder. However, depending on the sample type and metabolite class, additional isotope patterns may be relevant. For example, large carbon-rich molecules such as lipids, saponins, flavonoid glycosides, peptides, and lipopeptides may show clear <b>M+2</b> or <b>M+3</b> isotope peaks. In addition, chlorinated or brominated metabolites can produce strong isotope peaks near the <b>M+2</b> region.<br><br>
-
-For these cases, a more permissive isotope search can be performed by increasing the isotope order to <b>n = 3</b> and using a wider m/z tolerance, for example <b>0.015 Da</b>. A broader tolerance such as <b>0.05 Da</b> should be treated as a diagnostic/refinement search and interpreted carefully.<br><br>
-
-Both <b>Mispicked Ion Merging</b> and <b>Saturated Ion Cleaning</b> can potentially be used to detect and remove additional isotope-like signals, heteroatom isotope patterns, or misaligned peaks. For refined isotope-like artifact search, <b>Saturated Ion Cleaning</b> can be used in <b>bidirectional mode</b> with a controlled intensity ratio and adjusted parameters, for example <b>m/z tolerance = 0.05 Da</b> and <b>minimum intensity = 10,000</b>.<br><br>
-
-Be aware that wide m/z tolerances increase the risk of incorrectly grouping unrelated coeluting compounds, such as lipid species differing only by the number of double bonds. Results from permissive isotope refinement should therefore be manually inspected.")),
-          br(),
       div(class = "highlight",
       "Tip: See Isotopes & Dimers shift table ",
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/Isotopes&Dimers.md", "here", target = "_blank"),
@@ -6028,7 +6014,61 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
       " and available ",
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/neutral%20loss%20data%20(MS1FA%20%26%20Fiehn).csv", "here", target = "_blank"),
       "."
-    )
+    ),
+    br(),
+      div(
+  style = "
+    background-color: #f1e1ff;
+    border-left: 5px solid #9112f3;
+    padding: 10px 12px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    font-size: 18px;
+    line-height: 1.45;
+  ",
+  HTML("
+    <span style='
+      color:#6f00b8;
+      font-weight:700;
+      font-size:18px;
+    '>
+    <i class='fa fa-lightbulb-o'></i> Pro tip: Additional isotope refinement
+    </span><br><br>
+
+    In the default isotope search, using <b>n = 1</b> is conservative: the algorithm first searches for the first <sup>13</sup>C isotope before grouping higher isotope peaks such as <b>M+2</b> or <b>M+3</b>. This reduces the risk of incorrectly clustering two independent compounds that are separated by approximately <b>2.0067 Da</b> or <b>3.0101 Da</b>, especially when the intermediate <b>M+1</b> peak is absent.<br><br>
+
+This assumption usually works well because isotope peaks detected in peak tables are most commonly dominated by the <sup>13</sup>C isotope ladder. However, depending on the sample type and metabolite class, additional isotope patterns may be relevant. For example, large carbon-rich molecules such as lipids, saponins, flavonoid glycosides, peptides, and lipopeptides may show clear <b>M+2</b> or <b>M+3</b> isotope peaks. In addition, chlorinated or brominated metabolites can produce strong isotope peaks near the <b>M+2</b> region.<br><br>
+
+For these cases, a more permissive isotope search can be performed by increasing the isotope order to <b>n = 3</b> and using a wider m/z tolerance, for example <b>0.015 Da</b>. A broader tolerance such as <b>0.05 Da</b> should be treated as a diagnostic/refinement search and interpreted carefully.<br><br>
+
+Both <b>Mispicked Ion Merging</b> and <b>Saturated Ion Cleaning</b> can potentially be used to detect and remove additional isotope-like signals, heteroatom isotope patterns, or misaligned peaks. For refined isotope-like artifact search, <b>Saturated Ion Cleaning</b> can be used in <b>bidirectional mode</b> with a controlled intensity ratio and adjusted parameters, for example <b>m/z tolerance = 0.05 Da</b> and <b>minimum intensity = 10,000</b>.<br><br>
+
+Be aware that wide m/z tolerances increase the risk of incorrectly grouping unrelated coeluting compounds, such as lipid species differing only by the number of double bonds. Results from permissive isotope refinement should therefore be manually inspected.")),
+  br(),
+      div(
+  style = "
+    background-color: #f1e1ff;
+    border-left: 5px solid #9112f3;
+    padding: 10px 12px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    font-size: 18px;
+    line-height: 1.45;
+  ",
+  HTML("
+    <span style='
+      color:#6f00b8;
+      font-weight:700;
+      font-size:18px;
+    '>
+    <i class='fa fa-lightbulb-o'></i> Pro tip: Peak table annotation
+    </span><br><br>
+                                  You can print and download a table describing any stage of MS filtration. These tables can be used for peak annotation purposes. <br><br>
+                                  Adduct statistics table shows the frequency distribution for each determined adduct type and can be used to refine Adduct list.<br><br>
+                                  Adduct relationships are determined by neutral-mass calculation. Therefore, the algorithm evaluates all defined adduct, charge-state, and multimer combinations. However, neutral-mass matching alone does not always define one unique ion type. Different ion forms can produce compatible neutral masses and may therefore be grouped into the same ion family. For example, the algorithm may not always distinguish between a multiply charged ion, a multimer, or another compatible adduct relationship (e.g. with AcN). These assignments should be considered putative and manually checked when needed, using MS1 isotope spacing to confirm charge state and MS2 spectra to support multimer- or other adduct-related assignments.")),
+          
     )
     )
   }
