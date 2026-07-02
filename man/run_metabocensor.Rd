@@ -14,7 +14,8 @@ Run the MetaboCensoR Application locally. Shiny deployment
 \href{https://plyush1993.shinyapps.io/metabocensor/}{here}.
 }
 \references{
-To be updated DOI.
+To be updated
+\href{https://doi/}{DOI}.
 }
 \examples{
 \dontrun{
