@@ -1,8 +1,19 @@
+citHeader("To cite MetaboCensoR, please use:")
+
 bibentry(
-  bibtype = "Manual",
-  title = "MetaboCensoR: Shiny App for filtering redundant features in LC-MS",
-  author = person("Ivan", "Plyushchenko", email = "plyushchenko.ivan@gmail.com", role = c("aut", "cre")),
+  bibtype = "Article",
+  title = "{MetaboCensoR}: A Shiny Application for Data Filtering in Untargeted LC-MS Metabolomics to Enhance Interpretability",
+  author = person(
+    given = "Ivan",
+    family = "Plyushchenko",
+    email = "plyushchenko.ivan@gmail.com",
+    role = c("aut", "cre")
+  ),
+  journal = "bioRxiv",
   year = "2026",
-  url = "https://github.com/plyush1993/MetaboCensoR",
-  doi = "..."
+  volume = "",
+  number = "",
+  pages = "",
+  doi = "10.xxxx/xxxxxx",
+  url = "https://github.com/plyush1993/MetaboCensoR"
 )
