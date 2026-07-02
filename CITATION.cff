@@ -1,10 +1,27 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "If you use MetaboCensoR, please cite it as below:"
 authors:
 - family-names: "Plyushchenko"
   given-names: "Ivan V."
   orcid: "https://orcid.org/0000-0003-3883-4695"
-title: "MetaboCensoR"
+title: "MetaboCensoR: Shiny App for filtering redundant features in LC-MS"
 date-released: 2026-03-01
 url: "https://github.com/plyush1993/MetaboCensoR"
-doi: "..."
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Plyushchenko"
+    given-names: "Ivan V."
+    orcid: "https://orcid.org/0000-0003-3883-4695"
+  - family-names: "Luzzatto-Knaan"
+    given-names: "Tal"
+    orcid: "https://orcid.org/0000-0002-8392-0501"
+  doi: "..."
+  journal: "bioRxiv"
+  month: 
+  start: 
+  end: 
+  title: "MetaboCensoR: A Shiny Application for Data Filtering in Untargeted LC-MS Metabolomics to Enhance Interpretability"
+  issue: 
+  volume: 
+  year: 2026
