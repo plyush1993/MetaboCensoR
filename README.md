@@ -23,7 +23,7 @@ Check compatibility with [`examples of inputs`](https://github.com/plyush1993/Me
 <details>
   <summary><b>Server GUI Map&nbsp;&nbsp;</b></summary>
   <br/>
-</a><a href="DOI:">
+</a>
 <img src="inst/www/Server_Map.png" align="center" width="700" height="500">
 </a>
 </details><br>
