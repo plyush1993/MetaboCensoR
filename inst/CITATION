@@ -4,10 +4,18 @@ bibentry(
   bibtype = "Article",
   title = "{MetaboCensoR}: A Shiny Application for Data Filtering in Untargeted LC-MS Metabolomics to Enhance Interpretability",
   author = c(
-       person(c("Ivan", "V."), "Plyushchenko", c("aut", "cre"),
-         email = "plyushchenko.ivan@gmail.com"),
-       person(c("Tal"), "Luzzatto-Knaan")
-     ),
+    person(
+      given = c("Ivan", "V."),
+      family = "Plyushchenko",
+      role = c("aut", "cre"),
+      email = "plyushchenko.ivan@gmail.com"
+    ),
+    person(
+      given = "Tal",
+      family = "Luzzatto-Knaan",
+      role = "aut"
+    )
+  ),
   journal = "bioRxiv",
   year = "2026",
   volume = "",
