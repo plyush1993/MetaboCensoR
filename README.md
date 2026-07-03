@@ -3,7 +3,7 @@
 ![](https://img.shields.io/github/v/release/plyush1993/MetaboCensoR?color=teal&logo=github&logoColor=white&label=)
 [![](https://img.shields.io/badge/-2986cc.svg?style=flat&logo=r&logoColor=white?)](https://cran.r-project.org/index.html)
 [![License](https://img.shields.io/badge/GPLv3-indianred.svg?style=flat&maxAge=2678400)](https://choosealicense.com/licenses/gpl-3.0/)
-# MetaboCensoR <img src="metabocensor_logo_4x.png" align="right" height="200" width="180">
+# MetaboCensoR <img src="inst/www/metabocensor_logo.png" align="right" height="200" width="180">
 
 ### Description :bookmark_tabs:
 The [`R`](https://www.r-project.org/) [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and .mgf file. 
