@@ -14,8 +14,8 @@ Run the MetaboCensoR Application locally. Shiny deployment
 \href{https://plyush1993.shinyapps.io/metabocensor/}{here}.
 }
 \references{
-To be updated
-\href{https://doi/}{DOI}.
+Plyushchenko I.V. & Luzzatto-Knaan T. "MetaboCensoR: A Shiny Application for Data Filtering in Untargeted LC-MS Metabolomics to Enhance Interpretability" bioRxiv 2026.07.02.735197
+\href{https://doi.org/10.64898/2026.07.02.735197}{DOI}.
 }
 \examples{
 \dontrun{
