@@ -14,7 +14,7 @@
 #' @import plotly
 app_ui <- function() {
 shiny::fluidPage(
- use_waiter(),
+  use_waiter(),
   use_hostess(),
   theme = shinytheme("flatly"),
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
@@ -25,9 +25,27 @@ shiny::fluidPage(
     tags$link(
       rel  = "icon",
       type = "image/png",
-      href = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/metabocensor_logo_web.png"
+      href = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/metabocensor_logo_web.png"
     ),
     tags$style(HTML("
+    /* Main window headers only, excluding quick-stat numbers */
+    .tab-content .col-sm-8 h3:not(.quick-stat-samples):not(.quick-stat-features),
+    .tab-content .col-sm-8 h4 {
+      color: #000000 !important;
+      font-weight: 800 !important;
+      text-shadow: 0 1px 10px rgba(255, 255, 255, 1);
+    }
+
+    /* Keep quick-stat original colors */
+    .tab-content .col-sm-8 h3.quick-stat-samples {
+      color: #EE2C2C !important;
+      font-weight: 800 !important;
+    }
+
+    .tab-content .col-sm-8 h3.quick-stat-features {
+      color: #3498db !important;
+      font-weight: 800 !important;
+    }
       .shiny-output-error-validation { color:#000 !important; font-size: 22px !important; font-weight:800 !important; padding:12px; }
       .highlight { background:#fff; border:2px solid #000; color:#000; padding:8px; border-radius:8px; font-weight:bold; }
       .nav-tabs>li>a { font-size: 20px; padding: 12px 18px; }
@@ -56,13 +74,20 @@ shiny::fluidPage(
       }
 
       /* 2. Only color the actual table once it is generated */
-      .dataTable, .dataTables_scroll {
-        background-color: #ffffff !important;
-        color: #2c3e50 !important;
-        border-radius: 8px !important;
-        overflow: hidden !important;
-        border: 1px solid #dee2e6 !important;
-      }
+      table.dataTable {
+      background-color: #ffffff !important;
+      color: #2c3e50 !important;
+      border-radius: 8px !important;
+      border: 1px solid #dee2e6 !important;
+    }
+
+    .dataTables_wrapper {
+      background-color: #ffffff !important;
+      color: #2c3e50 !important;
+      border-radius: 8px !important;
+      padding: 4px !important;
+      overflow-x: auto !important;
+    }
 
       /* 3. Ensure the search box and pagination stay visible against the gradient */
       .dataTables_wrapper .dataTables_length,
@@ -199,7 +224,7 @@ shiny::fluidPage(
       href   = "https://github.com/plyush1993/MetaboCensoR",
       target = "_blank",
       tags$img(
-        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/metabocensor_logo.png",
+        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/metabocensor_logo.png",
         alt = "MetaboCensoR logo"
       )
     )
@@ -215,7 +240,7 @@ shiny::fluidPage(
      href="https://github.com/plyush1993/MetaboCensoR/releases/latest"
      target="_blank">v. </a>
     <span class="footer-sep">&nbsp;|&nbsp;</span>
-    <a class="footer-link" href="https://www.doi.org/" target="_blank">Publication</a>
+    <a class="footer-link" href="https://doi.org/10.64898/2026.07.02.735197" target="_blank">Publication</a>
 
     <script>
     fetch("https://api.github.com/repos/plyush1993/MetaboCensoR/releases/latest")
@@ -343,6 +368,7 @@ shiny::fluidPage(
                 style = "margin-bottom: -15px;",
           radioButtons("label_source", "Label source:",
                        c("From sample names (by token)" = "from_rows",
+                         "From metadata CSV" = "from_metadata",
                          "From custom CSV (one column, no header)" = "from_custom",
     "Manual editable table" = "manual"),
                        selected = "from_rows")
@@ -367,6 +393,8 @@ shiny::fluidPage(
   "<b>Choose Blank Label/Group source</b><br><br>",
   "<b>From sample names:</b><br>",
   "Labels are generated from sample column names using token index and token separator. For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>",
+  "<b>From metadata CSV:</b><br>",
+  "Upload a metadata table with column names, choose the sample-name column and the column to use as Label. Rows are matched by sample name. You can also clean sample name to remove file extension, suffixes, etc.<br><br>",
   "<b>From custom CSV:</b><br>",
   "Upload a one-column CSV without header. Label order must match sample column order<br><br>",
   "<b>Manual editable table:</b><br>",
@@ -387,6 +415,58 @@ shiny::fluidPage(
             condition = "input.label_source == 'from_custom'",
             fileInput("meta_csv", "Upload labels CSV", accept = ".csv")
           ),
+
+       conditionalPanel(
+  condition = "input.label_source == 'from_metadata'",
+
+  fileInput(
+    "blank_metadata_csv",
+    "Upload metadata CSV with column names",
+    accept = ".csv"
+  ),
+
+  uiOutput("blank_metadata_sample_col_ui"),
+  uiOutput("blank_metadata_label_col_ui"),
+
+  prettyCheckbox(
+    "blank_clean_metadata_names",
+    "Clean sample names",
+    value = FALSE,
+    icon = icon("check"),
+    status = "primary",
+    animation = "jelly"
+  ),
+
+  conditionalPanel(
+    condition = "input.blank_clean_metadata_names == true",
+
+    selectizeInput(
+      "blank_metadata_remove_suffixes",
+      "Remove suffixes/extensions:",
+      choices = c(
+        ".mzML", ".mzXML", ".raw", ".RAW",
+        ".cdf", ".CDF", ".mzData", ".mzdata",
+        ".wiff", ".WIFF", ".d", ".D",
+        " Peak area", " Peak Area",
+        " Peak height", " Peak Height",
+        "_Area", "_Height",
+        " Area", " Height"
+      ),
+      selected = c(
+        " Peak area", " Peak height",
+        "_Area", "_Height",
+        " Area", " Height"
+      ),
+      multiple = TRUE,
+      options = list(
+        create = TRUE,
+        createOnBlur = TRUE,
+        placeholder = "Type custom suffix and press Enter"
+      )
+    )
+  )
+),
+
     conditionalPanel(
           condition = "input.label_source == 'manual'",
           div(
@@ -893,6 +973,7 @@ shiny::fluidPage(
           radioButtons("qc_label_source", "Label source:",
                        c("Use labels from Blank Tab" = "inherit",
                          "From sample names (by token)" = "from_rows",
+                         "From metadata CSV" = "from_metadata",
                          "From custom CSV (one column, no header)" = "from_custom",
     "Manual editable table" = "manual"),
                        selected = "inherit")
@@ -918,6 +999,8 @@ shiny::fluidPage(
   "QC filtering inherits the labels defined in the Blank Filters tab.<br><br>",
   "<b>From sample names:</b><br>",
   "Labels are generated from sample column names using token index and token separator. For example: Sample name -> Orbi_Sample_A.mzML; Separator:_; Token index:2; Resulting label: Sample<br><br>",
+  "<b>From metadata CSV:</b><br>",
+  "Upload a metadata table with column names, choose the sample-name column and the column to use as Label. Rows are matched by sample name. You can also clean sample name to remove file extension, suffixes, etc.<br><br>",
   "<b>From custom CSV:</b><br>",
   "Upload a one-column CSV without header. Label order must match sample column order<br><br>",
   "<b>Manual editable table:</b><br>",
@@ -939,6 +1022,60 @@ shiny::fluidPage(
             condition = "input.qc_label_source == 'from_custom'",
             fileInput("qc_meta_csv", "Upload labels CSV", accept = ".csv")
           ),
+
+      conditionalPanel(
+  condition = "input.qc_label_source == 'from_metadata'",
+
+  fileInput(
+    "qc_metadata_csv",
+    "Upload metadata CSV with column names",
+    accept = ".csv"
+  ),
+
+  uiOutput("qc_metadata_sample_col_ui"),
+  uiOutput("qc_metadata_label_col_ui"),
+
+  prettyCheckbox(
+    "qc_clean_metadata_names",
+    "Clean sample names",
+    value = FALSE,
+    icon = icon("check"),
+    status = "primary",
+    animation = "jelly"
+  ),
+
+  conditionalPanel(
+    condition = "input.qc_clean_metadata_names == true",
+
+    selectizeInput(
+      "qc_metadata_remove_suffixes",
+      "Remove suffixes/extensions:",
+      choices = c(
+        ".mzML", ".mzXML", ".raw", ".RAW",
+        ".cdf", ".CDF", ".mzData", ".mzdata",
+        ".wiff", ".WIFF", ".d", ".D",
+        " Peak area", " Peak Area",
+        " Peak height", " Peak Height",
+        "_Area", "_Height",
+        " Area", " Height"
+      ),
+      selected = c(
+        ".mzML", ".mzXML", ".raw",
+        ".cdf", ".wiff", ".d",
+        " Peak area", " Peak height",
+        "_Area", "_Height",
+        " Area", " Height"
+      ),
+      multiple = TRUE,
+      options = list(
+        create = TRUE,
+        createOnBlur = TRUE,
+        placeholder = "Type custom suffix and press Enter"
+      )
+    )
+  )
+),
+
     conditionalPanel(
         condition = "input.qc_label_source == 'manual'",
         div(
@@ -1028,7 +1165,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnqcv",
-                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage<br><br>RSD calculation requires at least 2 samples per group",
+                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage<br><br>RSD calculation requires at least 2 samples per group; all-zero or all-missing features produce NA RSD and fail the RSD filter",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -1152,7 +1289,8 @@ shiny::fluidPage(
               choices = c("m/z" = "mz",
                           "rt" = "rt",
                           "RMD" = "rmd",
-                          "AMD" = "amd"),
+                          "AMD" = "amd",
+                          "Target peak list" = "target"),
               justified = F, individual = T,
               size = "norm",
               status = "gray-red"
@@ -1173,7 +1311,7 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btn4",
-                title = "<b>Filter peaks by m/z, rt, or mass defect (absolute or relative) values</b>",
+                title = "<b>Enable peak value filtering</b><br><br>Filter peaks by m/z, rt, mass defect (absolute or relative) values, or a target peak list to remove or keep<br><br>Specify threshold ranges for corresponding filtering value<br><br>For making a target peak list to remove/keep enter comma-separated m/z and RT pairs manually, one pair per line, or upload a CSV file. Also specify m/z and RT tolerance for matching",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -1232,6 +1370,52 @@ shiny::fluidPage(
               )
             )
           ),
+          conditionalPanel(
+  condition = "input.peak_filters.indexOf('target') >= 0",
+
+  radioButtons(
+    "target_peak_action",
+    "Action for matched target peaks:",
+    choices = c(
+      "Remove matched peaks" = "remove",
+      "Keep only matched peaks" = "keep"
+    ),
+    selected = "remove",
+    inline = FALSE
+  ),
+
+  radioButtons("target_mz_tol_type", "m/z tolerance type:", choices = c("Da"="da","ppm"="ppm"),
+                         selected = "da", inline = TRUE),
+
+  conditionalPanel(
+    condition = "input.target_mz_tol_type == 'da'",
+    numericInput("target_mz_tol_da", HTML("m/z tolerance (Da)"), value = 0.005, min = 0, step = 0.001)
+  ),
+
+  conditionalPanel(
+    condition = "input.target_mz_tol_type == 'ppm'",
+    numericInput("target_mz_tol_ppm", HTML("m/z tolerance (ppm)"), value = 10, min = 0, step = 1)
+  ),
+
+  numericInput("target_rt_tol", HTML("rt tolerance (min)"), value = 0.05, min = 0, step = 0.01),
+
+  textAreaInput(
+    "target_peak_text",
+    "Type target peaks:",
+    value = "",
+    placeholder = "mz,rt\n338.34174,10.67\n365.157227,7.91",
+    rows = 5,
+    resize = "vertical"
+  ),
+
+  fileInput(
+    "target_peak_csv",
+    "Or upload target list (.csv)",
+    accept = ".csv"
+  ),
+
+  helpText("CSV should contain mz and rt columns. If column names are not detected, the first two columns are treated as mz and rt.")
+),
           tags$hr(),
           actionButton("plot_peak", "Plot values distribution", class = "btn btn-secondary"),
           br(),
@@ -1255,6 +1439,26 @@ shiny::fluidPage(
 
           uiOutput("peak_header_in"),
           DTOutput("peak_table_in"),
+
+          conditionalPanel(
+  condition = "input.peak_filters.indexOf('target') >= 0",
+  h4("Matched Peaks:"),
+        div(
+          style = "
+            clear: both;
+            min-height: 140px;
+            margin-top: 15px;
+            margin-bottom: 25px;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #ffffff;
+            overflow-x: auto;
+            overflow-y: hidden;
+          ",
+          DTOutput("target_peak_match_table")
+        )
+      ),
 
           conditionalPanel(
             condition = "output.peakPlotReady && input.show_peak_plot",

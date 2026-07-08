@@ -21,7 +21,7 @@
 #' @import shinyBS
 app_server <- function(input, output, session) {
 
-  options(shiny.maxRequestSize = 1024 * 1024^2)
+options(shiny.maxRequestSize = 1024 * 1024^2)
   # --------------------------
   # Shared upload hub (Tab 0)
   # --------------------------
@@ -37,7 +37,7 @@ app_server <- function(input, output, session) {
     file_state$valid <- TRUE
 
     w_up <- Waiter$new(
-    html = tagList(spin_6(), h4("Reading Table...", style="color:white;")),
+    html = tagList(spin_6(), h4("Reading Table...", style="color:#ffffff !important; text-shadow:none !important;")),
     color = "rgba(44, 62, 80, 0.8)"
     )
     w_up$show()
@@ -106,6 +106,7 @@ observeEvent(input$clear_shared, {
     shared$msdial_preamble <- NULL
     shared$msdial_export_names <- NULL
     file_state$valid <- FALSE
+
     # 2. Reset Error Messages
     upload_error(NULL)
 
@@ -114,6 +115,27 @@ observeEvent(input$clear_shared, {
     shinyjs::reset("file0")
     shinyjs::reset("meta_csv")
     shinyjs::reset("qc_meta_csv")
+    shinyjs::reset("target_peak_csv")
+    shinyjs::reset("adduct_file2")
+    shinyjs::reset("nl_file2")
+    shinyjs::reset("mgf_input")
+
+    # Reset metadata CSV inputs for Blank and QC labels
+    shinyjs::reset("blank_metadata_csv")
+    shinyjs::reset("blank_metadata_sample_col")
+    shinyjs::reset("blank_metadata_label_col")
+    shinyjs::reset("blank_metadata_remove_suffixes")
+
+    shinyjs::reset("qc_metadata_csv")
+    shinyjs::reset("qc_metadata_sample_col")
+    shinyjs::reset("qc_metadata_label_col")
+    shinyjs::reset("qc_metadata_remove_suffixes")
+
+    updateRadioButtons(session, "label_source", selected = "from_rows")
+    updateRadioButtons(session, "qc_label_source", selected = "inherit")
+
+    updatePrettyCheckbox(session, "blank_clean_metadata_names", value = FALSE)
+    updatePrettyCheckbox(session, "qc_clean_metadata_names", value = FALSE)
 
     # 4. Reset Step 1 (Blank)
     blank_state$applied <- FALSE
@@ -155,14 +177,27 @@ observeEvent(input$clear_shared, {
     peak_state$applied <- FALSE
     peak_state$show_summary <- FALSE
     peak_state$kept <- NULL
-    peak_state$stats <- list(before=0L, after=0L,
-                             removed_mz=0L, removed_rt=0L, removed_rmd=0L, removed_amd=0L, removed_total=0L)
+    peak_state$target_matches <- empty_peak_matches()
+    updateTextAreaInput(session, "target_peak_text", value = "")
+    target_peak_csv_cache(empty_peak_targets())
+    target_peak_cleared(TRUE)
+    peak_state$stats <- list(
+        before = 0L,
+        after = 0L,
+        removed_mz = 0L,
+        removed_rt = 0L,
+        removed_rmd = 0L,
+        removed_amd = 0L,
+        removed_target = 0L,
+        matched_target = 0L,
+        target_action = "remove",
+        removed_total = 0L
+      )
 
     # 8. Reset Final Results
     final_table(NULL)
 
     # Reset mgf processing
-    shinyjs::reset("mgf_input")
     current_mgf(NULL)
     parsed_mgf(NULL)
     mgf_true_names(NULL)
@@ -179,7 +214,7 @@ observeEvent(input$clear_shared, {
     file_state$valid <- TRUE
 
     w_up <- Waiter$new(
-      html = tagList(spin_6(), h4("Loading Example Dataset...", style="color:white;")),
+      html = tagList(spin_6(), h4("Loading Example Dataset...", style="color:#ffffff !important; text-shadow:none !important;")),
       color = "rgba(44, 62, 80, 0.8)"
     )
     w_up$show()
@@ -190,7 +225,7 @@ observeEvent(input$clear_shared, {
         updateSelectInput(session, "data_type0", selected = "mzmine")
 
         # 2. Use the RAW GitHub URL (vroom needs the raw CSV, not the HTML page)
-        example_url <- "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/Input_Examples/orbi_iimn_gnps_quant.csv"
+        example_url <- "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/extdata/orbi_iimn_gnps_quant.csv"
 
         # 3. Read data directly from GitHub
         df0 <- as.data.frame(vroom::vroom(example_url, delim = ",", show_col_types = FALSE))
@@ -265,11 +300,11 @@ observeEvent(input$clear_shared, {
     div(style = "display: flex; gap: 15px; margin-bottom: 15px; margin-top: 5px;",
         div(style = "flex: 1; background-color: #f8f9fa; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #EE2C2C; box-shadow: 0 1px 3px rgba(0,0,0,0.05);",
             h5("Total Samples Detected", style = "margin: 0 0 5px 0; color: #2c3e50; font-weight: bold; text-transform: uppercase; font-size: 14px;"),
-            h3(n_samples, style = "margin: 0; color: #EE2C2C; font-weight: 800; font-size: 28px;")
+            h3(n_samples, class = "quick-stat-samples", style = "margin: 0; color: #EE2C2C; font-weight: 800; font-size: 28px;")
         ),
         div(style = "flex: 1; background-color: #f8f9fa; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #3498db; box-shadow: 0 1px 3px rgba(0,0,0,0.05);",
             h5("Total Features (Peaks)", style = "margin: 0 0 5px 0; color: #2c3e50; font-weight: bold; text-transform: uppercase; font-size: 14px;"),
-            h3(n_features, style = "margin: 0; color: #3498db; font-weight: 800; font-size: 28px;")
+            h3(n_features, class = "quick-stat-features", style = "margin: 0; color: #3498db; font-weight: 800; font-size: 28px;")
         )
     )
   })
@@ -564,6 +599,66 @@ observeEvent(input$labels_table_cell_edit, {
   )
 }, ignoreInit = TRUE)
 
+blank_metadata_raw <- reactive({
+  req(input$blank_metadata_csv)
+  read_metadata_csv(input$blank_metadata_csv, context = "Blank metadata labels")
+})
+
+
+output$blank_metadata_sample_col_ui <- renderUI({
+  req(blank_metadata_raw())
+
+  cols <- names(blank_metadata_raw())
+
+  selectInput(
+    "blank_metadata_sample_col",
+    "Metadata sample-name column:",
+    choices = cols,
+    selected = guess_metadata_sample_col(cols)
+  )
+})
+
+
+output$blank_metadata_label_col_ui <- renderUI({
+  req(blank_metadata_raw())
+
+  cols <- names(blank_metadata_raw())
+  sample_col <- input$blank_metadata_sample_col %||% guess_metadata_sample_col(cols)
+  choices <- setdiff(cols, sample_col)
+
+  validate(
+    need(length(choices) > 0, "Metadata file has no column available for labels.")
+  )
+
+  selectizeInput(
+    "blank_metadata_label_col",
+    "Metadata column to use as Label:",
+    choices = choices,
+    selected = guess_metadata_label_col(cols, sample_col),
+    multiple = FALSE
+  )
+})
+
+
+blank_metadata_labels <- reactive({
+  req(
+    input$blank_metadata_csv,
+    input$blank_metadata_sample_col,
+    input$blank_metadata_label_col,
+    sample_names()
+  )
+
+  metadata_labels_by_sample(
+    upload = input$blank_metadata_csv,
+    sample_names = sample_names(),
+    sample_col = input$blank_metadata_sample_col,
+    label_col = input$blank_metadata_label_col,
+    clean_enabled = isTRUE(input$blank_clean_metadata_names),
+    remove_suffixes = input$blank_metadata_remove_suffixes %||% character(0),
+    context = "Blank metadata labels"
+  )
+})
+
 label_vector_blank <- reactive({
   req(sample_names())
 
@@ -572,6 +667,10 @@ label_vector_blank <- reactive({
   if (identical(src, "from_custom")) {
 
     custom_labels_blank()
+
+  } else if (identical(src, "from_metadata")) {
+
+    blank_metadata_labels()
 
   } else if (identical(src, "manual")) {
 
@@ -849,7 +948,7 @@ output$labels_table <- renderDT({
 
     w <- Waiter$new(
       id = "blank_table_out",
-      html = tagList(spin_6(), h4("Applying Blank Filters...", style="color:white;")),
+      html = tagList(spin_6(), h4("Applying Blank Filters...", style="color:#ffffff !important; text-shadow:none !important;")),
       color = "rgba(44, 62, 80, 0.8)"
     )
     w$show()
@@ -870,7 +969,18 @@ output$labels_table <- renderDT({
     blank_state$applied <- FALSE
     blank_state$show_summary <- FALSE
     blank_state$kept <- NULL
-    blank_state$stats <- list(before = 0L, after = 0L)
+    blank_state$stats <- list(before = 0L, after = 0L, removed_blank = 0L)
+
+    # Clear Blank labels uploads
+    shinyjs::reset("meta_csv")
+    shinyjs::reset("blank_metadata_csv")
+    shinyjs::reset("blank_metadata_sample_col")
+    shinyjs::reset("blank_metadata_label_col")
+    shinyjs::reset("blank_metadata_remove_suffixes")
+
+    updateRadioButtons(session, "label_source", selected = "from_rows")
+    updatePrettyCheckbox(session, "blank_clean_metadata_names", value = FALSE)
+
     showNotification("Step 1 reset: pass-through.", type = "message", duration = 3)
   }, ignoreInit = TRUE)
 
@@ -1051,10 +1161,8 @@ output$labels_table <- renderDT({
           ds <- ds[, setdiff(colnames(ds), ms_state$del_iso), drop = FALSE]
           ft <- refresh_ft(ds, ft)
         }
-
         suppressWarnings(rm(shifts_iso, shifts_dimer, shifts, pk, edges, res_iso))
         gc()
-
       }
 
       # ==========================
@@ -1701,7 +1809,7 @@ output$labels_table <- renderDT({
       id = "ms_table_out",
       html = tagList(
         spin_6(),
-        h4("Applying MS Filters...", style="color:white;"),
+        h4("Applying MS Filters...", style="color:#ffffff !important; text-shadow:none !important;"),
         hostess_ms$get_loader(
           preset = "circle",
           text_color = "white",
@@ -1745,6 +1853,9 @@ output$labels_table <- renderDT({
       ms_state$isf_table  <- NULL
       ms_state$mis_table  <- NULL
       ms_state$ring_table <- NULL
+
+      shinyjs::reset("adduct_file2")
+      shinyjs::reset("nl_file2")
 
       ms_state$stats <- list(
         before = 0L,
@@ -2149,6 +2260,66 @@ observeEvent(input$qc_labels_table_cell_edit, {
   )
 }, ignoreInit = TRUE)
 
+qc_metadata_raw <- reactive({
+  req(input$qc_metadata_csv)
+  read_metadata_csv(input$qc_metadata_csv, context = "QC metadata labels")
+})
+
+
+output$qc_metadata_sample_col_ui <- renderUI({
+  req(qc_metadata_raw())
+
+  cols <- names(qc_metadata_raw())
+
+  selectInput(
+    "qc_metadata_sample_col",
+    "Metadata sample-name column:",
+    choices = cols,
+    selected = guess_metadata_sample_col(cols)
+  )
+})
+
+
+output$qc_metadata_label_col_ui <- renderUI({
+  req(qc_metadata_raw())
+
+  cols <- names(qc_metadata_raw())
+  sample_col <- input$qc_metadata_sample_col %||% guess_metadata_sample_col(cols)
+  choices <- setdiff(cols, sample_col)
+
+  validate(
+    need(length(choices) > 0, "Metadata file has no column available for labels.")
+  )
+
+  selectizeInput(
+    "qc_metadata_label_col",
+    "Metadata column to use as Label:",
+    choices = choices,
+    selected = guess_metadata_label_col(cols, sample_col),
+    multiple = FALSE
+  )
+})
+
+
+qc_metadata_labels <- reactive({
+  req(
+    input$qc_metadata_csv,
+    input$qc_metadata_sample_col,
+    input$qc_metadata_label_col,
+    sample_names()
+  )
+
+  metadata_labels_by_sample(
+    upload = input$qc_metadata_csv,
+    sample_names = sample_names(),
+    sample_col = input$qc_metadata_sample_col,
+    label_col = input$qc_metadata_label_col,
+    clean_enabled = isTRUE(input$qc_clean_metadata_names),
+    remove_suffixes = input$qc_metadata_remove_suffixes %||% character(0),
+    context = "QC metadata labels"
+  )
+})
+
 qc_label_vector <- reactive({
   req(sample_names())
 
@@ -2162,6 +2333,10 @@ qc_label_vector <- reactive({
   } else if (identical(src, "from_custom")) {
 
     qc_custom_labels()
+
+  } else if (identical(src, "from_metadata")) {
+
+    qc_metadata_labels()
 
   } else if (identical(src, "manual")) {
 
@@ -2478,7 +2653,7 @@ output$qc_labels_table <- renderDT({
   observeEvent(input$apply_qc, {
     w <- Waiter$new(
       id = "qc_table_out",
-      html = tagList(spin_6(), h4("Applying QC Filters...", style="color:white;")),
+      html = tagList(spin_6(), h4("Applying QC Filters...", style="color:#ffffff !important; text-shadow:none !important;")),
       color = "rgba(44, 62, 80, 0.8)"
     )
     w$show()
@@ -2501,6 +2676,17 @@ output$qc_labels_table <- renderDT({
     qc_state$kept <- NULL
     qc_state$stats <- list(before = 0L, after_final = 0L,
                            removed_zeros = 0L, removed_mean = 0L, removed_rsd = 0L, removed_min = 0L, removed_total = 0L)
+
+    # Clear QC labels uploads
+  shinyjs::reset("qc_meta_csv")
+  shinyjs::reset("qc_metadata_csv")
+  shinyjs::reset("qc_metadata_sample_col")
+  shinyjs::reset("qc_metadata_label_col")
+  shinyjs::reset("qc_metadata_remove_suffixes")
+
+  updateRadioButtons(session, "qc_label_source", selected = "inherit")
+  updatePrettyCheckbox(session, "qc_clean_metadata_names", value = FALSE)
+
     showNotification("Step 3 reset: pass-through.", type = "message", duration = 3)
   }, ignoreInit = TRUE)
 
@@ -2571,12 +2757,26 @@ output$qc_labels_table <- renderDT({
   # STEP 4: Peak Filters
   # --------------------------
   peak_state <- reactiveValues(
-    applied = FALSE,
-    show_summary = FALSE,
-    kept = NULL,
-    stats = list(before=0L, after=0L,
-                 removed_mz=0L, removed_rt=0L, removed_rmd=0L, removed_amd=0L, removed_total=0L)
+  applied = FALSE,
+  show_summary = FALSE,
+  kept = NULL,
+  target_matches = NULL,
+  stats = list(
+    before = 0L,
+    after = 0L,
+    removed_mz = 0L,
+    removed_rt = 0L,
+    removed_rmd = 0L,
+    removed_amd = 0L,
+    removed_target = 0L,
+    matched_target = 0L,
+    target_action = "remove",
+    removed_total = 0L
   )
+)
+
+  target_peak_cleared <- reactiveVal(FALSE)
+  target_peak_csv_cache <- reactiveVal(empty_peak_targets())
 
   # Align raw table to current pipeline input (blank + MS deletions + QC kept)
   peak_table_in_raw <- reactive({
@@ -2785,6 +2985,119 @@ output$qc_labels_table <- renderDT({
     }
   })
 
+ target_peak_list <- reactive({
+  if (isTRUE(target_peak_cleared())) {
+    return(empty_peak_targets())
+  }
+
+  typed_targets <- read_peak_targets(
+    text_input = input$target_peak_text,
+    upload_input = NULL
+  )
+
+  csv_targets <- target_peak_csv_cache()
+
+  out <- dplyr::bind_rows(
+    typed_targets,
+    csv_targets
+  )
+
+  if (!nrow(out)) return(empty_peak_targets())
+
+  out %>%
+    dplyr::distinct(target_mz, target_rt, .keep_all = TRUE)
+})
+
+ observeEvent(input$target_peak_text, {
+  if (nzchar(trimws(input$target_peak_text %||% ""))) {
+    target_peak_cleared(FALSE)
+  }
+}, ignoreInit = TRUE)
+
+observeEvent(input$target_peak_csv, {
+  if (!is.null(input$target_peak_csv) && !is.null(input$target_peak_csv$datapath)) {
+
+    csv_df <- read_target_csv_smart(input$target_peak_csv$datapath)
+    target_peak_csv_cache(
+      extract_peak_targets(csv_df, source = "csv")
+    )
+
+    target_peak_cleared(FALSE)
+  }
+}, ignoreInit = TRUE)
+
+target_peak_matches_live <- reactive({
+  req(peak_table_in_raw(), input$mz_col0, input$rt_col0)
+
+  df <- as.data.frame(peak_table_in_raw(), check.names = FALSE)
+  rid <- if (".FID" %in% names(df)) ".FID" else names(df)[1]
+
+  find_target_peak_matches(
+    df = df,
+    rid_col = rid,
+    mz_col = input$mz_col0,
+    rt_col = input$rt_col0,
+    targets = target_peak_list(),
+    mz_tol_type = input$target_mz_tol_type %||% "da",
+    mz_tol_da = input$target_mz_tol_da %||% 0.005,
+    mz_tol_ppm = input$target_mz_tol_ppm %||% 10,
+    rt_tol = input$target_rt_tol %||% 0.05
+  )
+})
+
+output$target_peak_match_table <- renderDT({
+  req("target" %in% (input$peak_filters %||% character(0)))
+
+  mm <- target_peak_matches_live()
+
+  validate(
+    need(nrow(target_peak_list()) > 0, "No target m/z and rt values provided."),
+    need(nrow(mm) > 0, "No matching peaks found with current tolerances.")
+  )
+
+  tbl <- datatable(
+    mm,
+    rownames = FALSE,
+    width = "100%",
+    options = list(
+      scrollX = F,
+      #scrollY = "170px",
+      scrollCollapse = FALSE,
+      pageLength = 5,
+      autoWidth = F
+    )
+  )
+
+  mz_cols <- intersect(
+    c("target_mz", "mz", "delta_mz", "mz_tol_used"),
+    names(mm)
+  )
+
+  rt_cols <- intersect(
+    c("target_rt", "rt", "delta_rt", "rt_tol_used"),
+    names(mm)
+  )
+
+  ppm_cols <- intersect(
+    c("delta_mz_ppm"),
+    names(mm)
+  )
+
+  if (length(mz_cols)) {
+    tbl <- DT::formatRound(tbl, columns = mz_cols, digits = 4)
+  }
+
+  if (length(rt_cols)) {
+    tbl <- DT::formatRound(tbl, columns = rt_cols, digits = 3)
+  }
+
+  if (length(ppm_cols)) {
+    tbl <- DT::formatRound(tbl, columns = ppm_cols, digits = 2)
+  }
+
+  tbl
+})
+
   run_step4_peak <- function() {
     req(peak_table_in_raw(), input$mz_col0, input$rt_col0)
 
@@ -2816,6 +3129,11 @@ output$qc_labels_table <- renderDT({
     fail_rt  <- rep(FALSE, before)
     fail_rmd <- rep(FALSE, before)
     fail_amd <- rep(FALSE, before)
+    target_hit <- rep(FALSE, before)
+    fail_target <- rep(FALSE, before)
+    target_matches <- empty_peak_matches()
+    target_action <- input$target_peak_action %||% "remove"
+    target_skipped_empty <- FALSE
 
     if ("mz" %in% sel) {
       mz_pass_min <- rep(TRUE, before)
@@ -2895,7 +3213,58 @@ output$qc_labels_table <- renderDT({
       fail_amd <- !amd_pass
     }
 
-    keep_idx <- if (length(sel) == 0) rep(TRUE, before) else (mz_pass & rt_pass & rmd_pass & amd_pass)
+if ("target" %in% sel) {
+
+  targets_now <- target_peak_list()
+
+  if (nrow(targets_now) == 0) {
+
+    # Target filter was selected, but no list was provided.
+    # Treat it as no-op / pass-through, not as an error.
+    target_skipped_empty <- TRUE
+    target_matches <- empty_peak_matches()
+    target_hit <- rep(FALSE, before)
+    fail_target <- rep(FALSE, before)
+
+  } else {
+
+    target_matches <- target_peak_matches_live()
+    target_hit <- as.character(df[[rid]]) %in% unique(target_matches$Feature)
+    target_action <- input$target_peak_action %||% "remove"
+
+    if (identical(target_action, "keep")) {
+
+      validate(
+        need(
+          nrow(target_matches) > 0,
+          "Target peak keep-only mode selected, but no matching peaks were found with current tolerances."
+        )
+      )
+
+      # Keep matched target peaks, remove everything else
+      fail_target <- !target_hit
+
+    } else {
+
+      # Remove matched target peaks
+      fail_target <- target_hit
+
+      if (nrow(target_matches) == 0) {
+        showNotification(
+          "Target peak removal selected, but no matching peaks were found with current tolerances.",
+          type = "warning",
+          duration = 5
+        )
+      }
+    }
+  }
+}
+
+    keep_idx <- if (length(sel) == 0) {
+        rep(TRUE, before)
+      } else {
+        (mz_pass & rt_pass & rmd_pass & amd_pass) & !fail_target
+      }
     ids_kept <- as.character(df[[rid]][keep_idx])
 
     after <- sum(keep_idx)
@@ -2904,25 +3273,34 @@ output$qc_labels_table <- renderDT({
     peak_state$stats$removed_rt  <- sum(fail_rt)
     peak_state$stats$removed_rmd <- sum(fail_rmd)
     peak_state$stats$removed_amd <- sum(fail_amd)
+    peak_state$stats$removed_target <- sum(fail_target)
+    peak_state$stats$matched_target <- sum(target_hit)
+    peak_state$stats$target_action <- target_action
+    peak_state$target_matches <- target_matches
     peak_state$stats$removed_total <- before - after
 
     peak_state$applied <- TRUE
     peak_state$show_summary <- TRUE
     peak_state$kept <- ids_kept
 
-    if (length(sel) == 0) {
-      showNotification("No Peak Filters selected. Step 4 frozen as pass-through.", type="message", duration=4)
-    } else if (length(ids_kept) == 0) {
-      showNotification("Peak Filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
-    } else {
-      showNotification(sprintf("Step 4 frozen: kept %d of %d features.", after, before), type="message", duration=4)
-    }
+    effective_sel <- sel
+      if (isTRUE(target_skipped_empty)) {
+        effective_sel <- setdiff(effective_sel, "target")
+      }
+
+      if (length(effective_sel) == 0) {
+        showNotification("No effective Peak Filters selected. Step 4 frozen as pass-through.", type="message", duration=4)
+      } else if (length(ids_kept) == 0) {
+        showNotification("Peak Filters removed all features. Try relaxing cutoffs.", type="error", duration=5)
+      } else {
+        showNotification(sprintf("Step 4 frozen: kept %d of %d features.", after, before), type="message", duration=4)
+      }
   }
 
   observeEvent(input$apply_peak, {
       w <- Waiter$new(
         id = "peak_table_out",
-        html = tagList(spin_6(), h4("Applying Peak Filters...", style="color:white;")),
+        html = tagList(spin_6(), h4("Applying Peak Filters...", style="color:#ffffff !important; text-shadow:none !important;")),
         color = "rgba(44, 62, 80, 0.8)"
       )
       w$show()
@@ -2943,8 +3321,21 @@ output$qc_labels_table <- renderDT({
     peak_state$applied <- FALSE
     peak_state$show_summary <- FALSE
     peak_state$kept <- NULL
+    peak_state$target_matches <- empty_peak_matches()
+    target_peak_csv_cache(empty_peak_targets())
+    target_peak_cleared(TRUE)
+
+    shinyjs::reset("target_peak_csv")
+    updateTextAreaInput(session, "target_peak_text", value = "")
+    updateRadioButtons(session, "target_peak_action", selected = "remove")
+
     peak_state$stats <- list(before=0L, after=0L,
-                             removed_mz=0L, removed_rt=0L, removed_rmd=0L, removed_amd=0L, removed_total=0L)
+                     removed_mz=0L, removed_rt=0L,
+                     removed_rmd=0L, removed_amd=0L,
+                     removed_target=0L,
+                     matched_target=0L,
+                     target_action="remove",
+                     removed_total=0L)
     showNotification("Step 4 reset: pass-through.", type="message", duration=3)
   }, ignoreInit = TRUE)
 
@@ -2974,21 +3365,42 @@ output$qc_labels_table <- renderDT({
     removed_rt  <- peak_state$stats$removed_rt  %||% 0L
     removed_rmd <- peak_state$stats$removed_rmd %||% 0L
     removed_amd <- peak_state$stats$removed_amd %||% 0L
+    removed_target <- peak_state$stats$removed_target %||% 0L
+    matched_target <- peak_state$stats$matched_target %||% 0L
+    target_action <- peak_state$stats$target_action %||% "remove"
+
+    target_metric_label <- if (identical(target_action, "keep")) {
+      "Removed because not in target list"
+    } else {
+      "Removed by target m/z + rt"
+    }
     removed_total <- peak_state$stats$removed_total %||% (before - after)
     tagList(
     summary_table_ui(
       "Filtering results — Step 4 (Peak Filters)",
       tibble::tibble(
         Metric = c(
-          "Features before",
-          "Removed by m/z",
-          "Removed by rt",
-          "Removed by RMD",
-          "Removed by AMD",
-          "Total removed",
-          "Features after"
-        ),
-        Value = c(before, removed_mz, removed_rt, removed_rmd, removed_amd, removed_total, after)
+            "Features before",
+            "Removed by m/z",
+            "Removed by rt",
+            "Removed by RMD",
+            "Removed by AMD",
+            "Matched target peaks",
+            target_metric_label,
+            "Total removed",
+            "Features after"
+          ),
+          Value = c(
+            before,
+            removed_mz,
+            removed_rt,
+            removed_rmd,
+            removed_amd,
+            matched_target,
+            removed_target,
+            removed_total,
+            after
+          )
       )
     ),
     div(style = "margin-top: -10px; margin-bottom: 15px; margin-left: 5px; font-size: 13px; color: white; font-style: italic;",
@@ -3005,17 +3417,21 @@ output$qc_labels_table <- renderDT({
   outputOptions(output, "finalReady", suspendWhenHidden = FALSE)
 
   mat_peak_out <- reactive({
-    req(mat_qc_out())
-    ds <- as.data.frame(mat_qc_out())
-    if (isTRUE(peak_state$applied) && !is.null(peak_state$kept) && length(peak_state$kept)) {
-      ds[, intersect(colnames(ds), peak_state$kept), drop = FALSE]
-    } else ds
-  })
+  req(mat_qc_out())
+  ds <- as.data.frame(mat_qc_out())
+
+  if (isTRUE(peak_state$applied) && !is.null(peak_state$kept)) {
+    keep <- intersect(colnames(ds), peak_state$kept)
+    ds[, keep, drop = FALSE]
+  } else {
+    ds
+  }
+})
 
   observeEvent(input$compile_final, {
 
     w <- Waiter$new(
-    html = tagList(spin_6(), h4("Compiling Final Output...", style="color:white;")),
+    html = tagList(spin_6(), h4("Compiling Final Output...", style="color:#ffffff !important; text-shadow:none !important;")),
     color = "rgba(44, 62, 80, 0.8)"
     )
     w$show()
@@ -3041,11 +3457,16 @@ output$qc_labels_table <- renderDT({
 
       # final_keep: QC kept intersect Peak kept (if both exist)
       final_keep <- NULL
-      if (isTRUE(qc_state$applied) && !is.null(qc_state$kept) && length(qc_state$kept)) {
+      if (isTRUE(qc_state$applied) && !is.null(qc_state$kept)) {
         final_keep <- qc_state$kept
       }
-      if (isTRUE(peak_state$applied) && !is.null(peak_state$kept) && length(peak_state$kept)) {
-        final_keep <- if (is.null(final_keep)) peak_state$kept else intersect(final_keep, peak_state$kept)
+
+      if (isTRUE(peak_state$applied) && !is.null(peak_state$kept)) {
+        final_keep <- if (is.null(final_keep)) {
+          peak_state$kept
+        } else {
+          intersect(final_keep, peak_state$kept)
+        }
       }
 
       # 1) build internal FINAL table (keeps .FID)
@@ -3085,19 +3506,58 @@ output$qc_labels_table <- renderDT({
   output$final_report_header <- renderUI({ h3("Filtering summary") })
 
   output$final_report_body <- renderUI({
-    req(raw_fid())
-    div(
-      style="margin:.5rem 0 1rem; padding:.5rem .75rem; border:1px solid #dfe6e9; border-radius:8px; background:#ffffffaa;",
-      tags$ul(
-        tags$li(sprintf("Dataset: %s", shared$name %||% "not uploaded")),
-        tags$li(sprintf("Step 1 Blank Filters: %s", if (isTRUE(blank_state$applied)) "APPLIED" else "not applied")),
-        tags$li(sprintf("Step 2 MS Filters: %s", if (isTRUE(ms_state$applied)) "APPLIED" else "not applied")),
-        tags$li(sprintf("Step 3 QC Filters: %s", if (isTRUE(qc_state$applied)) "APPLIED" else "not applied")),
-        tags$li(sprintf("Step 4 Peak Filters: %s", if (isTRUE(peak_state$applied)) "APPLIED" else "not applied")),
-        tags$li(sprintf("Final table rows: %s", if (!is.null(final_table())) nrow(final_table()) else "not compiled"))
-      )
+  req(raw_fid())
+
+  initial_n <- tryCatch({
+    df0 <- raw_zeroed()
+    if (is.null(df0)) {
+      NA_integer_
+    } else if (".FID" %in% names(df0)) {
+      length(unique(df0$.FID))
+    } else {
+      nrow(df0)
+    }
+  }, error = function(e) NA_integer_)
+
+  final_n <- if (!is.null(final_table())) {
+    nrow(final_table())
+  } else {
+    NA_integer_
+  }
+
+  diff_n <- if (is.finite(initial_n) && is.finite(final_n)) {
+    initial_n - final_n
+  } else {
+    NA_integer_
+  }
+
+  diff_pct <- if (is.finite(initial_n) && initial_n > 0 && is.finite(diff_n)) {
+    round(100 * diff_n / initial_n, 2)
+  } else {
+    NA_real_
+  }
+
+  final_txt <- if (is.finite(final_n)) final_n else "not compiled"
+  diff_txt <- if (is.finite(diff_n)) {
+    paste0(diff_n, " (", diff_pct, "%)")
+  } else {
+    "not compiled"
+  }
+
+  div(
+    style = "margin:.5rem 0 1rem; padding:.5rem .75rem; border:1px solid #dfe6e9; border-radius:8px; background:#ffffffaa;",
+    tags$ul(
+      tags$li(sprintf("Dataset: %s", shared$name %||% "not uploaded")),
+      tags$li(sprintf("Step 1 Blank Filters: %s", if (isTRUE(blank_state$applied)) "APPLIED" else "not applied")),
+      tags$li(sprintf("Step 2 MS Filters: %s", if (isTRUE(ms_state$applied)) "APPLIED" else "not applied")),
+      tags$li(sprintf("Step 3 QC Filters: %s", if (isTRUE(qc_state$applied)) "APPLIED" else "not applied")),
+      tags$li(sprintf("Step 4 Peak Filters: %s", if (isTRUE(peak_state$applied)) "APPLIED" else "not applied")),
+      tags$li(sprintf("Raw features: %s", initial_n)),
+      tags$li(sprintf("Filtered features: %s", diff_txt)),
+      tags$li(sprintf("Final features: %s", final_txt))
     )
-  })
+  )
+})
 
   output$final_preview_table <- renderDT({
     req(final_table())
@@ -3136,7 +3596,7 @@ output$qc_labels_table <- renderDT({
                 style = "margin-bottom: -15px;",
   materialSwitch(
     inputId = "enable_mgf_filter",
-    label = "Filter MGF",
+    label = "Enable Filter MGF",
     value = FALSE,
     status = "danger",
     width = "auto"
@@ -3146,7 +3606,7 @@ output$qc_labels_table <- renderDT({
                 inputId = "btnmgf",
                 label = "?",
                 class = "btn-primary btn-xs",
-                style = "position: absolute; top: 0px; left: 135px; border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px;"
+                style = "position: absolute; top: 0px; left: 185px; border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px;"
               ),
               tags$style(HTML("
                 .tooltip-inner {
@@ -3157,7 +3617,7 @@ output$qc_labels_table <- renderDT({
               ")),
               bsTooltip(
                 id = "btnmgf",
-                title = "<b>Filtering MGF file based on final filtered table</b><br><br>Feature/Peak ID in MGF should match with selected Feature ID in peak table (see details in About Tab)",
+                title = "<b>Filtering MGF file based on final filtered table</b><br><br>Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns (see details in About Tab)",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -3189,7 +3649,7 @@ output$qc_labels_table <- renderDT({
     current_mgf(input$mgf_input$datapath)
 
     w <- Waiter$new(
-      html = tagList(spin_6(), h4("Loading MGF into memory...", style="color:white;")),
+      html = tagList(spin_6(), h4("Loading MGF into memory...", style="color:#ffffff !important; text-shadow:none !important;")),
       color = "rgba(44, 62, 80, 0.8)"
     )
     w$show()
@@ -3385,13 +3845,13 @@ output$help_body <- renderUI({
       br(),
       div(class="highlight", "Rule: Plots are displayed and updated only after clicking the plot buttons, cutoff value on them is updated dynamically."),
       br(),
-      div(class="highlight", "Rule: Isotopes-Dimers/Adducts/Neutral Loses/In-Source Fragments tables are displayed after activating the checkbox."),
+      div(class="highlight", "Rule: Isotopes-Dimers/Adducts/Neutral Loses/In-Source Fragments/Mispicked/Saturated ions tables are displayed after activating the checkbox."),
       br(),
       tags$img(
-        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/Server_Map.png",
-        width = "800px",
-        height = "420px",
-        style = "display: block; margin-bottom: 20px;" # Adds a little space below it
+        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/Server_Map.png",
+        width = "1000px",
+        height = "520px",
+        style = "display: block; margin: 0 auto 20px auto;"
       )
       ))
   }
@@ -3412,10 +3872,9 @@ output$help_body <- renderUI({
     HTML("Tip: Try the Example dataset by clicking the button to overview the full App functionality.<br>
     If use this example, run the Blank filter first to save memory for further steps. You can keep all parameters by default.<br>
     It is the LC-MS profiling dataset, described in the study
-    <a href='https://pubs.acs.org/doi/10.1021/acs.analchem.4c05577' target='_blank'>[1]</a>.<br>
-    Briefly, methanol extracts from the plant ashwagandha [<i>Withania somnifera</i> (L.) Dunal] together with blanks were analyzed on Thermo Q-Exactive Plus Orbitrap in DDA positive mode. Raw mzML files were then processed in mzMine in default pre-settings for UPLC-DDA.<br>
-    Available in the
-    <a href='https://github.com/plyush1993/MetaboCensoR/blob/main/Input_Examples/orbi_iimn_gnps_quant.csv' target='_blank'>GitHub</a>.")),
+    <a href='https://pubs.acs.org/doi/10.1021/acs.analchem.4c05577' target='_blank'>[1]</a>, and associated peak table available at
+    <a href='https://github.com/plyush1993/MetaboCensoR/blob/main/inst/extdata/orbi_iimn_gnps_quant.csv' target='_blank'>Github</a>.<br>
+    Briefly, methanol extracts from the plant ashwagandha [<i>Withania somnifera</i> (L.) Dunal] together with blanks were analyzed on Thermo Q-Exactive Plus Orbitrap in DDA positive mode. Raw mzML files were then processed in mzMine in default pre-settings for UPLC-DDA.<br>")),
       br(),
       div(class="highlight", "Tip: If 'No sample columns' message, your sample keywords don’t match sample column names."),
       br(),
@@ -3438,11 +3897,14 @@ output$help_body <- renderUI({
       tags$ul(
         tags$li(
   tags$b("Labels:"),
-  " choose how sample groups are assigned before Blank filtering.",
+  " choose how sample groups are assigned before Blank filtering. You can check sample-label pairs matching by 'labels table'.",
   tags$br(),
   tags$b("From sample names:"),
   " labels are extracted from sample column names using the selected token index and token separator. ",
   "For example: Sample name -> Orbi_Sample_A.mzML; separator: _; token index: 2; resulting label: Sample.",
+  tags$br(),
+  tags$b("From metadata CSV:"),
+  " upload a metadata table with column names, choose the sample-name column and the column to use as Label. Rows are matched by sample name. You can also clean sample name to remove file extension, suffixes, etc.",
   tags$br(),
   tags$b("From custom CSV:"),
   " upload a one-column CSV file without a header. The number and order of labels must match the detected sample columns in the uploaded peak table.",
@@ -3462,7 +3924,9 @@ output$help_body <- renderUI({
                         ),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically."),
         br(),
-        div(class="highlight", "Note: We recommend to perform a Blank filter wherever it is applicable since it removes ghost/background signals and simplifies any further calculations.")
+        div(class="highlight", "Note: We recommend to perform a Blank filter wherever it is applicable since it removes ghost/background signals and simplifies any further calculations."),
+        br(),
+        div(class="highlight", "Tip: Blank filtering can be used for media samples, matrix/substrate controls, and other condition-specific background groups.")
         )
     ))
   }
@@ -3507,6 +3971,8 @@ output$help_body <- renderUI({
       tags$a(href = "https://cran.r-project.org/web/packages/nontarget/index.html", "[1]", target = "_blank"),
       " and available ",
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/adducts%20(nontarget).csv", "here", target = "_blank"),
+      ". For an extended list of adducts, please refer to the 'adducts*.csv' files located in the root directory on ",
+      tags$a(href = "https://github.com/plyush1993/MetaboCensoR/", "GitHub", target = "_blank"),
       "."
     ),
     br(),
@@ -3541,13 +4007,9 @@ output$help_body <- renderUI({
     </span><br><br>
 
     In the default isotope search, using <b>n = 1</b> is conservative: the algorithm first searches for the first <sup>13</sup>C isotope before grouping higher isotope peaks such as <b>M+2</b> or <b>M+3</b>. This reduces the risk of incorrectly clustering two independent compounds that are separated by approximately <b>2.0067 Da</b> or <b>3.0101 Da</b>, especially when the intermediate <b>M+1</b> peak is absent.<br><br>
-
 This assumption usually works well because isotope peaks detected in peak tables are most commonly dominated by the <sup>13</sup>C isotope ladder. However, depending on the sample type and metabolite class, additional isotope patterns may be relevant. For example, heteroatom-containing metabolites or natural products, particularly compounds containing S, Cl, Br, Si, or multiple O atoms, may show clear <b>M+2</b> isotope peaks, while combined isotope contributions can also produce visible <b>M+3</b> peaks.<br><br>
-
-For these cases, a more permissive isotope search can be performed by increasing the isotope order to <b>n = 3</b> and using a wider m/z tolerance, for example <b>0.015 Da</b>. A broader tolerance such as <b>0.05 Da</b> should be treated as a diagnostic/refinement search and interpreted carefully.<br><br>
-
+For these cases, a more permissive isotope search can be performed by increasing the isotope order to <b>n = 2</b> and using a wider m/z tolerance, for example <b>0.015 Da</b>. A broader tolerance such as <b>0.05 Da</b>, <b>n = 3</b>, <b>0.05 min</b> should be treated as a diagnostic/refinement search and interpreted carefully.<br><br>
 Both <b>Mispicked Ion Merging</b> and <b>Saturated Ion Cleaning</b> can potentially be used to detect and remove additional isotope-like signals, heteroatom isotope patterns, or misaligned peaks. For refined isotope-like artifact search, <b>Saturated Ion Cleaning</b> can be used in <b>bidirectional mode</b> with a controlled intensity ratio and adjusted parameters, for example <b>m/z tolerance = 0.05 Da</b> and <b>minimum intensity = 10,000</b>.<br><br>
-
 Be aware that wide m/z tolerances increase the risk of incorrectly grouping unrelated coeluting compounds, such as lipid species differing only by the number of double bonds. Results from permissive isotope refinement should therefore be manually inspected.")),
   br(),
       div(
@@ -3583,7 +4045,7 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
       tags$ul(
                 tags$li(
   tags$b("Labels:"),
-  " choose how sample groups are assigned before QC filtering.",
+  " choose how sample groups are assigned before QC filtering. You can check sample-label pairs matching by 'labels table'.",
   tags$br(),
   tags$b("Use labels from Blank Tab:"),
   " QC filtering inherits the labels already defined in the Blank Filters tab. ",
@@ -3591,6 +4053,9 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
   tags$b("From sample names:"),
   " labels are extracted from sample column names using the selected token index and token separator. ",
   "For example: Sample name -> Orbi_Sample_A.mzML; separator: _; token index: 2; resulting label: Sample.",
+  tags$br(),
+  tags$b("From metadata CSV:"),
+  " upload a metadata table with column names, choose the sample-name column and the column to use as Label. Rows are matched by sample name. You can also clean sample name to remove file extension, suffixes, etc.",
   tags$br(),
   tags$b("From custom CSV:"),
   " upload a one-column CSV file without a header. The number and order of labels must match the detected sample columns in the uploaded peak table.",
@@ -3614,7 +4079,7 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
         br(),
         div(class="highlight", "Note: We recommend to apply QC Filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while all other filters should be applied strictly before them."),
         br(),
-        div(class="highlight", "Note: RSD calculation requires at least 2 samples per group.")
+        div(class="highlight", "Note: RSD calculation requires at least 2 samples per group. All-zero or all-missing features produce NA RSD and fail the RSD filter.")
       )
     ))
   }
@@ -3623,11 +4088,37 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
     return(div(
       h3("Peak Filters"),
       tags$ul(
-        tags$li(tags$b("Overview:"), " alows to filter peaks by m/z, rt and mass defect (absolute and relative) values."),
-        tags$li(tags$b("Pick filters:"), " m/z, rt, RMD, and AMD bounds."),
+        tags$li(tags$b("Overview:"), " alows to filter peaks by m/z, rt, mass defect (absolute and relative) values, or a target peak list to remove/keep."),
+        tags$li(tags$b("Peak filters:"), " m/z, rt, RMD, AMD bounds, and a target peak list to remove/keep."),
+        tags$li(tags$b("Filtering values:"), " filter peaks by m/z, rt, mass defect (absolute or relative) values by specifying threshold ranges for corresponding filtering value."),
+        tags$li(tags$b("Target peaks to remove/keep:"), " for making a target peak list to remove or keep enter comma-separated m/z and RT pairs manually, one pair per line, or upload a CSV file. Also specify m/z and RT tolerance for matching. 'Matched target peaks' table shows features from the current peak table that match the provided target m/z and RT pairs within the selected tolerances."),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically.")
       ),
-      div(class="highlight", "Note: optional step to filter peaks based on a priori information")
+      div(class="highlight", "Note: optional step to filter peaks based on a priori information."),
+      br(),
+div(
+  class = "highlight",
+  tags$b("Tip: "),
+  tags$span(
+    style = "color:#e74c3c; font-weight:900;",
+    "Target peak list; REMOVE mode — "
+  ),
+  "if blank samples were not processed together with experimental samples, or if the peak-picking software struggles to process blanks and experimental samples together, we recommend generating a separate peak table for blanks only. Then, m/z-RT pairs of peaks detected in blanks with reasonable intensity can be added to the target peak list and ",
+  tags$b("removed"),
+  " using the target peak removal mode."
+),
+br(),
+div(
+  class = "highlight",
+  tags$b("Tip: "),
+  tags$span(
+    style = "color:#18bc9c; font-weight:900;",
+    "Target peak list; KEEP mode — "
+  ),
+  "if you want to focus only on a specific group of features, such as target ions, with MS1/MS2 annotations, library matches, molecular networking features, or manually selected compounds, these peaks can be added to the target peak list and ",
+  tags$b("retained"),
+  " using the keep-only target peak mode. It also may be useful to subset from MGF file."
+)
     ))
   }
 
@@ -3636,11 +4127,13 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
       h3("Final Summary"),
       tags$ul(
         tags$li(tags$b("Compile summary & final datasets:"), " final filtered peak table after all applied filters."),
-        tags$li(tags$b("MGF filtering:"), " activated after final compile. Filters MGF file based on final filtered table. Feature/Peak ID in MGF should match with selected Feature ID in peak table.")
+        tags$li(tags$b("MGF filtering:"), " activated after final compile. Filters MGF file based on final filtered table. Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns unless you have specific requirements.")
       ),
       div(class="highlight", "Note: if something looks missing in final output, check tab by tab where it was filtered."),
       br(),
-      div(class="highlight", "Important: for xcms peak table all NA values are converted to 0."),
+      div(class="highlight", "Note: if no IDs match during MGF filtering, the app reports: 'No matching spectra were found in the MGF file'."),
+      br(),
+      div(class="highlight", "Note: for xcms peak table all NA values are converted to 0."),
       br(),
       div(class = "highlight",
       "Tip: examples of accessible MGF data format are provided in the ",
@@ -3665,7 +4158,7 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
 tags$li(
   style = "text-align: left !important;",
   tags$b("Error 'subscript out of bounds' for any plot:"),
-  " This can occur on local machines even with example datasets due to a known version mismatch between ", tags$code("ggplot2"), " and ", tags$code("plotly"), ". ",
+  " this can occur on local machine due to a known version mismatch between ", tags$code("ggplot2"), " and ", tags$code("plotly"), ". ",
   "You can fix this by explicitly installing matched stable versions:",
 tags$div(
   style = "position: relative; background-color: #f6f8fa; border-radius: 6px; padding: 2px 2px; margin-top: 6px; margin-bottom: 6px; border: 1px solid #d0d7de; text-align: left; direction: ltr;",
@@ -3684,7 +4177,6 @@ tags$div(
     )
   )
 ))
-
     )
   ))
   }
@@ -3700,9 +4192,9 @@ tags$div(
           Ivan Plyushchenko
        </a>')),
       tags$li(HTML('Publication:&nbsp;
-       <a href="https://www.doi.org/" target="_blank"
+       <a href="https://doi.org/10.64898/2026.07.02.735197" target="_blank"
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
-          DOI
+          bioRxiv
        </a>')),
       tags$li(HTML('Tutorial:&nbsp;
        <a href="https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf" target="_blank"

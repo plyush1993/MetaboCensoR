@@ -124,6 +124,183 @@ calculate_AMD <- function(exact_mass, absolute = TRUE) {
   if (isTRUE(absolute)) abs(md) else md
 }
 
+empty_peak_targets <- function() {
+  tibble::tibble(
+    target_id = character(),
+    target_mz = numeric(),
+    target_rt = numeric(),
+    source = character()
+  )
+}
+
+empty_peak_matches <- function() {
+  tibble::tibble(
+    target_id = character(),
+    target_mz = numeric(),
+    target_rt = numeric(),
+    Feature = character(),
+    mz = numeric(),
+    rt = numeric(),
+    delta_mz = numeric(),
+    delta_mz_ppm = numeric(),
+    delta_rt = numeric(),
+    mz_tol_used = numeric(),
+    rt_tol_used = numeric(),
+    source = character()
+  )
+}
+
+extract_peak_targets <- function(x, source = "typed") {
+  if (is.null(x) || !is.data.frame(x) || nrow(x) == 0) return(empty_peak_targets())
+
+  x <- as.data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
+  nm <- gsub("[^a-z0-9]", "", tolower(names(x)))
+
+  mz_i <- which(nm %in% c("mz", "moverz", "mass", "targetmz", "mzvalue"))[1]
+  rt_i <- which(nm %in% c("rt", "retentiontime", "retentiontimemin", "rtmin", "targetrt"))[1]
+
+  # fallback: first two columns = mz and rt
+  if (is.na(mz_i) || is.na(rt_i)) {
+    if (ncol(x) >= 2) {
+      mz_i <- 1
+      rt_i <- 2
+    } else {
+      return(empty_peak_targets())
+    }
+  }
+
+  out <- tibble::tibble(
+    target_id = paste0(source, "_", seq_len(nrow(x))),
+    target_mz = suppressWarnings(as.numeric(x[[mz_i]])),
+    target_rt = suppressWarnings(as.numeric(x[[rt_i]])),
+    source = source
+  )
+
+  out <- out[is.finite(out$target_mz) & is.finite(out$target_rt), , drop = FALSE]
+  out
+}
+
+read_target_csv_smart <- function(path) {
+  if (is.null(path) || !file.exists(path)) return(NULL)
+
+  first_line <- readLines(path, n = 1, warn = FALSE)
+  first_line <- trimws(first_line)
+
+  # If first row contains letters, treat it as header.
+  # If it is only numbers/separators, treat it as data.
+  has_header <- grepl("[A-Za-z]", first_line)
+
+  tryCatch(
+    read.csv(
+      path,
+      header = has_header,
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    ),
+    error = function(e) NULL
+  )
+}
+
+read_peak_targets <- function(text_input = NULL, upload_input = NULL) {
+  out <- list()
+
+  txt <- text_input %||% ""
+  txt <- trimws(txt)
+
+  if (nzchar(txt)) {
+    first_line <- strsplit(txt, "\n", fixed = TRUE)[[1]][1]
+    has_header <- grepl("[A-Za-z]", first_line)
+
+    typed_df <- tryCatch(
+      read.csv(
+        text = txt,
+        header = has_header,
+        check.names = FALSE,
+        stringsAsFactors = FALSE
+      ),
+      error = function(e) NULL
+    )
+
+    out[["typed"]] <- extract_peak_targets(typed_df, source = "typed")
+  }
+
+  if (!is.null(upload_input) && !is.null(upload_input$datapath)) {
+    csv_df <- read_target_csv_smart(upload_input$datapath)
+    out[["csv"]] <- extract_peak_targets(csv_df, source = "csv")
+  }
+
+  if (!length(out)) return(empty_peak_targets())
+
+  dplyr::bind_rows(out) %>%
+    dplyr::distinct(target_mz, target_rt, .keep_all = TRUE)
+}
+
+find_target_peak_matches <- function(df, rid_col, mz_col, rt_col, targets,
+                                     mz_tol_type = "da",
+                                     mz_tol_da = 0.005,
+                                     mz_tol_ppm = 10,
+                                     rt_tol = 0.05) {
+  if (is.null(targets) || nrow(targets) == 0) return(empty_peak_matches())
+  if (!all(c(rid_col, mz_col, rt_col) %in% names(df))) return(empty_peak_matches())
+
+  mzv <- suppressWarnings(as.numeric(df[[mz_col]]))
+  rtv <- suppressWarnings(as.numeric(df[[rt_col]]))
+  fid <- as.character(df[[rid_col]])
+
+  mz_tol_type <- mz_tol_type %||% "da"
+  mz_tol_da <- suppressWarnings(as.numeric(mz_tol_da %||% 0.005))
+  mz_tol_ppm <- suppressWarnings(as.numeric(mz_tol_ppm %||% 10))
+  rt_tol <- suppressWarnings(as.numeric(rt_tol %||% 0.05))
+
+  if (!is.finite(mz_tol_da)) mz_tol_da <- 0.005
+  if (!is.finite(mz_tol_ppm)) mz_tol_ppm <- 10
+  if (!is.finite(rt_tol)) rt_tol <- 0.05
+
+  res <- list()
+
+  for (i in seq_len(nrow(targets))) {
+    tmz <- targets$target_mz[i]
+    trt <- targets$target_rt[i]
+
+    if (!is.finite(tmz) || !is.finite(trt)) next
+
+    mz_tol_used <- if (identical(mz_tol_type, "ppm")) {
+      abs(tmz) * mz_tol_ppm / 1e6
+    } else {
+      mz_tol_da
+    }
+
+    hit <- which(
+      is.finite(mzv) &
+        is.finite(rtv) &
+        abs(mzv - tmz) <= mz_tol_used &
+        abs(rtv - trt) <= rt_tol
+    )
+
+    if (!length(hit)) next
+
+    res[[length(res) + 1]] <- tibble::tibble(
+      target_id = targets$target_id[i],
+      target_mz = tmz,
+      target_rt = trt,
+      Feature = fid[hit],
+      mz = mzv[hit],
+      rt = rtv[hit],
+      delta_mz = mzv[hit] - tmz,
+      delta_mz_ppm = 1e6 * (mzv[hit] - tmz) / tmz,
+      delta_rt = rtv[hit] - trt,
+      mz_tol_used = mz_tol_used,
+      rt_tol_used = rt_tol,
+      source = targets$source[i]
+    )
+  }
+
+  if (!length(res)) return(empty_peak_matches())
+
+  dplyr::bind_rows(res) %>%
+    dplyr::arrange(target_id, abs(delta_mz), abs(delta_rt))
+}
+
 # ---- Pretty summary table UI ----
 summary_table_ui <- function(title, rows_df) {
   rows_df <- as.data.frame(rows_df, stringsAsFactors = FALSE)
@@ -926,7 +1103,7 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
     ds_sub <- if ("Label" %in% names(ds) && length(labs)) filter(ds, Label %in% labs) else ds
     if (!nrow(ds_sub)) return(character(0))
     vec <- vapply(ds_sub[feats], calc_rsd, numeric(1))
-    return(names(vec)[is.na(vec) | (is.finite(vec) & vec <= rcut)])
+    return(names(vec)[is.finite(vec) & vec <= rcut])
   }
 
   st <- ds %>%
@@ -936,7 +1113,14 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
   if (!nrow(st)) return(character(0))
 
   pred <- if (mode == "group_every") all else any
-  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(is.na(.x) | .x <= rcut, na.rm = TRUE)))
+  #keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(.x <= rcut, na.rm = TRUE)))
+  keep_df <- st %>%
+  select(-Label) %>%
+  summarise(across(everything(), ~ {
+    x <- .x[is.finite(.x)]
+    length(x) > 0 && pred(x <= rcut)
+  }))
+
   keep_true_cols(keep_df)
 }
 
@@ -1081,4 +1265,175 @@ build_final_feature_table <- function(raw_df_fid,
   }
 
   clean_mzmine_export(raw2)
+}
+
+# Metadata csv
+parse_suffix_list <- function(x) {
+  if (is.null(x) || length(x) == 0) return(character(0))
+
+  x <- as.character(x)
+  x <- x[!is.na(x)]
+
+  out <- trimws(unlist(strsplit(x, ",", fixed = TRUE)))
+  out[nzchar(out)]
+}
+
+clean_sample_names_for_match <- function(x, enabled = FALSE, remove_suffixes = NULL) {
+  x0 <- as.character(x)
+
+  # Always normalize basic invisible/string issues
+  out <- x0
+  out <- gsub("\u00A0", " ", out, fixed = TRUE)
+  out <- gsub("[[:space:]]+", " ", out)
+  out <- trimws(out)
+  out <- gsub('^"|"$', "", out)
+
+  if (!isTRUE(enabled)) {
+    return(out)
+  }
+
+  default_suffixes <- c(
+    " Peak area", " Peak Area", "Peak area", "Peak Area",
+    " Peak height", " Peak Height", "Peak height", "Peak Height",
+    "_Area", "_Height",
+    " Area", " Height",
+    ".mzML", ".mzXML", ".raw", ".RAW",
+    ".cdf", ".CDF",
+    ".mzData", ".mzdata",
+    ".wiff", ".WIFF",
+    ".d", ".D"
+  )
+
+  suffixes <- unique(c(parse_suffix_list(remove_suffixes), default_suffixes))
+  suffixes <- suffixes[nzchar(suffixes)]
+
+  strip_one_suffix <- function(v, sfx) {
+    n <- nchar(sfx)
+    if (!is.finite(n) || n < 1) return(v)
+
+    hit <- nchar(v) >= n &
+      tolower(substr(v, nchar(v) - n + 1, nchar(v))) == tolower(sfx)
+
+    v[hit] <- substr(v[hit], 1, nchar(v[hit]) - n)
+    v <- gsub("[[:space:]]+", " ", v)
+    trimws(v)
+  }
+
+  for (pass in seq_len(20)) {
+    old <- out
+
+    for (sfx in suffixes) {
+      out <- strip_one_suffix(out, sfx)
+    }
+
+    if (identical(old, out)) break
+  }
+
+  out[!nzchar(out)] <- x0[!nzchar(out)]
+  out
+}
+
+guess_metadata_sample_col <- function(cols) {
+  candidates <- c(
+    "Sample", "sample",
+    "SampleName", "sample_name",
+    "Filename", "FileName", "filename",
+    "File", "Name", "Injection", "Run"
+  )
+
+  hit <- candidates[candidates %in% cols]
+  if (length(hit)) hit[1] else cols[1]
+}
+
+guess_metadata_label_col <- function(cols, sample_col = NULL) {
+  cols2 <- setdiff(cols, sample_col)
+
+  candidates <- c(
+    "Condition", "condition",
+    "Label", "label",
+    "Group", "group",
+    "Treatment", "treatment",
+    "Class", "class"
+  )
+
+  hit <- candidates[candidates %in% cols2]
+  if (length(hit)) hit[1] else cols2[1]
+}
+
+read_metadata_csv <- function(upload, context = "metadata") {
+  req(upload)
+
+  ext <- tolower(tools::file_ext(upload$name))
+  validate(need(ext == "csv", paste0("Upload a .csv file for ", context, ".")))
+
+  as.data.frame(
+    vroom::vroom(
+      upload$datapath,
+      delim = ",",
+      col_names = TRUE,
+      show_col_types = FALSE
+    ),
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+}
+
+metadata_labels_by_sample <- function(upload,
+                                      sample_names,
+                                      sample_col,
+                                      label_col,
+                                      clean_enabled = FALSE,
+                                      remove_suffixes = NULL,
+                                      context = "metadata labels") {
+  meta <- read_metadata_csv(upload, context = context)
+
+  validate(
+    need(sample_col %in% names(meta), "Selected metadata sample-name column was not found."),
+    need(label_col %in% names(meta), "Selected metadata label column was not found.")
+  )
+
+  app_key <- clean_sample_names_for_match(
+    sample_names,
+    enabled = clean_enabled,
+    remove_suffixes = remove_suffixes
+  )
+
+  meta_key <- clean_sample_names_for_match(
+    meta[[sample_col]],
+    enabled = clean_enabled,
+    remove_suffixes = remove_suffixes
+  )
+
+  validate(
+    need(!anyDuplicated(app_key),
+         "Detected sample names are duplicated after optional cleaning."),
+    need(!anyDuplicated(meta_key),
+         "Metadata sample names are duplicated after optional cleaning.")
+  )
+
+  idx <- match(app_key, meta_key)
+
+  if (any(is.na(idx))) {
+    missing_samples <- app_key[is.na(idx)]
+
+    validate(
+      need(
+        FALSE,
+        paste0(
+          "Metadata file is missing these sample names: ",
+          paste(head(missing_samples, 10), collapse = ", "),
+          if (length(missing_samples) > 10) " ..." else ""
+        )
+      )
+    )
+  }
+
+  labs <- trimws(as.character(meta[[label_col]][idx]))
+
+  validate(
+    need(!any(is.na(labs) | labs == ""),
+         "Selected metadata label column contains empty values.")
+  )
+
+  labs
 }
