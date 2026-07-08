@@ -17,7 +17,7 @@ Check compatibility with [`examples of inputs`](https://github.com/plyush1993/Me
 - Instructions, references, and details.
 
 :bulb:<ins>**Learn More**</ins>: Check out the [`Tutorial`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf) for a full GUI walkthrough.<br>
-:book:<ins>**Manuscript**</ins>: Read our [`Publication`](https://doi.org/) for the detailed methodology and performance benchmarking.<br>
+:book:<ins>**Manuscript**</ins>: Read our [`Publication`](https://doi.org/10.64898/2026.07.02.735197) for the detailed methodology and performance benchmarking.<br>
 :test_tube:<ins>**Case Studies**</ins>: Visit the [`Examples`](https://github.com/plyush1993/MetaboCensoR_Examples) repository for application examples.
 
 <details>
@@ -64,7 +64,7 @@ Alternatively, Windows users can launch the app automatically using a [`.bat`](h
 ### Citation :link:
 If you use **`MetaboCensoR`**, please cite:
 
-> [To be updated](https://doi.org/)
+> [Plyushchenko I.V. & Luzzatto-Knaan T. "*MetaboCensoR*: A Shiny Application for Data Filtering in Untargeted LC-MS Metabolomics to Enhance Interpretability" *bioRxiv* 2026.07.02.735197](https://doi.org/10.64898/2026.07.02.735197)
 <br/>
 
 ### Contact :mailbox_with_mail:
