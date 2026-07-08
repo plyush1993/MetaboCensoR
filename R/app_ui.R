@@ -25,7 +25,7 @@ shiny::fluidPage(
     tags$link(
       rel  = "icon",
       type = "image/png",
-      href = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/metabocensor_logo_web.png"
+      href = "www/metabocensor_logo_web.png"
     ),
     tags$style(HTML("
     /* Main window headers only, excluding quick-stat numbers */
@@ -224,7 +224,7 @@ shiny::fluidPage(
       href   = "https://github.com/plyush1993/MetaboCensoR",
       target = "_blank",
       tags$img(
-        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/metabocensor_logo.png",
+        src = "www/metabocensor_logo.png",
         alt = "MetaboCensoR logo"
       )
     )

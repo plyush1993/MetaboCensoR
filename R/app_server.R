@@ -21,7 +21,7 @@
 #' @import shinyBS
 app_server <- function(input, output, session) {
 
-options(shiny.maxRequestSize = 1024 * 1024^2)
+#options(shiny.maxRequestSize = 1024 * 1024^2)
   # --------------------------
   # Shared upload hub (Tab 0)
   # --------------------------
@@ -225,7 +225,7 @@ observeEvent(input$clear_shared, {
         updateSelectInput(session, "data_type0", selected = "mzmine")
 
         # 2. Use the RAW GitHub URL (vroom needs the raw CSV, not the HTML page)
-        example_url <- "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/extdata/orbi_iimn_gnps_quant.csv"
+        example_url <- system.file("extdata", "orbi_iimn_gnps_quant.csv", package = "MetaboCensoR")
 
         # 3. Read data directly from GitHub
         df0 <- as.data.frame(vroom::vroom(example_url, delim = ",", show_col_types = FALSE))
@@ -3848,7 +3848,7 @@ output$help_body <- renderUI({
       div(class="highlight", "Rule: Isotopes-Dimers/Adducts/Neutral Loses/In-Source Fragments/Mispicked/Saturated ions tables are displayed after activating the checkbox."),
       br(),
       tags$img(
-        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/Server_Map.png",
+        src = "www/Server_Map.png",
         width = "1000px",
         height = "520px",
         style = "display: block; margin: 0 auto 20px auto;"
