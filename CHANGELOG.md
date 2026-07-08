@@ -28,3 +28,13 @@
 
 ### **`V.1.2.1`** 2026.06.17
 - Minor Documentation and UI refinements
+
+<br>
+<br>
+
+### **`V.1.3.0`** 2026.07.08
+- Added link to preprint
+- Added a target peak list to remove or keep
+- Refined final report
+- Reading metadata csv as Label source
+- Minor Documentation and UI refinements
