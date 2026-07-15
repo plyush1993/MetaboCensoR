@@ -2050,7 +2050,7 @@ ui <- fluidPage(
           ),
           uiOutput("blank_header_in"),
           DTOutput("blank_table_in"),
-          conditionalPanel(condition = "input.show_labels_table", h4("Check matching Sample Names and Group Labels:"), DTOutput("labels_table")),
+          conditionalPanel(condition = "input.show_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("blank_label_upload_warning"), DTOutput("labels_table")),
           conditionalPanel(
             condition = "output.blankPlotReady && input.show_blank_plot",
             h4("Check Blank Ratio Distribution:"),
@@ -2714,7 +2714,7 @@ ui <- fluidPage(
           uiOutput("qc_header_in"),
           DTOutput("qc_table_in"),
 
-          conditionalPanel(condition = "input.show_qc_labels_table", h4("Check matching Sample Names and Group Labels:"), DTOutput("qc_labels_table")),
+          conditionalPanel(condition = "input.show_qc_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("qc_label_upload_warning"), DTOutput("qc_labels_table")),
 
           conditionalPanel(
             condition = "output.qcPlotReady && input.show_qc_plot",
@@ -3573,6 +3573,26 @@ observeEvent(input$clear_shared, {
   })
   
   # ---- Labels for Blank step ----
+  output$blank_label_upload_warning <- renderUI({
+  src <- input$label_source %||% "from_rows"
+
+  need_file <- FALSE
+
+  if (identical(src, "from_custom") && is.null(input$meta_csv)) {
+    need_file <- TRUE
+  }
+
+  if (identical(src, "from_metadata") && is.null(input$blank_metadata_csv)) {
+    need_file <- TRUE
+  }
+
+  if (!need_file) return(NULL)
+
+  div(class="alert alert-warning text-center", 
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;", 
+            icon("exclamation-triangle"), " Please upload a CSV file.")
+})
+  
   custom_labels_blank <- reactive({
   req(input$meta_csv, sample_names())
 
@@ -5271,6 +5291,26 @@ output$labels_table <- renderDT({
   # --------------------------
   # QC Labels
   # --------------------------
+  output$qc_label_upload_warning <- renderUI({
+  src <- input$qc_label_source %||% "inherit"
+
+  need_file <- FALSE
+
+  if (identical(src, "from_custom") && is.null(input$qc_meta_csv)) {
+    need_file <- TRUE
+  }
+
+  if (identical(src, "from_metadata") && is.null(input$qc_metadata_csv)) {
+    need_file <- TRUE
+  }
+
+  if (!need_file) return(NULL)
+
+  div(class="alert alert-warning text-center", 
+            style="font-size: 18px; font-weight: bold; margin-top: 15px;", 
+            icon("exclamation-triangle"), " Please upload a CSV file.")
+})
+    
   qc_custom_labels <- reactive({
   req(input$qc_meta_csv, sample_names())
 
