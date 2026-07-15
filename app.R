@@ -4382,23 +4382,30 @@ output$labels_table <- renderDT({
               }) %>% dplyr::ungroup()
     
             # adduct annotation per peak (from/to lists)
-            add_by_peak <- dplyr::bind_rows(
-              hits %>% dplyr::transmute(peak_id = from, adduct = from_adduct, conn = to),
-              hits %>% dplyr::transmute(peak_id = to,   adduct = to_adduct, conn = from)
+            # adduct annotation per peak, based only on final correlated / strict-RT edges
+              add_by_peak <- dplyr::bind_rows(
+                edges_corr_rt %>%
+                  dplyr::transmute(
+                    peak_id = as.character(from),
+                    pair = paste0(from_adduct, " -> ", to_adduct, " [", feat_by_pid[to], "]")
+                  ),
+              
+                edges_corr_rt %>%
+                  dplyr::transmute(
+                    peak_id = as.character(to),
+                    pair = paste0(to_adduct, " -> ", from_adduct, " [", feat_by_pid[from], "]")
+                  )
               ) %>%
-              # Map internal peak_id to actual Feature name
-              dplyr::mutate(conn_feat = feat_by_pid[conn]) %>%
-              dplyr::group_by(peak_id, adduct) %>%
-              # Group connected features by adduct using commas
-              dplyr::summarise(conn_feat = paste0("[", paste(sort(unique(conn_feat)), collapse = ", "), "]"), .groups="drop") %>%
-              dplyr::group_by(peak_id) %>%
-              # Arrange so adducts and connected_features match 1-to-1 perfectly
-              dplyr::arrange(adduct, .by_group = TRUE) %>%
-              dplyr::summarise(
-                adducts = paste(adduct, collapse = "; "),
-                connected_to = paste(conn_feat, collapse = "; "),
-                .groups="drop"
-              )
+                dplyr::filter(!is.na(pair), nzchar(pair)) %>%
+                dplyr::group_by(peak_id) %>%
+                dplyr::summarise(
+                  adducts = paste(sort(unique(pair)), collapse = "; "),
+                  connected_to = paste(
+                    sort(unique(gsub("^.*\\[|\\]$", "", pair))),
+                    collapse = "; "
+                  ),
+                  .groups = "drop"
+                )
     
             # representative per family = max intensity
             reps <- peaks %>%
@@ -5046,50 +5053,78 @@ output$labels_table <- renderDT({
     
     output$add2_stats_table <- renderDT({
       req(input$show_add_stats2)
-      tbl <- ms_state$add_table 
-      
+    
+      tbl <- ms_state$add_table
+    
       if (is.null(tbl) || nrow(tbl) == 0) {
-        return(datatable(data.frame(Note="No adduct families found (or skipped).")))
+        return(datatable(data.frame(Note = "No adduct families found (or skipped).")))
       }
-      
-      # Filter out rows with no annotated adducts
-      tbl_sub <- tbl[tbl$adducts != "none" & !is.na(tbl$adducts), ]
-      if(nrow(tbl_sub) == 0) {
-        return(datatable(data.frame(Note="No specific adducts annotated.")))
+    
+      if (!"adducts" %in% names(tbl)) {
+        return(datatable(data.frame(Note = "No adduct annotation column found.")))
       }
-      
-      # Split concatenated strings (e.g., "M+H; M+Na") and unlist into a flat vector
-      all_adds <- unlist(strsplit(tbl_sub$adducts, ";\\s*"))
-      
-      # Count frequencies
-      add_freq <- as.data.frame(table(all_adds), stringsAsFactors = FALSE)
-      colnames(add_freq) <- c("Adduct Type", "Total Count")
-      
-      # Sort by highest count
-      add_freq <- add_freq[order(-add_freq$`Total Count`), ]
-      
+    
+      tbl_sub <- tbl[
+        !is.na(tbl$adducts) &
+          tbl$adducts != "none" &
+          nzchar(tbl$adducts),
+        ,
+        drop = FALSE
+      ]
+    
+      if (nrow(tbl_sub) == 0) {
+        return(datatable(data.frame(Note = "No specific adducts annotated.")))
+      }
+    
+      # adducts now contains strings like:
+      # M+H -> 2M+H [44659]; M+Na -> M+K [44660]
+      # For frequency, count only the current peak adduct before " -> "
+      add_long <- tbl_sub %>%
+        dplyr::select(peak_id, adducts) %>%
+        tidyr::separate_rows(adducts, sep = ";\\s*") %>%
+        dplyr::mutate(
+          adduct_type = trimws(sub("\\s*->.*$", "", adducts))
+        ) %>%
+        dplyr::filter(
+          !is.na(adduct_type),
+          nzchar(adduct_type),
+          adduct_type != "none"
+        ) %>%
+        dplyr::distinct(peak_id, adduct_type)
+    
+      if (nrow(add_long) == 0) {
+        return(datatable(data.frame(Note = "No specific adducts annotated.")))
+      }
+    
+      add_freq <- add_long %>%
+        dplyr::count(adduct_type, name = "Total Count") %>%
+        dplyr::arrange(dplyr::desc(`Total Count`)) %>%
+        dplyr::rename(`Adduct Type` = adduct_type)
+    
       datatable(
-        add_freq, 
-        extensions = 'Buttons', 
+        add_freq,
+        extensions = "Buttons",
         rownames = FALSE,
         options = list(
-          pageLength = 10, 
-          scrollX = TRUE, 
-          order = list(list(1, 'desc')),
-          dom = 'Bfrtip',        
-          buttons = list(        
+          pageLength = 10,
+          scrollX = TRUE,
+          order = list(list(1, "desc")),
+          dom = "Bfrtip",
+          buttons = list(
             list(
               extend = "csvHtml5",
               text   = "Download CSV",
-              filename = paste0(tools::file_path_sans_ext(basename(shared$name %||% "dataset")), " adduct_stats"),
+              filename = paste0(
+                tools::file_path_sans_ext(basename(shared$name %||% "dataset")),
+                " adduct_stats"
+              ),
               exportOptions = list(
                 modifier = list(page = "all")
               )
             )
           )
         )
-      ) %>%
-        formatStyle('Adduct Type', fontWeight = 'bold')
+      )
     }, server = FALSE)
     
     output$nl2_table <- renderDT({
