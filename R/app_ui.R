@@ -583,7 +583,7 @@ shiny::fluidPage(
           ),
           uiOutput("blank_header_in"),
           DTOutput("blank_table_in"),
-          conditionalPanel(condition = "input.show_labels_table", h4("Check matching Sample Names and Group Labels:"), DTOutput("labels_table")),
+          conditionalPanel(condition = "input.show_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("blank_label_upload_warning"), DTOutput("labels_table")),
           conditionalPanel(
             condition = "output.blankPlotReady && input.show_blank_plot",
             h4("Check Blank Ratio Distribution:"),
@@ -1247,7 +1247,7 @@ shiny::fluidPage(
           uiOutput("qc_header_in"),
           DTOutput("qc_table_in"),
 
-          conditionalPanel(condition = "input.show_qc_labels_table", h4("Check matching Sample Names and Group Labels:"), DTOutput("qc_labels_table")),
+          conditionalPanel(condition = "input.show_qc_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("qc_label_upload_warning"), DTOutput("qc_labels_table")),
 
           conditionalPanel(
             condition = "output.qcPlotReady && input.show_qc_plot",
