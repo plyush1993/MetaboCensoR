@@ -38,3 +38,9 @@
 - Refined final report
 - Reading metadata csv as Label source
 - Minor Documentation and UI refinements
+
+<br>
+<br>
+
+### **`V.1.3.1`** 2026.07.15
+- Updated Adduct Table appearance 
