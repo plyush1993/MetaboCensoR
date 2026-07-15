@@ -1835,8 +1835,8 @@ ui <- fluidPage(
                 style = "margin-bottom: -15px;", 
           radioButtons("label_source", "Label source:",
                        c("From sample names (by token)" = "from_rows",
-                         "From metadata CSV" = "from_metadata",
-                         "From custom CSV (one column, no header)" = "from_custom",
+                         "From metadata CSV (match by sample name)" = "from_metadata",
+                         "From custom CSV (1 column, no header)" = "from_custom",
     "Manual editable table" = "manual"),
                        selected = "from_rows")
               ),
@@ -1898,7 +1898,7 @@ ui <- fluidPage(
   prettyCheckbox(
     "blank_clean_metadata_names",
     "Clean sample names",
-    value = FALSE,
+    value = TRUE,
     icon = icon("check"),
     status = "primary",
     animation = "jelly"
@@ -2440,8 +2440,8 @@ ui <- fluidPage(
           radioButtons("qc_label_source", "Label source:",
                        c("Use labels from Blank Tab" = "inherit",
                          "From sample names (by token)" = "from_rows",
-                         "From metadata CSV" = "from_metadata",
-                         "From custom CSV (one column, no header)" = "from_custom",
+                         "From metadata CSV (match by sample name)" = "from_metadata",
+                         "From custom CSV (1 column, no header)" = "from_custom",
     "Manual editable table" = "manual"),
                        selected = "inherit")
               ),
@@ -2505,7 +2505,7 @@ ui <- fluidPage(
   prettyCheckbox(
     "qc_clean_metadata_names",
     "Clean sample names",
-    value = FALSE,
+    value = TRUE,
     icon = icon("check"),
     status = "primary",
     animation = "jelly"
@@ -2527,8 +2527,6 @@ ui <- fluidPage(
         " Area", " Height"
       ),
       selected = c(
-        ".mzML", ".mzXML", ".raw",
-        ".cdf", ".wiff", ".d",
         " Peak area", " Peak height",
         "_Area", "_Height",
         " Area", " Height"
