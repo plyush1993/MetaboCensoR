@@ -42,5 +42,6 @@
 <br>
 <br>
 
-### **`V.1.3.1`** 2026.07.15
+### **`V.1.3.1`** 2026.07.16
 - Updated Adduct Table appearance 
+- Minor UI refinements
