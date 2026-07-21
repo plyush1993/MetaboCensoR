@@ -19,13 +19,17 @@ library(MSnbase)
 pd <- data.frame(...)
 xdata <- readMsExperiment(... , sampleData = pd) or readMSData(... , pdata = pd)
 
-xdata <- findChromPeaks(...)
-xdata <- adjustRtime(...)
-xdata <- groupChromPeaks(...)
-xdata <- fillChromPeaks(...)
+cwp <- CentWaveParam(...)
+xdata <- findChromPeaks(... , param = cwp)
+owp <- ObiwarpParam(...)
+xdata <- adjustRtime(... , param = owp)
+pdp <- PeakDensityParam(...)
+xdata <- groupChromPeaks(... , param = pdp)
+cpp <- ChromPeakAreaParam(...) # or FillChromPeaksParam(...)
+xdata <- fillChromPeaks(... , param = cpp)
 
 fvals <- featureValues(xdata, value = "into")
-fdef <- featureDefinitions(mse)[, c("mzmed", "mzmin", "mzmax", "rtmed", "rtmin", "rtmax")]
+fdef <- featureDefinitions(xdata)[, c("mzmed", "mzmin", "mzmax", "rtmed", "rtmin", "rtmax")]
 fvals <- cbind(Row.names = rownames(fdef), fdef, fvals)
 
 write.csv(fvals, "... .csv", row.names = F)
