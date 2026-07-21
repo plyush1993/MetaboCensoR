@@ -17,7 +17,7 @@ library(MsExperiment)
 library(MSnbase)
 
 pd <- data.frame(...)
-xdata <- readMsExperiment(...) or readMSData(...)
+xdata <- readMsExperiment(... , sampleData = pd) or readMSData(... , pdata = pd)
 
 xdata <- findChromPeaks(...)
 xdata <- adjustRtime(...)
