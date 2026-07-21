@@ -13,6 +13,8 @@ Briefly, methanol extracts from the plant ashwagandha [*Withania somnifera* (L.)
 - `xcms` table output was generated as follows:
 ```r
 library(xcms)
+library(MsExperiment)
+library(MSnbase)
 
 pd <- data.frame(...)
 xdata <- readMsExperiment(...) or readMSData(...)
