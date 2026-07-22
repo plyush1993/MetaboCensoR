@@ -4204,7 +4204,8 @@ output$labels_table <- renderDT({
           rt_tol = as.numeric(input$iso_rt2 %||% 0.01),
           tol_fun = tol_fun
         )
-    
+        edges$r <- NA_real_
+        
         if (nrow(edges) > 0) {
           X <- as.matrix(ds)
           idx1 <- match(edges$Feature1, colnames(X))
@@ -4220,7 +4221,12 @@ output$labels_table <- renderDT({
         
         edges_collapsed <- edges %>%
           dplyr::group_by(Feature1) %>%
-          dplyr::summarise(shift = paste(unique(shift), collapse = "; "), .groups = "drop")
+          dplyr::summarise(
+            r = paste(formatC(r[match(unique(shift), shift)], format = "f", digits = 3), collapse = "; "),
+            shift = paste(unique(shift), collapse = "; "),
+            .groups = "drop") %>%
+          dplyr::select(
+            Feature1, shift, r)
         
         iso_tbl <- res_iso$table %>%
           dplyr::left_join(edges_collapsed, by = c("Feature" = "Feature1")) %>%
@@ -4405,13 +4411,15 @@ output$labels_table <- renderDT({
                 edges_corr_rt %>%
                   dplyr::transmute(
                     peak_id = as.character(from),
-                    pair = paste0(from_adduct, " -> ", to_adduct, " [", feat_by_pid[to], "]")
+                    pair = paste0(from_adduct, " -> ", to_adduct, " [", feat_by_pid[to], "]"),
+                    r_value = as.numeric(r)
                   ),
               
                 edges_corr_rt %>%
                   dplyr::transmute(
                     peak_id = as.character(to),
-                    pair = paste0(to_adduct, " -> ", from_adduct, " [", feat_by_pid[from], "]")
+                    pair = paste0(to_adduct, " -> ", from_adduct, " [", feat_by_pid[from], "]"),
+                    r_value = as.numeric(r)
                   )
               ) %>%
                 dplyr::filter(!is.na(pair), nzchar(pair)) %>%
@@ -4419,9 +4427,8 @@ output$labels_table <- renderDT({
                 dplyr::summarise(
                   adducts = paste(sort(unique(pair)), collapse = "; "),
                   connected_to = paste(
-                    sort(unique(gsub("^.*\\[|\\]$", "", pair))),
-                    collapse = "; "
-                  ),
+                    sort(unique(gsub("^.*\\[|\\]$", "", pair))), collapse = "; "),
+                  r = paste(formatC(r_value[match(sort(unique(pair)), pair)], format = "f", digits = 3), collapse = "; "),
                   .groups = "drop"
                 )
     
@@ -4611,13 +4618,13 @@ output$labels_table <- renderDT({
                   ms_state$nl_table <- hits %>%
                     dplyr::left_join(clustered %>% dplyr::select(peak_id, nl_cluster, prec_status = status), by = c("prec_id" = "peak_id")) %>%
                     dplyr::left_join(clustered %>% dplyr::select(peak_id, frag_status = status), by = c("frag_id" = "peak_id")) %>%
-                    dplyr::left_join(pk %>% dplyr::select(peak_id, prec_rt = rt), by = c("prec_id" = "peak_id")) %>%
-                    dplyr::left_join(pk %>% dplyr::select(peak_id, frag_rt = rt), by = c("frag_id" = "peak_id")) %>%
+                    dplyr::left_join(pk %>% dplyr::select(peak_id, prec_rt = rt, prec_int = intensity), by = c("prec_id" = "peak_id")) %>%
+                    dplyr::left_join(pk %>% dplyr::select(peak_id, frag_rt = rt, frag_int = intensity), by = c("frag_id" = "peak_id")) %>%
                     dplyr::mutate(
                       prec_feature = unname(feat_by_pid[prec_id]),
                       frag_feature = unname(feat_by_pid[frag_id])
                     ) %>%
-                    dplyr::select(nl_cluster, prec_feature, frag_feature, prec_status, prec_mz, frag_mz, prec_rt, frag_rt, delta_mz, loss_name, r, delta_rt) %>%
+                    dplyr::select(nl_cluster, prec_feature, frag_feature, prec_status, prec_mz, frag_mz, prec_rt, frag_rt, prec_int, frag_int, delta_mz, loss_name, r, delta_rt) %>%
                     dplyr::arrange(nl_cluster, dplyr::desc(r))
                   
                   del_pids <- clustered %>% dplyr::filter(status=="filtered") %>% dplyr::pull(peak_id)
@@ -4779,6 +4786,7 @@ output$labels_table <- renderDT({
         )
         
         edges <- make_mispicked_edges(pk = pk, rt_tol = as.numeric(input$mis_rt2 %||% 0.002), tol_fun = tol_fun)
+        edges$r <- NA_real_
         
         if (nrow(edges) > 0) {
           X <- as.matrix(ds)
@@ -4791,8 +4799,38 @@ output$labels_table <- renderDT({
         }
         
         res_mis <- collapse_components_keep_most_intense(edges, pk, group_col = "mis_group")
-
-        ms_state$mis_table <- res_mis$table
+        mis_r <- dplyr::bind_rows(
+          edges %>%
+            dplyr::transmute(
+              Feature = Feature1,
+              r_value = r
+            ),
+        
+          edges %>%
+            dplyr::transmute(
+              Feature = Feature2,
+              r_value = r
+            )
+        
+        ) %>%
+          dplyr::group_by(Feature) %>%
+          dplyr::summarise(
+            r = paste(
+              formatC(
+                r_value,
+                format = "f",
+                digits = 3
+              ),
+              collapse = "; "
+            ),
+            .groups = "drop"
+          )
+        
+        ms_state$mis_table <- res_mis$table %>%
+          dplyr::left_join(
+            mis_r,
+            by = "Feature"
+          )
         ms_state$mis_merge_map <- res_mis$merge_map
         
         # Sum mispicked ion intensities into representative ion
@@ -4835,6 +4873,7 @@ output$labels_table <- renderDT({
           max_ratio = as.numeric(input$ring_ratio2 %||% 10),
           bidirectional = isTRUE(input$ring_bidirectional2)
         )
+        edges$r <- NA_real_
         
         if (nrow(edges) > 0) {
           X <- as.matrix(ds)
@@ -4848,7 +4887,36 @@ output$labels_table <- renderDT({
         
         res_ring <- collapse_components_keep_most_intense(edges, pk, group_col = "ring_group")
         
-        ms_state$ring_table <- res_ring$table
+        ring_r <- dplyr::bind_rows(
+
+          edges %>%
+            dplyr::transmute(
+              Feature = Feature1,
+              r_value = r
+            ),
+        
+          edges %>%
+            dplyr::transmute(
+              Feature = Feature2,
+              r_value = r)
+          ) %>%
+          dplyr::group_by(Feature) %>%
+          dplyr::summarise(
+            r = paste(
+              formatC(
+                r_value,
+                format = "f",
+                digits = 3
+              ),
+              collapse = "; "
+            ),
+            .groups = "drop")
+        
+        ms_state$ring_table <- res_ring$table %>%
+          dplyr::left_join(
+            ring_r,
+            by = "Feature"
+          )
         ms_state$del_ring <- setdiff(colnames(ds), res_ring$keep)
         ms_state$stats$removed_ring <- length(ms_state$del_ring)
         
@@ -5039,6 +5107,15 @@ output$labels_table <- renderDT({
         return(datatable(data.frame(Note="No adduct families found (or skipped).")))
       }
       tbl <- tbl[, setdiff(names(tbl), "keep_rep"), drop = FALSE]
+      tbl <- tbl %>%
+        dplyr::rename(
+          intensity = int,
+          rt = ret
+        ) %>%
+        dplyr::relocate(
+          r,
+          .after = status
+        )
       idx_group <- match("group_id", names(tbl))
       idx_family <- match("family_id", names(tbl))
       datatable(
@@ -5062,8 +5139,8 @@ output$labels_table <- renderDT({
         )
       ) %>%
         DT::formatRound(columns = c("mz"), digits = 4) %>%
-        DT::formatRound(columns = c("int"), digits = 1) %>%
-        DT::formatRound(columns = c("ret"), digits = 3) %>% 
+        DT::formatRound(columns = c("intensity"), digits = 1) %>%
+        DT::formatRound(columns = c("rt"), digits = 3) %>% 
         formatStyle('status', 
                     backgroundColor = styleEqual(c("kept (no group)", "kept (no corr-family)", "keep_rep", "filtered"), 
                                                  c("#dff0d8", "#dff0d8", "#dff0d8", "#f2dede")))
@@ -5168,6 +5245,7 @@ output$labels_table <- renderDT({
       )
     ) %>%
         DT::formatRound(columns = c("prec_mz", "frag_mz", "delta_mz"), digits = 4) %>%
+        DT::formatRound(columns = c("prec_int", "frag_int"), digits = 1) %>%
         DT::formatRound(columns = c("prec_rt", "frag_rt", "delta_rt", "r"), digits = 3) %>% 
         formatStyle(c('prec_status'), 
                     backgroundColor = styleEqual(c("kept", "filtered"), c("#dff0d8", "#f2dede")))
