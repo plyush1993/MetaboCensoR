@@ -7173,13 +7173,13 @@ output$help_body <- renderUI({
     ),
       br(),
       div(class = "highlight",
-      "Tip: You can upload your custom Adduct list. Default built-in Adducts list is from ",
+      "Tip: You can upload your custom Adduct list. Default built-in Adducts list used in ",
       tags$a(href = "https://cran.r-project.org/web/packages/nontarget/index.html", "[1]", target = "_blank"),
       " and available ",
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/adducts%20(nontarget).csv", "here", target = "_blank"),
-      ". For an extended list of adducts, please refer to the 'adducts*.csv' files located in the root directory on ", 
-      tags$a(href = "https://github.com/plyush1993/MetaboCensoR/", "GitHub", target = "_blank"),
-      "."
+      ". For an extended list of adducts, please refer to the ",
+      tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/AdductLists.md", "Adduct Lists", target = "_blank"),
+      "and 'adducts*.csv' files located in the root GitHub directory."
     ),
     br(),
       div(class = "highlight",
