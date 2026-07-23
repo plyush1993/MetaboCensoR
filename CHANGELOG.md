@@ -49,5 +49,6 @@
 <br>
 <br>
 
-### **`V.1.3.2`** 2026.07.22
-- Updated Annotation Tables appearance 
+### **`V.1.3.2`** 2026.07.23
+- Updated Annotation Tables appearance
+- Added Adduct Lists Reference file
