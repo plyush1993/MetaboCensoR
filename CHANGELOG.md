@@ -52,3 +52,4 @@
 ### **`V.1.3.2`** 2026.07.23
 - Updated Annotation Tables appearance
 - Added Adduct Lists Reference file
+- Revised suggested sample column keyword list and suffixes to remove
