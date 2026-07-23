@@ -353,7 +353,7 @@ observeEvent(input$clear_shared, {
         selectizeInput(
           "sample_keyword0",
           "Sample column keywords (pick/add multiple):",
-          choices  = c(".mzML", ".mzXML", ".raw", ".d", "Peak area", "Area", "_Area"),
+          choices  = c(".mzML", ".mzXML", ".raw", ".d", ".wiff", ".lcd", "Peak area", "Area", "_Area"),
           selected = c(".mzML", ".mzXML"),
           multiple = TRUE,
           options  = list(create = TRUE, createOnBlur = TRUE,
