@@ -587,7 +587,7 @@ standardize_peak_table <- function(df, type) {
 # --------------------------
 # Labels parsing / upload helper
 # --------------------------
-labels_from_sample_names <- function(sample_names, token_sep = "_", token_index = 2) {
+labels_from_sample_names <- function(sample_names, token_sep = "_", token_index = 2, show_notification = TRUE) {
   token_sep <- token_sep %||% "_"
   token_index <- as.integer(token_index %||% 2)
 
@@ -596,7 +596,8 @@ labels_from_sample_names <- function(sample_names, token_sep = "_", token_index 
   if (!all(has_ix)) {
     msg <- sprintf("Warning: Token %d missing in some sample names. Falling back to the full sample name.", token_index)
     warning(msg)
-    if (!is.null(shiny::getDefaultReactiveDomain())) {
+    if (isTRUE(show_notification) &&
+    !is.null(shiny::getDefaultReactiveDomain())) {
       shiny::showNotification(msg, type = "warning", duration = 8)
     }
   }
@@ -3408,13 +3409,43 @@ observeEvent(input$clear_shared, {
           choices = choices_list,
           selected = NULL,
           multiple = TRUE,
-          options = list(placeholder = "Select all sample intensity columns")
+          options = list(placeholder = "Select first and last sample columns")
         )
       ),
 
     )
   })
 
+  observeEvent(input$sample_cols0, {
+
+  req(shared$raw)
+
+  sel <- input$sample_cols0
+
+  # Need at least 2 selected columns to define a range
+  if (is.null(sel) || length(sel) < 2) return()
+
+  cols <- names(shared$raw)
+
+  pos <- match(sel, cols)
+  pos <- pos[!is.na(pos)]
+
+  if (length(pos) < 2) return()
+
+  # Everything between first and last selected column
+  range_cols <- cols[min(pos):max(pos)]
+
+  # Update only when there are missing columns inside the range
+  if (!setequal(sel, range_cols)) {
+    updateSelectizeInput(
+      session,
+      "sample_cols0",
+      selected = range_cols
+    )
+  }
+
+}, ignoreInit = TRUE)
+  
   output$sharedUploaded <- reactive({ !is.null(shared$raw) && nrow(as.data.frame(shared$raw)) > 0 })
   outputOptions(output, "sharedUploaded", suspendWhenHidden = FALSE)
 
@@ -3605,7 +3636,8 @@ observeEvent(sample_names(), {
   auto_labs <- labels_from_sample_names(
     sample_names(),
     token_sep = input$token_sep %||% "_",
-    token_index = input$label_index %||% 2
+    token_index = input$label_index %||% 2,
+    show_notification = identical(input$tabs, "blank")
   )
 
   manual_labels_blank(
@@ -3619,7 +3651,8 @@ observeEvent(input$apply_auto_labels_blank, {
   auto_labs <- labels_from_sample_names(
     sample_names(),
     token_sep = input$token_sep %||% "_",
-    token_index = input$label_index %||% 2
+    token_index = input$label_index %||% 2,
+    show_notification = identical(input$tabs, "blank")
   )
 
   manual_labels_blank(
@@ -5401,7 +5434,8 @@ observeEvent(sample_names(), {
   auto_labs <- labels_from_sample_names(
     sample_names(),
     token_sep = input$qc_token_sep %||% "_",
-    token_index = input$qc_label_index %||% 2
+    token_index = input$qc_label_index %||% 2,
+    show_notification = identical(input$tabs, "qc")
   )
 
   manual_labels_qc(
@@ -5415,7 +5449,8 @@ observeEvent(input$apply_auto_labels_qc, {
   auto_labs <- labels_from_sample_names(
     sample_names(),
     token_sep = input$qc_token_sep %||% "_",
-    token_index = input$qc_label_index %||% 2
+    token_index = input$qc_label_index %||% 2,
+    show_notification = identical(input$tabs, "qc")
   )
 
   manual_labels_qc(
