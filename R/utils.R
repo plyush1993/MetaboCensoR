@@ -548,7 +548,7 @@ standardize_peak_table <- function(df, type) {
 # --------------------------
 # Labels parsing / upload helper
 # --------------------------
-labels_from_sample_names <- function(sample_names, token_sep = "_", token_index = 2) {
+labels_from_sample_names <- function(sample_names, token_sep = "_", token_index = 2, show_notification = TRUE) {
   token_sep <- token_sep %||% "_"
   token_index <- as.integer(token_index %||% 2)
 
@@ -557,7 +557,8 @@ labels_from_sample_names <- function(sample_names, token_sep = "_", token_index 
   if (!all(has_ix)) {
     msg <- sprintf("Warning: Token %d missing in some sample names. Falling back to the full sample name.", token_index)
     warning(msg)
-    if (!is.null(shiny::getDefaultReactiveDomain())) {
+    if (isTRUE(show_notification) &&
+    !is.null(shiny::getDefaultReactiveDomain())) {
       shiny::showNotification(msg, type = "warning", duration = 8)
     }
   }
