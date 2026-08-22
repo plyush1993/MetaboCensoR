@@ -305,7 +305,29 @@ observeEvent(input$clear_shared, {
         div(style = "flex: 1; background-color: #f8f9fa; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #3498db; box-shadow: 0 1px 3px rgba(0,0,0,0.05);",
             h5("Total Features (Peaks)", style = "margin: 0 0 5px 0; color: #2c3e50; font-weight: bold; text-transform: uppercase; font-size: 14px;"),
             h3(n_features, class = "quick-stat-features", style = "margin: 0; color: #3498db; font-weight: 800; font-size: 28px;")
-        )
+        ),
+        tags$details(
+ style = "flex: 1; background-color: #f8f9fa; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #FF8C00; box-shadow: 0 1px 3px rgba(0,0,0,0.05);",
+
+  tags$summary(
+    style = "cursor:pointer; font-weight:bold; font-size: 14px; text-transform: uppercase;",
+    icon("circle-info"),
+    " Large datasets / memory limits"
+  ),
+
+  tags$p(
+    style = "margin-top:10px;  margin-bottom:8px;",
+    "Web version memory limit: 1 GB. ",
+    "For large datasets or memory-intensive analyses, we recommend running MetaboCensoR locally. "
+  ),
+
+  tags$a(
+    "Local installation instructions",
+    href = "https://github.com/plyush1993/MetaboCensoR#launch-the-app-rocket",
+    target = "_blank",
+    style = "font-weight:bold; color:#FF8C00;"
+  )
+)
     )
   })
 
@@ -4014,6 +4036,21 @@ output$help_body <- renderUI({
         tags$li(tags$b("Final Summary:"), " Compile summary & export final dataset."),
         tags$li(tags$b("About:"), " Description, Project Details, References.")
       ),
+      div(
+  style = "background-color: #fff3e0; border-left: 5px solid #FF8C00; padding: 10px 12px; margin-top: 8px; margin-bottom: 8px; border-radius: 6px; font-size: 18px; line-height: 1.45;",
+  HTML("
+    <span style='color:#d96f00; font-weight:700; font-size:18px;'>
+      <i class='fa fa-server'></i> Memory limit
+    </span><br>
+    The Web version of <i>MetaboCensoR</i> is limited to <b>1 GB</b> of memory.
+    For large datasets or memory-intensive analyses, we recommend running <i>MetaboCensoR</i> locally.<br>
+    <a href='https://github.com/plyush1993/MetaboCensoR#launch-the-app-rocket'
+       target='_blank' style='font-weight:700; color:#d96f00;'>
+       Local installation instructions
+    </a>
+  ")
+),
+br(),
       div(class = "highlight",
       "Quick Start Guide: ",
       tags$a(href = "https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf", "Tutorial", target = "_blank"),
@@ -4054,7 +4091,21 @@ output$help_body <- renderUI({
         tags$li(tags$b("Sample column keywords:"), " add patterns that match your sample columns (e.g. .mzML, _Area)."),
         tags$li(tags$b("Clear dataset:"), " to delete any calculations and uploaded files.")
       ),
-      br(),
+      div(
+  style = "background-color: #fff3e0; border-left: 5px solid #FF8C00; padding: 10px 12px; margin-top: 8px; margin-bottom: 8px; border-radius: 6px; font-size: 18px; line-height: 1.45;",
+  HTML("
+    <span style='color:#d96f00; font-weight:700; font-size:18px;'>
+      <i class='fa fa-server'></i> Memory limit
+    </span><br>
+    The Web version of <i>MetaboCensoR</i> is limited to <b>1 GB</b> of memory.
+    For large datasets or memory-intensive analyses, we recommend running <i>MetaboCensoR</i> locally.<br>
+    <a href='https://github.com/plyush1993/MetaboCensoR#launch-the-app-rocket'
+       target='_blank' style='font-weight:700; color:#d96f00;'>
+       Local installation instructions
+    </a>
+  ")
+),
+br(),
       div(class="highlight",
     HTML("Tip: Try the Example dataset by clicking the button to overview the full App functionality.<br>
     If use this example, run the Blank filter first to save memory for further steps. You can keep all parameters by default.<br>
@@ -4363,7 +4414,22 @@ tags$div(
       "if (!requireNamespace(\"devtools\", quietly = TRUE)) install.packages(\"devtools\")\ndevtools::install_version(\"ggplot2\", version = \"3.4.4\", repos = \"http://cran.us.r-project.org\")\ndevtools::install_version(\"plotly\", version = \"4.10.4\", repos = \"http://cran.us.r-project.org\")"
     )
   )
-))
+)),
+br(),
+div(
+  style = "background-color: #fff3e0; border-left: 5px solid #FF8C00; padding: 10px 12px; margin-top: 8px; margin-bottom: 8px; border-radius: 6px; font-size: 18px; line-height: 1.45;",
+  HTML("
+    <span style='color:#d96f00; font-weight:700; font-size:18px;'>
+      <i class='fa fa-server'></i> Memory limit
+    </span><br>
+    The Web version of <i>MetaboCensoR</i> is limited to <b>1 GB</b> of memory.
+    For large datasets or memory-intensive analyses, we recommend running <i>MetaboCensoR</i> locally.<br>
+    <a href='https://github.com/plyush1993/MetaboCensoR#launch-the-app-rocket'
+       target='_blank' style='font-weight:700; color:#d96f00;'>
+       Local installation instructions
+    </a>
+  ")
+)
     )
   ))
   }
