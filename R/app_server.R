@@ -4459,7 +4459,7 @@ div(
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
           GitHub
        </a>')),
-      tags$li(HTML('Case Studies:&nbsp;
+      tags$li(HTML('Examples & Benchmarking:&nbsp;
        <a href="https://github.com/plyush1993/MetaboCensoR_Examples" target="_blank"
           style="color:#ffcc00; font-weight:700; text-decoration:none;">
           GitHub
