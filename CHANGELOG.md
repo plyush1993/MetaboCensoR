@@ -59,3 +59,9 @@
 
 ### **`V.1.3.3`** 2026.08.16
 - Introducing the range selection for manual sample column picking
+
+<br>
+<br>
+
+### **`V.1.3.4`** 2026.08.22
+- Added explicit notes about Web version memory limitations
