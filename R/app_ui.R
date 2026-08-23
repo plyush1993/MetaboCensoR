@@ -316,6 +316,11 @@ shiny::fluidPage(
           tags$hr(),
           h3(class = "highlight", "Global parsing settings"),
           uiOutput("global_controls0"),
+          materialSwitch("limit_table_preview", "Limit table previews", FALSE, status = "danger"),
+          conditionalPanel(
+            condition = "input.limit_table_preview",
+            helpText("Performance mode: limited table previews. Calculations are unchanged.")
+          ),
           tags$hr(),
           actionButton("clear_shared", "Clear dataset", class = "btn btn-warning"),
           tags$hr(),
@@ -944,13 +949,40 @@ shiny::fluidPage(
           uiOutput("ms_header_out"),
           DTOutput("ms_table_out"),
 
-          conditionalPanel(condition = "input.show_iso_table2", h4("Isotopes table:"), DTOutput("iso2_table")),
-          conditionalPanel(condition = "input.show_add_table2", h4("Adducts table:"), DTOutput("add2_table")),
-          conditionalPanel(condition = "input.show_add_stats2", h4("Adduct Frequencies:"), DTOutput("add2_stats_table")),
-          conditionalPanel(condition = "input.show_nl_table2",  h4("Neutral Losses table:"), DTOutput("nl2_table")),
-          conditionalPanel(condition = "input.show_isf_table2", h4("In-Source Fragments table:"), DTOutput("isf2_table")),
-          conditionalPanel(condition = "input.show_mis_table2", h4("Mispicked Ions table:"), DTOutput("mis2_table")),
-          conditionalPanel(condition = "input.show_ring_table2", h4("Saturated Ions table:"), DTOutput("ring2_table")),
+          conditionalPanel(condition = "input.show_iso_table2",
+                 h4("Isotopes table:"),
+                 downloadButton("dl_iso2_table", "Download CSV", class = "btn btn-danger"),
+                 DTOutput("iso2_table")),
+
+          conditionalPanel(condition = "input.show_add_table2",
+                 h4("Adducts table:"),
+                 downloadButton("dl_add2_table", "Download CSV", class = "btn btn-danger"),
+                 DTOutput("add2_table")),
+
+          conditionalPanel(condition = "input.show_add_stats2",
+                 h4("Adduct Frequencies:"),
+                 downloadButton("dl_add2_stats_table", "Download CSV", class = "btn btn-danger"),
+                 DTOutput("add2_stats_table")),
+
+          conditionalPanel(condition = "input.show_nl_table2",
+                           h4("Neutral Losses table:"),
+                           downloadButton("dl_nl2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("nl2_table")),
+
+          conditionalPanel(condition = "input.show_isf_table2",
+                           h4("In-Source Fragments table:"),
+                           downloadButton("dl_isf2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("isf2_table")),
+
+          conditionalPanel(condition = "input.show_mis_table2",
+                           h4("Mispicked Ions table:"),
+                           downloadButton("dl_mis2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("mis2_table")),
+
+          conditionalPanel(condition = "input.show_ring_table2",
+                           h4("Saturated Ions table:"),
+                           downloadButton("dl_ring2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("ring2_table")),
 
           withSpinner(uiOutput("ms_filter_summary"), type = 8, color = "white", size = 2)
         )

@@ -14,6 +14,16 @@ clean_mzmine_export <- function(df) {
   df
 }
 
+limit_table_preview <- function(df, enabled = FALSE, max_rows = 100, max_cols = Inf) {
+  if (!isTRUE(enabled) || is.null(df)) return(df)
+  if (nrow(df) == 0 || ncol(df) == 0) return(df)
+
+  nr <- min(nrow(df), max_rows)
+  nc <- if (is.infinite(max_cols)) ncol(df) else min(ncol(df), max_cols)
+
+  df[seq_len(nr), seq_len(nc), drop = FALSE]
+}
+
 format_final_table_as_input <- function(final_df_with_fid, type,
                                         export_template = NULL,
                                         export_colmap = NULL,
@@ -441,12 +451,12 @@ standardize_peak_table <- function(df, type) {
     }
 
   } else if (type == "default") {
-    req_cols <- c("Feature", "mz", "rt")
-    miss <- setdiff(req_cols, names(df))
-    export_colmap <- c(mz = "mz", rt = "rt")
-    export_template <- names(df)
-    if (length(miss)) stop("DEFAULT table missing: ", paste(miss, collapse = ", "))
-    df <- dplyr::rename(df, mz = `mz`, rt = `rt`)
+
+  # Universal/default CSV:
+  # keep all original column names and let the user specify
+  # Feature ID, m/z, RT and sample columns in the Upload tab.
+  export_template <- names(df)
+  export_colmap <- c()
 
   } else if (type == "msdial") {
     # 1. Try to find the header row by scanning for "Alignment ID" and "Average Mz"
@@ -534,9 +544,17 @@ standardize_peak_table <- function(df, type) {
   }
 
   # Final cleanup
-  df$mz <- suppressWarnings(as.numeric(df$mz))
-  df$rt <- suppressWarnings(as.numeric(df$rt))
-  if (!"feature_id" %in% names(df)) df$feature_id <- seq_len(nrow(df))
+  if ("mz" %in% names(df)) {
+    df$mz <- suppressWarnings(as.numeric(df$mz))
+  }
+
+  if ("rt" %in% names(df)) {
+    df$rt <- suppressWarnings(as.numeric(df$rt))
+  }
+
+  if (!"feature_id" %in% names(df)) {
+    df$feature_id <- seq_len(nrow(df))
+  }
 
   attr(df, "export_template")  <- export_template
   attr(df, "export_colmap")    <- export_colmap
