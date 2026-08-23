@@ -72,5 +72,5 @@
 ### **`V.1.4.0`** 2026.08.23
 - Fixed according to the reviewer's suggestion
 - Multiple range selection
-- Default data format more universal
+- Default data format is more universal
 - Limited data previews for large datasets
