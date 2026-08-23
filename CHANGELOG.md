@@ -63,12 +63,6 @@
 <br>
 <br>
 
-### **`V.1.3.4`** 2026.08.22
-- Added explicit notes about Web version memory limitations
-
-<br>
-<br>
-
 ### **`V.1.4.0`** 2026.08.23
 - Fixed according to the reviewer's suggestion
 - Multiple range selection
