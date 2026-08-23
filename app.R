@@ -53,6 +53,16 @@ clean_mzmine_export <- function(df) {
   df
 }
 
+limit_table_preview <- function(df, enabled = FALSE, max_rows = 100, max_cols = Inf) {
+  if (!isTRUE(enabled) || is.null(df)) return(df)
+  if (nrow(df) == 0 || ncol(df) == 0) return(df)
+
+  nr <- min(nrow(df), max_rows)
+  nc <- if (is.infinite(max_cols)) ncol(df) else min(ncol(df), max_cols)
+
+  df[seq_len(nr), seq_len(nc), drop = FALSE]
+}
+
 format_final_table_as_input <- function(final_df_with_fid, type,
                                         export_template = NULL,
                                         export_colmap = NULL,
@@ -480,12 +490,12 @@ standardize_peak_table <- function(df, type) {
     }
 
   } else if (type == "default") {
-    req_cols <- c("Feature", "mz", "rt")
-    miss <- setdiff(req_cols, names(df))
-    export_colmap <- c(mz = "mz", rt = "rt")
-    export_template <- names(df)
-    if (length(miss)) stop("DEFAULT table missing: ", paste(miss, collapse = ", "))
-    df <- dplyr::rename(df, mz = `mz`, rt = `rt`)
+
+  # Universal/default CSV:
+  # keep all original column names and let the user specify
+  # Feature ID, m/z, RT and sample columns in the Upload tab.
+  export_template <- names(df)
+  export_colmap <- c()
 
   } else if (type == "msdial") {
     # 1. Try to find the header row by scanning for "Alignment ID" and "Average Mz"
@@ -573,9 +583,17 @@ standardize_peak_table <- function(df, type) {
   }
 
   # Final cleanup
-  df$mz <- suppressWarnings(as.numeric(df$mz))
-  df$rt <- suppressWarnings(as.numeric(df$rt))
-  if (!"feature_id" %in% names(df)) df$feature_id <- seq_len(nrow(df))
+  if ("mz" %in% names(df)) {
+    df$mz <- suppressWarnings(as.numeric(df$mz))
+  }
+  
+  if ("rt" %in% names(df)) {
+    df$rt <- suppressWarnings(as.numeric(df$rt))
+  }
+  
+  if (!"feature_id" %in% names(df)) {
+    df$feature_id <- seq_len(nrow(df))
+  }
 
   attr(df, "export_template")  <- export_template
   attr(df, "export_colmap")    <- export_colmap
@@ -1772,6 +1790,11 @@ ui <- fluidPage(
           tags$hr(),
           h3(class = "highlight", "Global parsing settings"),
           uiOutput("global_controls0"),
+          materialSwitch("limit_table_preview", "Limit table previews", FALSE, status = "danger"),
+          conditionalPanel(
+            condition = "input.limit_table_preview",
+            helpText("Performance mode: limited table previews. Calculations are unchanged.")
+          ),
           tags$hr(),
           actionButton("clear_shared", "Clear dataset", class = "btn btn-warning"),
           tags$hr(),
@@ -2400,13 +2423,40 @@ ui <- fluidPage(
           uiOutput("ms_header_out"),
           DTOutput("ms_table_out"),
     
-          conditionalPanel(condition = "input.show_iso_table2", h4("Isotopes table:"), DTOutput("iso2_table")),
-          conditionalPanel(condition = "input.show_add_table2", h4("Adducts table:"), DTOutput("add2_table")),
-          conditionalPanel(condition = "input.show_add_stats2", h4("Adduct Frequencies:"), DTOutput("add2_stats_table")),
-          conditionalPanel(condition = "input.show_nl_table2",  h4("Neutral Losses table:"), DTOutput("nl2_table")),
-          conditionalPanel(condition = "input.show_isf_table2", h4("In-Source Fragments table:"), DTOutput("isf2_table")),
-          conditionalPanel(condition = "input.show_mis_table2", h4("Mispicked Ions table:"), DTOutput("mis2_table")),
-          conditionalPanel(condition = "input.show_ring_table2", h4("Saturated Ions table:"), DTOutput("ring2_table")),
+          conditionalPanel(condition = "input.show_iso_table2",
+                 h4("Isotopes table:"),
+                 downloadButton("dl_iso2_table", "Download CSV", class = "btn btn-danger"),
+                 DTOutput("iso2_table")),
+          
+          conditionalPanel(condition = "input.show_add_table2",
+                 h4("Adducts table:"),
+                 downloadButton("dl_add2_table", "Download CSV", class = "btn btn-danger"),
+                 DTOutput("add2_table")),
+
+          conditionalPanel(condition = "input.show_add_stats2",
+                 h4("Adduct Frequencies:"),
+                 downloadButton("dl_add2_stats_table", "Download CSV", class = "btn btn-danger"),
+                 DTOutput("add2_stats_table")),
+          
+          conditionalPanel(condition = "input.show_nl_table2",
+                           h4("Neutral Losses table:"),
+                           downloadButton("dl_nl2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("nl2_table")),
+          
+          conditionalPanel(condition = "input.show_isf_table2",
+                           h4("In-Source Fragments table:"),
+                           downloadButton("dl_isf2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("isf2_table")),
+          
+          conditionalPanel(condition = "input.show_mis_table2",
+                           h4("Mispicked Ions table:"),
+                           downloadButton("dl_mis2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("mis2_table")),
+          
+          conditionalPanel(condition = "input.show_ring_table2",
+                           h4("Saturated Ions table:"),
+                           downloadButton("dl_ring2_table", "Download CSV", class = "btn btn-danger"),
+                           DTOutput("ring2_table")),
     
           withSpinner(uiOutput("ms_filter_summary"), type = 8, color = "white", size = 2)
         )
@@ -3308,22 +3358,30 @@ observeEvent(input$clear_shared, {
   })
 
   output$shared_preview <- renderDT({
-    req(shared$raw)
-    df_show <- clean_mzmine_export(shared$raw)
-    
-    colmap <- shared$export_colmap
-    if (!is.null(colmap)) {
-      colmap <- colmap[names(colmap) != "feature_id"]
-      for (std_nm in names(colmap)) {
-        orig_nm <- colmap[[std_nm]]
-        if (std_nm %in% names(df_show) && nzchar(orig_nm)) {
-          names(df_show)[names(df_show) == std_nm] <- orig_nm
-        }
+  req(shared$raw)
+
+  df_show <- limit_table_preview(
+    shared$raw,
+    input$limit_table_preview,
+    max_rows = 50,
+    max_cols = 50
+  )
+
+  df_show <- clean_mzmine_export(df_show)
+
+  colmap <- shared$export_colmap
+  if (!is.null(colmap)) {
+    colmap <- colmap[names(colmap) != "feature_id"]
+    for (std_nm in names(colmap)) {
+      orig_nm <- colmap[[std_nm]]
+      if (std_nm %in% names(df_show) && nzchar(orig_nm)) {
+        names(df_show)[names(df_show) == std_nm] <- orig_nm
       }
     }
-    
-    datatable(df_show, options = list(scrollX = TRUE, pageLength = 6))
-  })
+  }
+
+  datatable(df_show, options = list(scrollX = TRUE, pageLength = 6))
+})
 
   output$quick_stats_ui <- renderUI({
     # Wait until the raw data is loaded
@@ -3358,7 +3416,7 @@ observeEvent(input$clear_shared, {
   tags$p(
     style = "margin-top:10px;  margin-bottom:8px;",
     "Web version memory limit: 1 GB. ",
-    "For large datasets or memory-intensive analyses, we recommend running MetaboCensoR locally. "
+    "For large datasets or memory-intensive analyses, we recommend activating the “Limit table previews” option and running MetaboCensoR locally. "
   ),
 
   tags$a(
@@ -3438,31 +3496,85 @@ observeEvent(input$clear_shared, {
     )
   })
 
-  observeEvent(input$sample_cols0, {
+  manual_range_state <- reactiveValues(
+  first = NULL,
+  selected = character(0),
+  updating = FALSE
+)
+
+  observeEvent(shared$raw, {
+  manual_range_state$first <- NULL
+  manual_range_state$selected <- character(0)
+  manual_range_state$updating <- FALSE
+}, ignoreInit = TRUE)
+  
+observeEvent(input$sample_cols0, {
 
   req(shared$raw)
 
-  sel <- input$sample_cols0
-
-  # Need at least 2 selected columns to define a range
-  if (is.null(sel) || length(sel) < 2) return()
-
+  sel  <- input$sample_cols0 %||% character(0)
   cols <- names(shared$raw)
 
-  pos <- match(sel, cols)
-  pos <- pos[!is.na(pos)]
+  # Ignore the observer call caused by updateSelectizeInput()
+  if (isTRUE(manual_range_state$updating)) {
+    manual_range_state$updating <- FALSE
+    manual_range_state$selected <- sel
+    return()
+  }
 
-  if (length(pos) < 2) return()
+  # Detect newly clicked column(s)
+  added <- setdiff(sel, manual_range_state$selected)
 
-  # Everything between first and last selected column
-  range_cols <- cols[min(pos):max(pos)]
+  # Allow manual removal of selected columns
+  removed <- setdiff(manual_range_state$selected, sel)
+  if (length(removed)) {
+    manual_range_state$selected <- sel
+    if (!is.null(manual_range_state$first) &&
+        manual_range_state$first %in% removed) {
+      manual_range_state$first <- NULL
+    }
+    return()
+  }
 
-  # Update only when there are missing columns inside the range
-  if (!setequal(sel, range_cols)) {
+  if (!length(added)) {
+    manual_range_state$selected <- sel
+    return()
+  }
+
+  new_col <- tail(added, 1)
+
+  # First click = start of a new range
+  if (is.null(manual_range_state$first)) {
+
+    manual_range_state$first <- new_col
+    manual_range_state$selected <- sel
+    return()
+  }
+
+  # Second click = end of the range
+  first_col <- manual_range_state$first
+
+  p1 <- match(first_col, cols)
+  p2 <- match(new_col, cols)
+
+  if (!is.na(p1) && !is.na(p2)) {
+
+    range_cols <- cols[min(p1, p2):max(p1, p2)]
+
+    # Add new range to already selected ranges
+    all_selected <- union(manual_range_state$selected, range_cols)
+
+    # Keep original peak-table column order
+    all_selected <- cols[cols %in% all_selected]
+
+    manual_range_state$first <- NULL
+    manual_range_state$selected <- all_selected
+    manual_range_state$updating <- TRUE
+
     updateSelectizeInput(
       session,
       "sample_cols0",
-      selected = range_cols
+      selected = all_selected
     )
   }
 
@@ -4106,9 +4218,17 @@ output$labels_table <- renderDT({
   })
 
   output$blank_header_in <- renderUI({ req(raw_zeroed()); h3("Input table") })
-  output$blank_table_in  <- renderDT({ req(raw_zeroed()); datatable(raw_zeroed(), options = list(scrollX = TRUE, pageLength = 5)) })
+  output$blank_table_in  <- renderDT({
+  req(raw_zeroed())
+  datatable(limit_table_preview(raw_zeroed(), input$limit_table_preview, 50, 50),
+            options = list(scrollX = TRUE, pageLength = 5))
+})
   output$blank_header_out <- renderUI({ req(raw_after_blank()); h3("Output table — after Blank Filters") })
-  output$blank_table_out  <- renderDT({ req(raw_after_blank()); datatable(raw_after_blank(), options = list(scrollX = TRUE, pageLength = 5)) })
+  output$blank_table_out <- renderDT({
+  req(raw_after_blank())
+  datatable(limit_table_preview(raw_after_blank(), input$limit_table_preview, 50, 50),
+            options = list(scrollX = TRUE, pageLength = 5))
+})
 
   output$blank_filter_summary <- renderUI({
     req(blank_state$applied)
@@ -5093,285 +5213,463 @@ output$labels_table <- renderDT({
     })
     
     output$ms_header_in <- renderUI({ req(raw_after_blank()); h3("Input table") })
-    output$ms_table_in  <- renderDT({
-    req(raw_after_blank())
-    datatable(raw_after_blank(), options = list(scrollX = TRUE, pageLength = 5))
-    })
+    output$ms_table_in <- renderDT({
+  req(raw_after_blank())
+  datatable(
+    limit_table_preview(raw_after_blank(), input$limit_table_preview, 50, 50),
+    options = list(scrollX = TRUE, pageLength = 5)
+  )
+})
     
     output$ms_header_out <- renderUI({ req(raw_after_ms()); h3("Output table — after MS Filters") })
-    output$ms_table_out  <- renderDT({
-    req(raw_after_ms())
-    datatable(raw_after_ms(), options = list(scrollX = TRUE, pageLength = 5))
-    })
+    output$ms_table_out <- renderDT({
+  req(raw_after_ms())
+  datatable(
+    limit_table_preview(raw_after_ms(), input$limit_table_preview, 50, 50),
+    options = list(scrollX = TRUE, pageLength = 5)
+  )
+})
     
     # detail tables
     output$iso2_table <- renderDT({
-      req(input$show_iso_table2)
-      tbl <- ms_state$iso_table
-      if (is.null(tbl) || nrow(tbl) == 0)
-        return(datatable(data.frame(Note="No isotope/dimer groups found (or skipped).")))
-      tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
-      tbl$iso_group <- suppressWarnings(as.integer(tbl$iso_group))  
-      i <- match("iso_group", names(tbl))                       
-      datatable(
-      tbl, 
-      extensions = 'Buttons', 
-      options = list(
-        pageLength = 10, 
-        scrollX = TRUE, 
-        order = list(list(i, "desc")),
-        dom = 'Bfrtip',       
-        buttons = list(        
-          list(
-            extend = "csvHtml5",
-            text   = "Download CSV",
-            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " isotopes-dimers"),
-            exportOptions = list(
-              modifier = list(page = "all")
-            )
-          )
-        )
+  req(input$show_iso_table2)
+
+  tbl <- ms_state$iso_table
+  if (is.null(tbl) || nrow(tbl) == 0)
+    return(datatable(data.frame(Note = "No isotope/dimer groups found (or skipped).")))
+
+  tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+  tbl$iso_group <- suppressWarnings(as.integer(tbl$iso_group))
+
+  tbl_show <- limit_table_preview(
+    tbl,
+    input$limit_table_preview,
+    max_rows = 100,
+    max_cols = Inf
+  )
+
+  i <- match("iso_group", names(tbl_show))
+
+  datatable(
+    tbl_show,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE,
+      order = list(list(i, "desc"))
+    )
+  ) %>%
+    DT::formatRound(columns = c("mz"), digits = 4) %>%
+    DT::formatRound(columns = c("rt"), digits = 3) %>%
+    DT::formatRound(columns = c("intensity"), digits = 1) %>%
+    formatStyle(
+      "status",
+      backgroundColor = styleEqual(
+        c("kept", "keep_rep", "filtered"),
+        c("#dff0d8", "#dff0d8", "#f2dede")
       )
-    ) %>%
-        DT::formatRound(columns = c("mz"), digits = 4) %>%
-        DT::formatRound(columns = c("rt"), digits = 3) %>%
-        DT::formatRound(columns = c("intensity"), digits = 1) %>% 
-        formatStyle('status', 
-                    backgroundColor = styleEqual(c("kept", "keep_rep", "filtered"), 
-                                                 c("#dff0d8", "#dff0d8", "#f2dede")))
-    }, server = F)
+    )
+}, server = FALSE)
+    
+    output$dl_iso2_table <- downloadHandler(
+  filename = function() {
+    paste0(tools::file_path_sans_ext(basename(shared$name)), " isotopes-dimers.csv")
+  },
+  content = function(file) {
+    tbl <- ms_state$iso_table
+    req(tbl)
+
+    tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+    write.csv(tbl, file, row.names = FALSE)
+  }
+)
 
     output$add2_table <- renderDT({
-      req(input$show_add_table2)
-      tbl <- ms_state$add_table 
-      if (is.null(tbl) || nrow(tbl) == 0) {
-        return(datatable(data.frame(Note="No adduct families found (or skipped).")))
-      }
-      tbl <- tbl[, setdiff(names(tbl), "keep_rep"), drop = FALSE]
-      tbl <- tbl %>%
-        dplyr::rename(
-          intensity = int,
-          rt = ret
-        ) %>%
-        dplyr::relocate(
-          r,
-          .after = status
-        )
-      idx_group <- match("group_id", names(tbl))
-      idx_family <- match("family_id", names(tbl))
-      datatable(
-        tbl, 
-        extensions = 'Buttons', 
-        options = list(
-          pageLength = 10, 
-          scrollX = TRUE, 
-          order = list(list(idx_group, 'desc'), list(idx_family, 'desc')),
-          dom = 'Bfrtip',        
-          buttons = list(        
-            list(
-              extend = "csvHtml5",
-              text   = "Download CSV",
-              filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " adducts"),
-              exportOptions = list(
-                modifier = list(page = "all")
-              )
-            )
-          )
-        )
+  req(input$show_add_table2)
+
+  tbl <- ms_state$add_table
+  if (is.null(tbl) || nrow(tbl) == 0)
+    return(datatable(data.frame(Note = "No adduct families found (or skipped).")))
+
+  tbl <- tbl[, setdiff(names(tbl), "keep_rep"), drop = FALSE]
+
+  tbl <- tbl %>%
+    dplyr::rename(
+      intensity = int,
+      rt = ret
+    ) %>%
+    dplyr::relocate(
+      r,
+      .after = status
+    )
+
+  tbl_show <- limit_table_preview(
+    tbl,
+    input$limit_table_preview,
+    max_rows = 100,
+    max_cols = Inf
+  )
+
+  idx_group <- match("group_id", names(tbl_show))
+  idx_family <- match("family_id", names(tbl_show))
+
+  datatable(
+    tbl_show,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE,
+      order = list(
+        list(idx_group, "desc"),
+        list(idx_family, "desc")
+      )
+    )
+  ) %>%
+    DT::formatRound(columns = c("mz"), digits = 4) %>%
+    DT::formatRound(columns = c("intensity"), digits = 1) %>%
+    DT::formatRound(columns = c("rt"), digits = 3) %>%
+    formatStyle(
+      "status",
+      backgroundColor = styleEqual(
+        c("kept (no group)", "kept (no corr-family)", "keep_rep", "filtered"),
+        c("#dff0d8", "#dff0d8", "#dff0d8", "#f2dede")
+      )
+    )
+}, server = FALSE)
+    
+    output$dl_add2_table <- downloadHandler(
+  filename = function() {
+    paste0(tools::file_path_sans_ext(basename(shared$name)), " adducts.csv")
+  },
+  content = function(file) {
+    tbl <- ms_state$add_table
+    req(tbl)
+
+    tbl <- tbl[, setdiff(names(tbl), "keep_rep"), drop = FALSE]
+
+    tbl <- tbl %>%
+      dplyr::rename(
+        intensity = int,
+        rt = ret
       ) %>%
-        DT::formatRound(columns = c("mz"), digits = 4) %>%
-        DT::formatRound(columns = c("intensity"), digits = 1) %>%
-        DT::formatRound(columns = c("rt"), digits = 3) %>% 
-        formatStyle('status', 
-                    backgroundColor = styleEqual(c("kept (no group)", "kept (no corr-family)", "keep_rep", "filtered"), 
-                                                 c("#dff0d8", "#dff0d8", "#dff0d8", "#f2dede")))
-    }, server = F)
+      dplyr::relocate(
+        r,
+        .after = status
+      )
+
+    write.csv(tbl, file, row.names = FALSE)
+  }
+)
     
     output$add2_stats_table <- renderDT({
-      req(input$show_add_stats2)
+  req(input$show_add_stats2)
+
+  tbl <- ms_state$add_table
+
+  if (is.null(tbl) || nrow(tbl) == 0) {
+    return(datatable(data.frame(Note = "No adduct families found (or skipped).")))
+  }
+
+  if (!"adducts" %in% names(tbl)) {
+    return(datatable(data.frame(Note = "No adduct annotation column found.")))
+  }
+
+  tbl_sub <- tbl[
+    !is.na(tbl$adducts) &
+      tbl$adducts != "none" &
+      nzchar(tbl$adducts),
+    ,
+    drop = FALSE
+  ]
+
+  if (nrow(tbl_sub) == 0) {
+    return(datatable(data.frame(Note = "No specific adducts annotated.")))
+  }
+
+  add_long <- tbl_sub %>%
+    dplyr::select(peak_id, adducts) %>%
+    tidyr::separate_rows(adducts, sep = ";\\s*") %>%
+    dplyr::mutate(
+      adduct_type = trimws(sub("\\s*->.*$", "", adducts))
+    ) %>%
+    dplyr::filter(
+      !is.na(adduct_type),
+      nzchar(adduct_type),
+      adduct_type != "none"
+    ) %>%
+    dplyr::distinct(peak_id, adduct_type)
+
+  if (nrow(add_long) == 0) {
+    return(datatable(data.frame(Note = "No specific adducts annotated.")))
+  }
+
+  add_freq <- add_long %>%
+    dplyr::count(adduct_type, name = "Total Count") %>%
+    dplyr::arrange(dplyr::desc(`Total Count`)) %>%
+    dplyr::rename(`Adduct Type` = adduct_type)
+
+  add_freq_show <- limit_table_preview(
+    add_freq,
+    input$limit_table_preview,
+    max_rows = 100,
+    max_cols = Inf
+  )
+
+  datatable(
+    add_freq_show,
+    rownames = FALSE,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE,
+      order = list(list(1, "desc"))
+    )
+  )
+
+}, server = FALSE)
     
-      tbl <- ms_state$add_table
-    
-      if (is.null(tbl) || nrow(tbl) == 0) {
-        return(datatable(data.frame(Note = "No adduct families found (or skipped).")))
-      }
-    
-      if (!"adducts" %in% names(tbl)) {
-        return(datatable(data.frame(Note = "No adduct annotation column found.")))
-      }
-    
-      tbl_sub <- tbl[
-        !is.na(tbl$adducts) &
-          tbl$adducts != "none" &
-          nzchar(tbl$adducts),
-        ,
-        drop = FALSE
-      ]
-    
-      if (nrow(tbl_sub) == 0) {
-        return(datatable(data.frame(Note = "No specific adducts annotated.")))
-      }
-    
-      # adducts now contains strings like:
-      # M+H -> 2M+H [44659]; M+Na -> M+K [44660]
-      # For frequency, count only the current peak adduct before " -> "
-      add_long <- tbl_sub %>%
-        dplyr::select(peak_id, adducts) %>%
-        tidyr::separate_rows(adducts, sep = ";\\s*") %>%
-        dplyr::mutate(
-          adduct_type = trimws(sub("\\s*->.*$", "", adducts))
-        ) %>%
-        dplyr::filter(
-          !is.na(adduct_type),
-          nzchar(adduct_type),
-          adduct_type != "none"
-        ) %>%
-        dplyr::distinct(peak_id, adduct_type)
-    
-      if (nrow(add_long) == 0) {
-        return(datatable(data.frame(Note = "No specific adducts annotated.")))
-      }
-    
-      add_freq <- add_long %>%
-        dplyr::count(adduct_type, name = "Total Count") %>%
-        dplyr::arrange(dplyr::desc(`Total Count`)) %>%
-        dplyr::rename(`Adduct Type` = adduct_type)
-    
-      datatable(
-        add_freq,
-        extensions = "Buttons",
-        rownames = FALSE,
-        options = list(
-          pageLength = 10,
-          scrollX = TRUE,
-          order = list(list(1, "desc")),
-          dom = "Bfrtip",
-          buttons = list(
-            list(
-              extend = "csvHtml5",
-              text   = "Download CSV",
-              filename = paste0(
-                tools::file_path_sans_ext(basename(shared$name %||% "dataset")),
-                " adduct_stats"
-              ),
-              exportOptions = list(
-                modifier = list(page = "all")
-              )
-            )
-          )
-        )
+    output$dl_add2_stats_table <- downloadHandler(
+  filename = function() {
+    paste0(
+      tools::file_path_sans_ext(basename(shared$name %||% "dataset")),
+      " adduct_stats.csv"
+    )
+  },
+
+  content = function(file) {
+
+    tbl <- ms_state$add_table
+    req(tbl)
+
+    if (!"adducts" %in% names(tbl)) {
+      write.csv(
+        data.frame(Note = "No adduct annotation column found."),
+        file,
+        row.names = FALSE
       )
-    }, server = FALSE)
+      return()
+    }
+
+    tbl_sub <- tbl[
+      !is.na(tbl$adducts) &
+        tbl$adducts != "none" &
+        nzchar(tbl$adducts),
+      ,
+      drop = FALSE
+    ]
+
+    add_long <- tbl_sub %>%
+      dplyr::select(peak_id, adducts) %>%
+      tidyr::separate_rows(adducts, sep = ";\\s*") %>%
+      dplyr::mutate(
+        adduct_type = trimws(sub("\\s*->.*$", "", adducts))
+      ) %>%
+      dplyr::filter(
+        !is.na(adduct_type),
+        nzchar(adduct_type),
+        adduct_type != "none"
+      ) %>%
+      dplyr::distinct(peak_id, adduct_type)
+
+    add_freq <- add_long %>%
+      dplyr::count(adduct_type, name = "Total Count") %>%
+      dplyr::arrange(dplyr::desc(`Total Count`)) %>%
+      dplyr::rename(`Adduct Type` = adduct_type)
+
+    write.csv(add_freq, file, row.names = FALSE)
+  }
+)
     
     output$nl2_table <- renderDT({
-      req(input$show_nl_table2)
-      if (is.null(ms_state$nl_table) || nrow(ms_state$nl_table) == 0) datatable(data.frame(Note="No neutral loss hits (or skipped)."))
-      else datatable(
-      ms_state$nl_table, 
-      extensions = 'Buttons', 
-      options = list(
-        pageLength = 10, 
-        scrollX = TRUE, 
-        dom = 'Bfrtip',       
-        buttons = list(        
-          list(
-            extend = "csvHtml5",
-            text   = "Download CSV",
-            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " neutral loses"),
-            exportOptions = list(
-              modifier = list(page = "all")
-            )
-          )
-        )
+  req(input$show_nl_table2)
+
+  if (is.null(ms_state$nl_table) || nrow(ms_state$nl_table) == 0) {
+    return(datatable(data.frame(Note = "No neutral loss hits (or skipped).")))
+  }
+
+  tbl_show <- limit_table_preview(
+    ms_state$nl_table,
+    input$limit_table_preview,
+    max_rows = 100,
+    max_cols = Inf
+  )
+
+  datatable(
+    tbl_show,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE
+    )
+  ) %>%
+    DT::formatRound(columns = c("prec_mz", "frag_mz", "delta_mz"), digits = 4) %>%
+    DT::formatRound(columns = c("prec_int", "frag_int"), digits = 1) %>%
+    DT::formatRound(columns = c("prec_rt", "frag_rt", "delta_rt", "r"), digits = 3) %>%
+    formatStyle(
+      "prec_status",
+      backgroundColor = styleEqual(
+        c("kept", "filtered"),
+        c("#dff0d8", "#f2dede")
       )
-    ) %>%
-        DT::formatRound(columns = c("prec_mz", "frag_mz", "delta_mz"), digits = 4) %>%
-        DT::formatRound(columns = c("prec_int", "frag_int"), digits = 1) %>%
-        DT::formatRound(columns = c("prec_rt", "frag_rt", "delta_rt", "r"), digits = 3) %>% 
-        formatStyle(c('prec_status'), 
-                    backgroundColor = styleEqual(c("kept", "filtered"), c("#dff0d8", "#f2dede")))
-    }, server = F)
+    )
+}, server = FALSE)
+    
+    output$dl_nl2_table <- downloadHandler(
+  filename = function() {
+    paste0(tools::file_path_sans_ext(basename(shared$name)), " neutral loses.csv")
+  },
+  content = function(file) {
+    req(ms_state$nl_table)
+    write.csv(ms_state$nl_table, file, row.names = FALSE)
+  }
+)
     
     output$isf2_table <- renderDT({
-      req(input$show_isf_table2)
-      if (is.null(ms_state$isf_table) || nrow(ms_state$isf_table) == 0) datatable(data.frame(Note="No fragment pairs/clusters (or skipped)."))
-      else datatable(
-      ms_state$isf_table, 
-      extensions = 'Buttons', 
-      options = list(
-        pageLength = 10, 
-        scrollX = TRUE, 
-        dom = 'Bfrtip',       
-        buttons = list(        
-          list(
-            extend = "csvHtml5",
-            text   = "Download CSV",
-            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " in-source fragments"),
-            exportOptions = list(
-              modifier = list(page = "all")
-            )
-          )
-        )
+  req(input$show_isf_table2)
+
+  if (is.null(ms_state$isf_table) || nrow(ms_state$isf_table) == 0) {
+    return(datatable(data.frame(Note = "No fragment pairs/clusters (or skipped).")))
+  }
+
+  tbl_show <- limit_table_preview(
+    ms_state$isf_table,
+    input$limit_table_preview,
+    max_rows = 100,
+    max_cols = Inf
+  )
+
+  datatable(
+    tbl_show,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE
+    )
+  ) %>%
+    DT::formatRound(columns = c("prec_mz", "frag_mz"), digits = 4) %>%
+    DT::formatRound(columns = c("prec_int", "frag_int"), digits = 1) %>%
+    DT::formatRound(columns = c("prec_rt", "frag_rt", "delta_rt", "frag_to_prec", "r"), digits = 3) %>%
+    formatStyle(
+      "prec_status",
+      backgroundColor = styleEqual(
+        c("kept", "filtered"),
+        c("#dff0d8", "#f2dede")
       )
-    ) %>%
-        DT::formatRound(columns = c("prec_mz", "frag_mz"), digits = 4) %>%
-        DT::formatRound(columns = c("prec_int", "frag_int"), digits = 1) %>%
-        DT::formatRound(columns = c("prec_rt", "frag_rt", "delta_rt", "frag_to_prec", "r"), digits = 3) %>% 
-        formatStyle(c('prec_status'), 
-                    backgroundColor = styleEqual(c("kept", "filtered"), c("#dff0d8", "#f2dede")))
-    }, server = F)
+    )
+}, server = FALSE)
+    
+    output$dl_isf2_table <- downloadHandler(
+  filename = function() {
+    paste0(tools::file_path_sans_ext(basename(shared$name)), " in-source fragments.csv")
+  },
+  content = function(file) {
+    req(ms_state$isf_table)
+    write.csv(ms_state$isf_table, file, row.names = FALSE)
+  }
+)
     
     output$mis2_table <- renderDT({
-      req(input$show_mis_table2)
-      tbl <- ms_state$mis_table
-      if (is.null(tbl) || nrow(tbl) == 0)
-        return(datatable(data.frame(Note="No mispicked ions clusters identified.")))
-      tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
-      tbl$mis_group <- suppressWarnings(as.integer(tbl$mis_group))
-      i <- match("mis_group", names(tbl))
-      datatable(tbl, extensions = 'Buttons', options = list(pageLength = 10, scrollX = TRUE, dom = 'Bfrtip', 
-                                                            buttons = list(        
-          list(
-            extend = "csvHtml5",
-            text   = "Download CSV",
-            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " mispicked ions"),
-            exportOptions = list(
-              modifier = list(page = "all")
-            )
-          )
-        ), 
-                                                            order = list(list(i, "desc")))) %>%
-        DT::formatRound(columns = c("mz"), digits = 4) %>%
-        DT::formatRound(columns = c("rt"), digits = 3) %>%
-        DT::formatRound(columns = c("intensity"), digits = 1) %>% 
-        formatStyle('status', backgroundColor = styleEqual(c("kept", "keep_rep", "filtered"), c("#dff0d8", "#dff0d8", "#f2dede")))
-    }, server = F)
+  req(input$show_mis_table2)
+
+  tbl <- ms_state$mis_table
+  if (is.null(tbl) || nrow(tbl) == 0)
+    return(datatable(data.frame(Note = "No mispicked ions clusters identified.")))
+
+  tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+  tbl$mis_group <- suppressWarnings(as.integer(tbl$mis_group))
+
+  tbl_show <- limit_table_preview(
+    tbl,
+    input$limit_table_preview,
+    max_rows = 100,
+    max_cols = Inf
+  )
+
+  i <- match("mis_group", names(tbl_show))
+
+  datatable(
+    tbl_show,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE,
+      order = list(list(i, "desc"))
+    )
+  ) %>%
+    DT::formatRound(columns = c("mz"), digits = 4) %>%
+    DT::formatRound(columns = c("rt"), digits = 3) %>%
+    DT::formatRound(columns = c("intensity"), digits = 1) %>%
+    formatStyle(
+      "status",
+      backgroundColor = styleEqual(
+        c("kept", "keep_rep", "filtered"),
+        c("#dff0d8", "#dff0d8", "#f2dede")
+      )
+    )
+}, server = FALSE)
+    
+    output$dl_mis2_table <- downloadHandler(
+  filename = function() {
+    paste0(tools::file_path_sans_ext(basename(shared$name)), " mispicked ions.csv")
+  },
+  content = function(file) {
+    tbl <- ms_state$mis_table
+    req(tbl)
+
+    tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+    tbl$mis_group <- suppressWarnings(as.integer(tbl$mis_group))
+
+    write.csv(tbl, file, row.names = FALSE)
+  }
+)
 
     output$ring2_table <- renderDT({
-      req(input$show_ring_table2)
-      tbl <- ms_state$ring_table
-      if (is.null(tbl) || nrow(tbl) == 0)
-        return(datatable(data.frame(Note="No saturated (ringing) ions identified.")))
-      tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
-      tbl$ring_group <- suppressWarnings(as.integer(tbl$ring_group))
-      i <- match("ring_group", names(tbl))
-      datatable(tbl, extensions = 'Buttons', options = list(pageLength = 10, scrollX = TRUE, dom = 'Bfrtip', 
-                                                            buttons = list(        
-          list(
-            extend = "csvHtml5",
-            text   = "Download CSV",
-            filename = paste0(tools::file_path_sans_ext(basename(shared$name)), " saturated ions"),
-            exportOptions = list(
-              modifier = list(page = "all")
-            )
-          )
-        ), 
-                                                            order = list(list(i, "desc")))) %>%
-        DT::formatRound(columns = c("mz"), digits = 4) %>%
-        DT::formatRound(columns = c("rt"), digits = 3) %>%
-        DT::formatRound(columns = c("intensity"), digits = 1) %>% 
-        formatStyle('status', backgroundColor = styleEqual(c("kept", "keep_rep", "filtered"), c("#dff0d8", "#dff0d8", "#f2dede")))
-    }, server = F)
+  req(input$show_ring_table2)
+
+  tbl <- ms_state$ring_table
+  if (is.null(tbl) || nrow(tbl) == 0)
+    return(datatable(data.frame(Note = "No saturated (ringing) ions identified.")))
+
+  tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+  tbl$ring_group <- suppressWarnings(as.integer(tbl$ring_group))
+
+  tbl_show <- limit_table_preview(
+    tbl,
+    input$limit_table_preview,
+    max_rows = 100,
+    max_cols = Inf
+  )
+
+  i <- match("ring_group", names(tbl_show))
+
+  datatable(
+    tbl_show,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE,
+      order = list(list(i, "desc"))
+    )
+  ) %>%
+    DT::formatRound(columns = c("mz"), digits = 4) %>%
+    DT::formatRound(columns = c("rt"), digits = 3) %>%
+    DT::formatRound(columns = c("intensity"), digits = 1) %>%
+    formatStyle(
+      "status",
+      backgroundColor = styleEqual(
+        c("kept", "keep_rep", "filtered"),
+        c("#dff0d8", "#dff0d8", "#f2dede")
+      )
+    )
+}, server = FALSE)
+    
+    output$dl_ring2_table <- downloadHandler(
+  filename = function() {
+    paste0(tools::file_path_sans_ext(basename(shared$name)), " saturated ions.csv")
+  },
+  content = function(file) {
+    tbl <- ms_state$ring_table
+    req(tbl)
+
+    tbl <- tbl[, setdiff(names(tbl), "Rep"), drop = FALSE]
+    tbl$ring_group <- suppressWarnings(as.integer(tbl$ring_group))
+
+    write.csv(tbl, file, row.names = FALSE)
+  }
+)
     
     output$ms_filter_summary <- renderUI({
       req(ms_state$applied)
@@ -5958,16 +6256,22 @@ output$qc_labels_table <- renderDT({
   })
   
   output$qc_header_in <- renderUI({ req(raw_after_ms()); h3("Input table") })
-  output$qc_table_in  <- renderDT({
-    req(raw_after_ms())
-    datatable(raw_after_ms(), options = list(scrollX = TRUE, pageLength = 5))
-  })
+  output$qc_table_in <- renderDT({
+  req(raw_after_ms())
+  datatable(
+    limit_table_preview(raw_after_ms(), input$limit_table_preview, 50, 50),
+    options = list(scrollX = TRUE, pageLength = 5)
+  )
+})
 
   output$qc_header_out <- renderUI({ req(raw_after_qc()); h3("Output table — after QC Filters") })
-  output$qc_table_out  <- renderDT({
-    req(raw_after_qc())
-    datatable(raw_after_qc(), options = list(scrollX = TRUE, pageLength = 5))
-  })
+  output$qc_table_out <- renderDT({
+  req(raw_after_qc())
+  datatable(
+    limit_table_preview(raw_after_qc(), input$limit_table_preview, 50, 50),
+    options = list(scrollX = TRUE, pageLength = 5)
+  )
+})
 
   output$qc_filter_summary <- renderUI({
     req(qc_state$applied)
@@ -6057,10 +6361,13 @@ output$qc_labels_table <- renderDT({
   })
 
   output$peak_header_in <- renderUI({ req(peak_table_in_raw()); h3("Input table") })
-  output$peak_table_in  <- renderDT({
-    req(peak_table_in_raw())
-    datatable(peak_table_in_raw(), options = list(scrollX = TRUE, pageLength = 5))
-  })
+  output$peak_table_in <- renderDT({
+  req(peak_table_in_raw())
+  datatable(
+    limit_table_preview(peak_table_in_raw(), input$limit_table_preview, 50, 50),
+    options = list(scrollX = TRUE, pageLength = 5)
+  )
+})
 
   peak_plot_data <- eventReactive(input$plot_peak, {
     req(peak_table_in_raw(), input$mz_col0, input$rt_col0)
@@ -6598,10 +6905,13 @@ if ("target" %in% sel) {
   })
 
   output$peak_header_out <- renderUI({ req(peak_table_out_raw()); h3("Output table — after Peak Filters") })
-  output$peak_table_out  <- renderDT({
-    req(peak_table_out_raw())
-    datatable(peak_table_out_raw(), options = list(scrollX = TRUE, pageLength = 5))
-  })
+  output$peak_table_out <- renderDT({
+  req(peak_table_out_raw())
+  datatable(
+    limit_table_preview(peak_table_out_raw(), input$limit_table_preview, 50, 50),
+    options = list(scrollX = TRUE, pageLength = 5)
+  )
+})
 
   output$peak_filter_summary <- renderUI({
     req(peak_state$applied)
@@ -6809,9 +7119,12 @@ if ("target" %in% sel) {
 })
 
   output$final_preview_table <- renderDT({
-    req(final_table())
-    datatable(final_table(), options = list(scrollX = TRUE, pageLength = 5))
-  })
+  req(final_table())
+  datatable(
+    limit_table_preview(final_table(), input$limit_table_preview, 50, 50),
+    options = list(scrollX = TRUE, pageLength = 5)
+  )
+})
 
   # --------------------------
   # Downloads
@@ -7083,7 +7396,7 @@ output$help_body <- renderUI({
       <i class='fa fa-server'></i> Memory limit
     </span><br>
     The Web version of <i>MetaboCensoR</i> is limited to <b>1 GB</b> of memory. 
-    For large datasets or memory-intensive analyses, we recommend running <i>MetaboCensoR</i> locally.<br>
+    For large datasets or memory-intensive analyses, we recommend activating the <b>Limit table previews</b> option and running <i>MetaboCensoR</i> locally.<br>
     <a href='https://github.com/plyush1993/MetaboCensoR#launch-the-app-rocket'
        target='_blank' style='font-weight:700; color:#d96f00;'>
        Local installation instructions
@@ -7138,7 +7451,7 @@ br(),
       <i class='fa fa-server'></i> Memory limit
     </span><br>
     The Web version of <i>MetaboCensoR</i> is limited to <b>1 GB</b> of memory.
-    For large datasets or memory-intensive analyses, we recommend running <i>MetaboCensoR</i> locally.<br>
+    For large datasets or memory-intensive analyses, we recommend activating the <b>Limit table previews</b> option and running <i>MetaboCensoR</i> locally.<br>
     <a href='https://github.com/plyush1993/MetaboCensoR#launch-the-app-rocket'
        target='_blank' style='font-weight:700; color:#d96f00;'>
        Local installation instructions
@@ -7463,7 +7776,7 @@ div(
       <i class='fa fa-server'></i> Memory limit
     </span><br>
     The Web version of <i>MetaboCensoR</i> is limited to <b>1 GB</b> of memory.
-    For large datasets or memory-intensive analyses, we recommend running <i>MetaboCensoR</i> locally.<br>
+    For large datasets or memory-intensive analyses, we recommend activating the <b>Limit table previews</b> option and running <i>MetaboCensoR</i> locally.<br>
     <a href='https://github.com/plyush1993/MetaboCensoR#launch-the-app-rocket'
        target='_blank' style='font-weight:700; color:#d96f00;'>
        Local installation instructions
