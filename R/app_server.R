@@ -30,6 +30,142 @@ app_server <- function(input, output, session) {
                            export_template = NULL, export_colmap = NULL, export_rt_factor = 1,
                            msdial_preamble = NULL, msdial_export_names = NULL)
 
+  # mgf
+  filtered_mgf_sps <- reactiveVal(NULL)
+  mgf_processing <- reactiveVal(FALSE)
+  mgf_attempted <- reactiveVal(FALSE)
+
+  current_mgf <- reactiveVal(NULL)
+  current_mgf_name <- reactiveVal(NULL)
+  parsed_mgf <- reactiveVal(NULL)
+  mgf_true_names <- reactiveVal(NULL)
+
+  load_mgf_file <- function(upload, input_id) {
+  req(upload)
+  ext <- tolower(tools::file_ext(upload$name))
+
+  if (ext != "mgf") {
+  showNotification("Error: Please upload a valid .mgf file.",
+                   type = "error", duration = 5)
+  shinyjs::reset(input_id)
+  return(invisible(FALSE))
+  }
+
+  w <- Waiter$new(
+    html = tagList(
+      spin_6(),
+      h4("Loading MGF into memory...",
+         style = "color:#ffffff !important; text-shadow:none !important;")
+    ),
+    color = "rgba(44, 62, 80, 0.8)"
+  )
+
+  w$show()
+
+  shinyjs::delay(50, {
+
+    tryCatch({
+
+      sps <- Spectra::Spectra(
+        upload$datapath,
+        source = MsBackendMgf::MsBackendMgf()
+      )
+
+      current_mgf(upload$datapath)
+      current_mgf_name(upload$name)
+      parsed_mgf(sps)
+      mgf_true_names(names(Spectra::spectraData(sps)))
+
+      filtered_mgf_sps(NULL)
+      mgf_attempted(FALSE)
+
+      showNotification(
+        paste("MGF file", upload$name, "loaded successfully!"),
+        type = "message",
+        duration = 3
+      )
+
+    }, error = function(e) {
+
+    shinyjs::reset(input_id)
+
+    showNotification(
+      paste("Error parsing MGF:", e$message),
+      type = "error",
+      duration = 5
+    )
+
+    }, finally = {
+      w$hide()
+    })
+  })
+
+  invisible(TRUE)
+}
+
+  observeEvent(input$isf_mgf_input, {
+  req(input$isf_mgf_input)
+
+  load_mgf_file(
+    upload = input$isf_mgf_input,
+    input_id = "isf_mgf_input"
+  )
+  }, ignoreInit = TRUE)
+
+  output$isf_mgf_status_ui <- renderUI({
+  req(input$isf_ms2_check2)
+  sps <- parsed_mgf()
+  if (is.null(sps) || length(sps) == 0) {
+
+    div(
+      style = paste0(
+        "padding:8px; margin-bottom:10px;",
+        "background:#f2dede; color:#a94442;",
+        "border-radius:5px;"
+      ),
+      "No MGF loaded."
+    )
+
+  } else {
+
+    div(
+      style = paste0(
+        "padding:8px; margin-bottom:10px;",
+        "background:#dff0d8; color:#3c763d;",
+        "border-radius:5px;"
+      ),
+      tags$b("MGF loaded: "),
+      current_mgf_name() %||% "MGF file",
+      sprintf(" (%d spectra)", length(sps))
+    )
+  }
+})
+
+  output$isf_mgf_field_ui <- renderUI({
+
+  req(input$isf_ms2_check2)
+
+  sps <- parsed_mgf()
+  cols <- mgf_true_names()
+
+  if (is.null(sps) || length(sps) == 0 || is.null(cols))
+    return(NULL)
+
+  mgf_default <- if ("acquisitionNum" %in% cols) {
+    "acquisitionNum"
+  } else {
+    cols[1]
+  }
+
+  selectInput(
+    "isf_mgf_id_field",
+    "MGF Feature ID field:",
+    choices = cols,
+    selected = mgf_default
+  )
+})
+
+  # raw table, etc
   observeEvent(list(input$file0, input$data_type0), {
 
     # 1. Check if file exists AND is marked as valid (not cleared)
@@ -70,6 +206,7 @@ app_server <- function(input, output, session) {
 
     # If successful, clear any previous error
     upload_error(NULL)
+    invalidate_all_pipeline()
 
     shared$raw_orig  <- df0
     shared$raw       <- df_std
@@ -82,6 +219,18 @@ app_server <- function(input, output, session) {
 
     shared$name      <- input$file0$name
     shared$data_type <- type
+
+    shinyjs::reset("mgf_input")
+    shinyjs::reset("isf_mgf_input")
+
+    current_mgf(NULL)
+    current_mgf_name(NULL)
+    parsed_mgf(NULL)
+    mgf_true_names(NULL)
+    filtered_mgf_sps(NULL)
+    mgf_processing(FALSE)
+    mgf_attempted(FALSE)
+
     showNotification("Dataset loaded successfully!", type = "message", duration = 3)
     }, error = function(e) {
       upload_error(paste0("Parsing error: ", e$message))
@@ -119,6 +268,7 @@ observeEvent(input$clear_shared, {
     shinyjs::reset("adduct_file2")
     shinyjs::reset("nl_file2")
     shinyjs::reset("mgf_input")
+    shinyjs::reset("isf_mgf_input")
 
     # Reset metadata CSV inputs for Blank and QC labels
     shinyjs::reset("blank_metadata_csv")
@@ -199,6 +349,7 @@ observeEvent(input$clear_shared, {
 
     # Reset mgf processing
     current_mgf(NULL)
+    current_mgf_name(NULL)
     parsed_mgf(NULL)
     mgf_true_names(NULL)
     filtered_mgf_sps(NULL)
@@ -238,6 +389,7 @@ observeEvent(input$clear_shared, {
 
         # 5. Clear any previous errors
         upload_error(NULL)
+        invalidate_all_pipeline()
 
         # 6. Populate the shared reactiveValues just like a normal upload
         shared$raw_orig  <- df0
@@ -251,6 +403,17 @@ observeEvent(input$clear_shared, {
 
         shared$name      <- "Example"
         shared$data_type <- type
+
+        shinyjs::reset("mgf_input")
+        shinyjs::reset("isf_mgf_input")
+
+        current_mgf(NULL)
+        current_mgf_name(NULL)
+        parsed_mgf(NULL)
+        mgf_true_names(NULL)
+        filtered_mgf_sps(NULL)
+        mgf_processing(FALSE)
+        mgf_attempted(FALSE)
 
         showNotification("Example dataset loaded successfully!", type = "message", duration = 3)
 
@@ -281,7 +444,6 @@ observeEvent(input$clear_shared, {
 
   colmap <- shared$export_colmap
   if (!is.null(colmap)) {
-    colmap <- colmap[names(colmap) != "feature_id"]
     for (std_nm in names(colmap)) {
       orig_nm <- colmap[[std_nm]]
       if (std_nm %in% names(df_show) && nzchar(orig_nm)) {
@@ -340,32 +502,48 @@ observeEvent(input$clear_shared, {
   })
 
   output$global_controls0 <- renderUI({
-    req(shared$raw)
-    df <- as.data.frame(shared$raw, check.names = FALSE)
-    cols_std <- names(df)
+  req(shared$raw)
+  df <- as.data.frame(shared$raw, check.names = FALSE)
+  cols_std <- names(df)
 
-    # Create named choices: UI shows original names, server receives standard names
-    display_names <- cols_std
-    colmap <- shared$export_colmap
-    if (!is.null(colmap)) {
-      colmap <- colmap[names(colmap) != "feature_id"]
-      for (std_nm in names(colmap)) {
-        orig_nm <- colmap[[std_nm]]
-        idx <- match(std_nm, cols_std)
-        if (!is.na(idx) && nzchar(orig_nm)) {
-          display_names[idx] <- orig_nm
-        }
+  # Create named choices: UI shows original names, server receives standard names
+  display_names <- cols_std
+  colmap <- shared$export_colmap
+
+  if (!is.null(colmap)) {
+
+    for (std_nm in names(colmap)) {
+      orig_nm <- colmap[[std_nm]]
+      idx <- match(std_nm, cols_std)
+
+      if (!is.na(idx) && nzchar(orig_nm)) {
+        display_names[idx] <- orig_nm
       }
     }
-    # setNames creates a vector like c("mzmed" = "mz", "rtmed" = "rt")
-    choices_list <- setNames(cols_std, display_names)
+  }
 
-    default_rid <- if ("feature_id" %in% cols_std) "feature_id" else cols_std[1]
+  # XCMS: first column is the native feature identifier.
+  choices_list <- setNames(cols_std, display_names)
+
+    norm_id <- function(x) gsub("[^a-z0-9]", "", tolower(x))
+      default_rid <- switch(
+        shared$data_type %||% "default",
+        mzmine = {
+          ii <- which(norm_id(cols_std) == "rowid")[1]
+          if (!is.na(ii)) cols_std[ii] else cols_std[1]
+        },
+        msdial = {
+          ii <- which(norm_id(cols_std) == "alignmentid")[1]
+          if (!is.na(ii)) cols_std[ii] else cols_std[1]
+        },
+        xcms = cols_std[1],
+        cols_std[1]
+      )
     default_mz  <- if ("mz" %in% cols_std) "mz" else cols_std[1]
     default_rt  <- if ("rt" %in% cols_std) "rt" else cols_std[1]
 
     tagList(
-      selectInput("row_id_col0", "Feature ID (auto-generated):", choices = choices_list, selected = default_rid),
+      selectInput("row_id_col0", "Feature ID:", choices = choices_list, selected = default_rid),
       selectInput("mz_col0",     "m/z column:", choices = choices_list, selected = default_mz),
       selectInput("rt_col0",     "rt column:",  choices = choices_list, selected = default_rt),
       radioButtons(
@@ -562,7 +740,7 @@ observeEvent(input$sample_cols0, {
     mode <- input$sample_mode0 %||% "auto"
 
     # always exclude known meta columns
-    meta <- unique(c(".FID", input$row_id_col0, input$mz_col0, input$rt_col0, "feature_id", "mz", "rt"))
+    meta <- unique(c(".FID", input$row_id_col0, input$mz_col0, input$rt_col0, "mz", "rt"))
     meta <- meta[!is.na(meta) & nzchar(meta)]
 
     if (mode == "manual") {
@@ -1094,6 +1272,7 @@ output$labels_table <- renderDT({
     shinyjs::delay(50, {
       tryCatch({
         run_step1_blank()
+        invalidate_after_blank()
       }, finally = {
         w$hide()
         shinyjs::enable("apply_blank")
@@ -1117,6 +1296,7 @@ output$labels_table <- renderDT({
     updateRadioButtons(session, "label_source", selected = "from_rows")
     updatePrettyCheckbox(session, "blank_clean_metadata_names", value = FALSE)
 
+    invalidate_after_blank()
     showNotification("Step 1 reset: pass-through.", type = "message", duration = 3)
   }, ignoreInit = TRUE)
 
@@ -1290,18 +1470,42 @@ output$labels_table <- renderDT({
 
         res_iso <- collapse_components_keep_most_intense(edges, pk, group_col = "iso_group")
 
-        edges_collapsed <- edges %>%
-          dplyr::group_by(Feature1) %>%
+        # Isotope/dimer annotation per feature — include both directions
+        iso_by_peak <- dplyr::bind_rows(
+          edges %>%
+            dplyr::transmute(
+              Feature = Feature1,
+              connected_to = Feature2,
+              shift = as.character(shift),
+              r = as.numeric(r)
+            ),
+          edges %>%
+            dplyr::transmute(
+              Feature = Feature2,
+              connected_to = Feature1,
+              shift = as.character(shift),
+              r = as.numeric(r)
+            )
+        ) %>%
+          dplyr::filter(!is.na(Feature), !is.na(connected_to)) %>%
+          dplyr::distinct(Feature, connected_to, shift, .keep_all = TRUE) %>%
+          dplyr::arrange(Feature, connected_to, shift) %>%
+          dplyr::group_by(Feature) %>%
           dplyr::summarise(
-            r = paste(formatC(r[match(unique(shift), shift)], format = "f", digits = 3), collapse = "; "),
-            shift = paste(unique(shift), collapse = "; "),
-            .groups = "drop") %>%
-          dplyr::select(
-            Feature1, shift, r)
+            connected_to = paste(connected_to, collapse = "; "),
+            shift = paste(shift, collapse = "; "),
+            r = paste(formatC(r, format = "f", digits = 3), collapse = "; "),
+            .groups = "drop"
+          )
 
         iso_tbl <- res_iso$table %>%
-          dplyr::left_join(edges_collapsed, by = c("Feature" = "Feature1")) %>%
-          dplyr::mutate(shift = tidyr::replace_na(shift, "none"))
+          dplyr::left_join(iso_by_peak, by = "Feature") %>%
+          dplyr::mutate(
+            connected_to = tidyr::replace_na(connected_to, "none"),
+            shift = tidyr::replace_na(shift, "none"),
+            r = tidyr::replace_na(r, "none")
+          ) %>%
+          dplyr::relocate(connected_to, .after = Feature)
 
         ms_state$del_iso <- setdiff(colnames(ds), res_iso$keep)
         ms_state$stats$removed_iso <- length(ms_state$del_iso)
@@ -1661,56 +1865,46 @@ output$labels_table <- renderDT({
                 suppressWarnings(rm(hits_dt)); gc()
 
                 if (nrow(hits) > 0) {
-                  edges_nl <- hits %>% dplyr::transmute(from = prec_id, to = frag_id) %>% dplyr::distinct()
-                  g_nl <- igraph::graph_from_data_frame(edges_nl, directed = FALSE)
-                  memb <- igraph::components(g_nl)$membership
-                  memb_df <- tibble::tibble(peak_id = names(memb), nl_cluster = as.integer(memb)) %>%
-                    dplyr::left_join(pk %>% dplyr::select(peak_id, mz, rt), by = "peak_id")
 
-                  suppressWarnings(rm(g_nl, edges_nl, memb)); gc()
+  # Pairwise directional filtering:
+  # higher m/z = precursor; lower m/z = putative neutral-loss product
+  del_pids <- unique(as.character(hits$frag_id))
 
-                  if (isTRUE(input$nl_strict_rt2)) {
-                    memb_df <- memb_df %>%
-                      dplyr::group_by(nl_cluster) %>%
-                      dplyr::arrange(rt, .by_group = TRUE) %>%
-                      dplyr::mutate(rt_group = split_rt_strict(rt, as.numeric(input$nl_rt2 %||% 0.002))) %>%
-                      dplyr::ungroup() %>%
-                      dplyr::mutate(nl_cluster = as.integer(factor(paste(nl_cluster, rt_group, sep="_")))) %>%
-                      dplyr::select(-rt_group)
-                  }
+  ms_state$del_nl <- unique(unname(feat_by_pid[del_pids]))
+  ms_state$del_nl <- ms_state$del_nl[!is.na(ms_state$del_nl)]
+  ms_state$stats$removed_nl <- length(ms_state$del_nl)
 
-                  clustered <- memb_df %>%
-                    dplyr::group_by(nl_cluster) %>%
-                    dplyr::arrange(dplyr::desc(mz), .by_group = TRUE) %>%
-                    dplyr::mutate(status = dplyr::if_else(dplyr::row_number() == 1, "kept", "filtered")) %>%
-                    dplyr::ungroup() %>%
-                    dplyr::arrange(nl_cluster, dplyr::desc(mz))
+  ms_state$nl_table <- hits %>%
+    dplyr::mutate(
+      prec_feature = unname(feat_by_pid[as.character(prec_id)]),
+      frag_feature = unname(feat_by_pid[as.character(frag_id)]),
+      prec_status = dplyr::if_else(
+        as.character(prec_id) %in% del_pids, "filtered", "kept"
+      ),
+      frag_status = "filtered"
+    ) %>%
+    dplyr::left_join(
+      pk %>% dplyr::select(peak_id, prec_rt = rt, prec_int = intensity),
+      by = c("prec_id" = "peak_id")
+    ) %>%
+    dplyr::left_join(
+      pk %>% dplyr::select(peak_id, frag_rt = rt, frag_int = intensity),
+      by = c("frag_id" = "peak_id")
+    ) %>%
+    dplyr::select(
+      prec_feature, frag_feature, prec_status, frag_status,
+      prec_mz, frag_mz, prec_rt, frag_rt, prec_int, frag_int,
+      delta_mz, loss_name, r, delta_rt
+    ) %>%
+    dplyr::arrange(prec_feature, dplyr::desc(r))
 
-                  ms_state$nl_table <- hits %>%
-                    dplyr::left_join(clustered %>% dplyr::select(peak_id, nl_cluster, prec_status = status), by = c("prec_id" = "peak_id")) %>%
-                    dplyr::left_join(clustered %>% dplyr::select(peak_id, frag_status = status), by = c("frag_id" = "peak_id")) %>%
-                    dplyr::left_join(pk %>% dplyr::select(peak_id, prec_rt = rt, prec_int = intensity), by = c("prec_id" = "peak_id")) %>%
-                    dplyr::left_join(pk %>% dplyr::select(peak_id, frag_rt = rt, frag_int = intensity), by = c("frag_id" = "peak_id")) %>%
-                    dplyr::mutate(
-                      prec_feature = unname(feat_by_pid[prec_id]),
-                      frag_feature = unname(feat_by_pid[frag_id])
-                    ) %>%
-                    dplyr::select(nl_cluster, prec_feature, frag_feature, prec_status, prec_mz, frag_mz, prec_rt, frag_rt, prec_int, frag_int, delta_mz, loss_name, r, delta_rt) %>%
-                    dplyr::arrange(nl_cluster, dplyr::desc(r))
+  if (ms_state$stats$removed_nl > 0) {
+    ds <- ds[, setdiff(colnames(ds), ms_state$del_nl), drop = FALSE]
+    ft <- refresh_ft(ds, ft)
+  }
 
-                  del_pids <- clustered %>% dplyr::filter(status=="filtered") %>% dplyr::pull(peak_id)
-                  ms_state$del_nl <- unname(feat_by_pid[as.character(del_pids)])
-                  ms_state$del_nl <- ms_state$del_nl[!is.na(ms_state$del_nl)]
-                  ms_state$stats$removed_nl <- length(ms_state$del_nl)
-
-                  if (ms_state$stats$removed_nl > 0) {
-                    ds <- ds[, setdiff(colnames(ds), ms_state$del_nl), drop = FALSE]
-                    ft <- refresh_ft(ds, ft)
-                  }
-
-                  suppressWarnings(rm(memb_df, clustered, hits))
-
-                }
+  suppressWarnings(rm(hits, del_pids))
+}
               }
             }
 
@@ -1754,6 +1948,7 @@ output$labels_table <- renderDT({
                 frag_id = dplyr::if_else(mz1 >= mz2, pid2, pid1),
                 prec_mz = pmax(mz1, mz2),
                 frag_mz = pmin(mz1, mz2),
+                delta_mz = prec_mz - frag_mz,
                 prec_int = dplyr::if_else(mz1 >= mz2, int1, int2),
                 frag_int = dplyr::if_else(mz1 >= mz2, int2, int1),
                 frag_to_prec = (frag_int + 1e-12) / (prec_int + 1e-12),
@@ -1768,72 +1963,100 @@ output$labels_table <- renderDT({
                 )
             }
 
+            # Add canonical feature IDs to candidate precursor/fragment pairs.
+            # These IDs are used for MGF matching.
+            pairs2 <- pairs2 %>%
+              dplyr::mutate(
+                prec_feature = unname(feat_by_pid[as.character(prec_id)]),
+                frag_feature = unname(feat_by_pid[as.character(frag_id)])
+              )
+
+            # OPTIONAL: MS2 confirmation of ISF relationships
+            if (isTRUE(input$isf_ms2_check2) && nrow(pairs2) > 0) {
+
+              pairs2 <- check_isf_pairs_ms2(
+                pairs = pairs2,
+                sps = parsed_mgf(),
+                id_field = input$isf_mgf_id_field,
+                min_rel_pct = as.numeric(input$isf_ms2_rel2 %||% 1),
+                mz_tol_da = as.numeric(input$isf_ms2_mz_tol2 %||% 0.01)
+              )
+
+              if (!any(pairs2$ms2_available)) {
+              showNotification(
+                "No precursor Feature IDs matched the selected MGF ID field. Check that the Feature ID selected during upload corresponds to the MGF spectrum IDs.",
+                type = "warning", duration = 8
+              )
+            }
+
+              n_all <- nrow(pairs2)
+              n_ms2 <- sum(pairs2$ms2_available)
+              n_supported <- sum(pairs2$ms2_available & pairs2$ms2_match)
+
+              showNotification(
+                sprintf("MS2 confirmation: %d/%d candidate pairs had precursor MS2; %d were supported.",
+                        n_ms2, n_all, n_supported),
+                type = "message", duration = 6
+              )
+
+              # Keep only candidate edges supported by MS2
+              pairs2 <- pairs2 %>%
+                dplyr::filter(ms2_available, ms2_match)
+            }
+
             if (nrow(pairs2) > 0) {
-              edges <- pairs2 %>% dplyr::transmute(from = prec_id, to = frag_id) %>% dplyr::distinct()
-              g <- igraph::graph_from_data_frame(edges, directed = FALSE)
-              memb <- igraph::components(g)$membership
-              memb_df <- tibble::tibble(peak_id = names(memb), frag_cluster = as.integer(memb)) %>%
-              dplyr::left_join(pk %>% dplyr::select(peak_id, mz, rt), by = "peak_id")
 
-              suppressWarnings(rm(edges, g, memb)); gc()
+  # Pairwise directional filtering:
+  # higher m/z = precursor; lower m/z = putative in-source fragment
+  del_pids <- unique(as.character(pairs2$frag_id))
 
-            # OPTIONAL: strict RT split inside each connected component (prevents RT “bridging”)
-            if (isTRUE(input$isf_strict_rt2)) {
-              memb_df <- memb_df %>%
-                dplyr::group_by(frag_cluster) %>%
-                dplyr::arrange(rt, .by_group = TRUE) %>%
-                dplyr::mutate(rt_group = split_rt_strict(rt, as.numeric(input$isf_rt2 %||% 0.002))) %>%
-                dplyr::ungroup() %>%
-                dplyr::mutate(frag_cluster = as.integer(factor(paste(frag_cluster, rt_group, sep = "_")))) %>%
-                dplyr::select(-rt_group)
-            }
+  ms_state$del_isf <- unique(unname(feat_by_pid[del_pids]))
+  ms_state$del_isf <- ms_state$del_isf[!is.na(ms_state$del_isf)]
+  ms_state$stats$removed_isf <- length(ms_state$del_isf)
 
-            # Now pick representative within each (possibly split) cluster
-            memb_df <- memb_df %>%
-              dplyr::group_by(frag_cluster) %>%
-              dplyr::arrange(dplyr::desc(mz), .by_group = TRUE) %>%
-              dplyr::mutate(status = dplyr::if_else(dplyr::row_number() == 1, "kept", "filtered")) %>%
-              dplyr::ungroup()
+  ms_state$isf_table <- pairs2 %>%
+    dplyr::mutate(
+      prec_status = dplyr::if_else(
+        as.character(prec_id) %in% del_pids, "filtered", "kept"
+      ),
+      frag_status = "filtered"
+    ) %>%
+    dplyr::left_join(
+      pk %>% dplyr::select(peak_id, prec_rt = rt),
+      by = c("prec_id" = "peak_id")
+    ) %>%
+    dplyr::left_join(
+      pk %>% dplyr::select(peak_id, frag_rt = rt),
+      by = c("frag_id" = "peak_id")
+    ) %>%
+    dplyr::select(
+      prec_feature, frag_feature, prec_status, frag_status,
+      prec_mz, frag_mz, delta_mz,
+      dplyr::any_of(c(
+        "ms2_match", "ms2_n_spectra", "ms2_match_mz",
+        "ms2_error_da", "ms2_rel_int"
+      )),
+      prec_rt, frag_rt, prec_int, frag_int,
+      frag_to_prec, r, delta_rt
+    ) %>%
+    dplyr::arrange(prec_feature, dplyr::desc(r))
 
-              memb_df <- memb_df %>%
-                dplyr::left_join(pk %>% dplyr::select(peak_id, Feature), by = "peak_id")
+  ms_state$isf_status <- pk %>%
+    dplyr::transmute(
+      Feature,
+      isf_status = dplyr::if_else(
+        as.character(peak_id) %in% del_pids,
+        "filtered", "kept"
+      )
+    )
 
-              ms_state$isf_table <- pairs2 %>%
-                dplyr::left_join(memb_df %>% dplyr::select(peak_id, frag_cluster, prec_status = status), by = c("prec_id" = "peak_id")) %>%
-                dplyr::left_join(memb_df %>% dplyr::select(peak_id, frag_status = status), by = c("frag_id" = "peak_id")) %>%
-                dplyr::left_join(pk %>% dplyr::select(peak_id, prec_rt = rt), by = c("prec_id" = "peak_id")) %>%
-                dplyr::left_join(pk %>% dplyr::select(peak_id, frag_rt = rt), by = c("frag_id" = "peak_id")) %>%
-                dplyr::mutate(
-                  prec_feature = unname(feat_by_pid[prec_id]),
-                  frag_feature = unname(feat_by_pid[frag_id])
-                ) %>%
-                dplyr::select(frag_cluster, prec_feature, frag_feature, prec_status, prec_mz, frag_mz, prec_rt, frag_rt, prec_int, frag_int, frag_to_prec, r, delta_rt) %>%
-                dplyr::arrange(frag_cluster, dplyr::desc(r))
+  if (ms_state$stats$removed_isf > 0) {
+    ds <- ds[, setdiff(colnames(ds), ms_state$del_isf), drop = FALSE]
+    ft <- refresh_ft(ds, ft)
+  }
 
-              ms_state$isf_status <- memb_df %>%
-                dplyr::transmute(Feature, isf_status = status) %>%
-                dplyr::distinct()
-
-              del_pids <- memb_df %>% dplyr::filter(status=="filtered") %>% dplyr::pull(peak_id)
-              ms_state$del_isf <- unname(feat_by_pid[as.character(del_pids)])
-              ms_state$del_isf <- ms_state$del_isf[!is.na(ms_state$del_isf)]
-              ms_state$stats$removed_isf <- length(ms_state$del_isf)
-
-              if (is.null(ms_state$isf_status)) {
-                  ms_state$isf_status <- tibble::tibble(
-                    Feature = colnames(ds),
-                    isf_status = "kept (no cluster)"
-                  )
-                }
-
-              if (ms_state$stats$removed_isf > 0) {
-                ds <- ds[, setdiff(colnames(ds), ms_state$del_isf), drop = FALSE]
-                ft <- refresh_ft(ds, ft)
-              }
-
-              suppressWarnings(rm(memb_df))
-
-            }
+  suppressWarnings(rm(del_pids))
+}
           }
         }
 
@@ -2022,6 +2245,33 @@ output$labels_table <- renderDT({
     }
 
     observeEvent(input$apply_ms, {
+
+      # MS2-supported ISF requires an uploaded MGF
+  if (isTRUE(input$enable_isf2) && isTRUE(input$isf_ms2_check2)) {
+
+    sps <- parsed_mgf()
+
+    if (is.null(sps) || length(sps) == 0) {
+      showNotification(
+        "MS2-supported ISF filtering is enabled. Please upload an MGF file.",
+        type = "error",
+        duration = 6
+      )
+      return()
+    }
+
+    if (is.null(input$isf_mgf_id_field) ||
+        !nzchar(input$isf_mgf_id_field) ||
+        !input$isf_mgf_id_field %in% mgf_true_names()) {
+
+      showNotification(
+        "Please select a valid MGF Feature ID field.",
+        type = "error",
+        duration = 6
+      )
+      return()
+    }
+  }
       hostess_ms <- Hostess$new()
 
       w <- Waiter$new(
@@ -2045,6 +2295,7 @@ output$labels_table <- renderDT({
     shinyjs::delay(50, {
       tryCatch({
         run_step2_ms(hostess_ms)
+        invalidate_after_ms()
       }, finally = {
         w$hide()
         shinyjs::enable("apply_ms")
@@ -2087,6 +2338,7 @@ output$labels_table <- renderDT({
         removed_ring = 0L
       )
 
+      invalidate_after_ms()
       showNotification("Step 2 reset: pass-through.", type = "message", duration = 3)
       }, ignoreInit = TRUE)
 
@@ -2200,7 +2452,7 @@ output$labels_table <- renderDT({
   if (is.null(tbl) || nrow(tbl) == 0)
     return(datatable(data.frame(Note = "No adduct families found (or skipped).")))
 
-  tbl <- tbl[, setdiff(names(tbl), "keep_rep"), drop = FALSE]
+  tbl <- tbl[, setdiff(names(tbl), c("keep_rep", "peak_id")), drop = FALSE]
 
   tbl <- tbl %>%
     dplyr::rename(
@@ -2253,7 +2505,7 @@ output$labels_table <- renderDT({
     tbl <- ms_state$add_table
     req(tbl)
 
-    tbl <- tbl[, setdiff(names(tbl), "keep_rep"), drop = FALSE]
+    tbl <- tbl[, setdiff(names(tbl), c("keep_rep", "peak_id")), drop = FALSE]
 
     tbl <- tbl %>%
       dplyr::rename(
@@ -2438,11 +2690,20 @@ output$labels_table <- renderDT({
   }
 
   tbl_show <- limit_table_preview(
-    ms_state$isf_table,
-    input$limit_table_preview,
-    max_rows = 100,
-    max_cols = Inf
-  )
+  ms_state$isf_table,
+  input$limit_table_preview,
+  max_rows = 100,
+  max_cols = Inf
+)
+
+if ("ms2_match_mz" %in% names(tbl_show))
+  tbl_show$ms2_match_mz <- round(tbl_show$ms2_match_mz, 4)
+
+if ("ms2_error_da" %in% names(tbl_show))
+  tbl_show$ms2_error_da <- round(tbl_show$ms2_error_da, 4)
+
+if ("ms2_rel_int" %in% names(tbl_show))
+  tbl_show$ms2_rel_int <- round(tbl_show$ms2_rel_int, 1)
 
   datatable(
     tbl_show,
@@ -2451,7 +2712,7 @@ output$labels_table <- renderDT({
       scrollX = TRUE
     )
   ) %>%
-    DT::formatRound(columns = c("prec_mz", "frag_mz"), digits = 4) %>%
+    DT::formatRound(columns = c("prec_mz", "frag_mz", "delta_mz"), digits = 4) %>%
     DT::formatRound(columns = c("prec_int", "frag_int"), digits = 1) %>%
     DT::formatRound(columns = c("prec_rt", "frag_rt", "delta_rt", "frag_to_prec", "r"), digits = 3) %>%
     formatStyle(
@@ -3120,6 +3381,7 @@ output$qc_labels_table <- renderDT({
     shinyjs::delay(50, {
       tryCatch({
         run_step3_qc()
+        invalidate_after_qc()
       }, finally = {
         w$hide()
         shinyjs::enable("apply_qc")
@@ -3144,6 +3406,7 @@ output$qc_labels_table <- renderDT({
   updateRadioButtons(session, "qc_label_source", selected = "inherit")
   updatePrettyCheckbox(session, "qc_clean_metadata_names", value = FALSE)
 
+  invalidate_after_qc()
     showNotification("Step 3 reset: pass-through.", type = "message", duration = 3)
   }, ignoreInit = TRUE)
 
@@ -3776,6 +4039,7 @@ if ("target" %in% sel) {
       shinyjs::delay(50, {
         tryCatch({
           run_step4_peak()
+          invalidate_after_peak()
         }, finally = {
           w$hide()
           shinyjs::enable("apply_peak")
@@ -3802,6 +4066,7 @@ if ("target" %in% sel) {
                      matched_target=0L,
                      target_action="remove",
                      removed_total=0L)
+    invalidate_after_peak()
     showNotification("Step 4 reset: pass-through.", type="message", duration=3)
   }, ignoreInit = TRUE)
 
@@ -3882,6 +4147,96 @@ if ("target" %in% sel) {
   # --------------------------
   final_table <- reactiveVal(NULL)
 
+  # --------------------------
+# Pipeline invalidation helpers
+# --------------------------
+
+invalidate_final <- function() {
+  final_table(NULL)
+
+  # A previously filtered final MGF is also no longer valid
+  filtered_mgf_sps(NULL)
+  mgf_processing(FALSE)
+  mgf_attempted(FALSE)
+}
+
+invalidate_after_peak <- function() {
+  invalidate_final()
+}
+
+invalidate_after_qc <- function() {
+  peak_state$applied <- FALSE
+  peak_state$show_summary <- FALSE
+  peak_state$kept <- NULL
+  peak_state$target_matches <- empty_peak_matches()
+
+  peak_state$stats <- list(
+    before = 0L, after = 0L,
+    removed_mz = 0L, removed_rt = 0L,
+    removed_rmd = 0L, removed_amd = 0L,
+    removed_target = 0L, matched_target = 0L,
+    target_action = "remove", removed_total = 0L
+  )
+
+  invalidate_final()
+}
+
+invalidate_after_ms <- function() {
+  qc_state$applied <- FALSE
+  qc_state$show_summary <- FALSE
+  qc_state$kept <- NULL
+  qc_state$stats <- list(
+    before = 0L, after_final = 0L,
+    removed_zeros = 0L, removed_mean = 0L,
+    removed_rsd = 0L, removed_min = 0L,
+    removed_total = 0L
+  )
+
+  invalidate_after_qc()
+}
+
+invalidate_after_blank <- function() {
+  ms_state$applied <- FALSE
+  ms_state$show_summary <- FALSE
+  ms_state$matrix <- NULL
+  ms_state$isf_status <- NULL
+
+  ms_state$del_iso  <- character(0)
+  ms_state$del_add  <- character(0)
+  ms_state$del_nl   <- character(0)
+  ms_state$del_isf  <- character(0)
+  ms_state$del_mis  <- character(0)
+  ms_state$del_ring <- character(0)
+
+  ms_state$mis_merge_map <- NULL
+  ms_state$iso_table  <- NULL
+  ms_state$add_table  <- NULL
+  ms_state$nl_table   <- NULL
+  ms_state$isf_table  <- NULL
+  ms_state$mis_table  <- NULL
+  ms_state$ring_table <- NULL
+
+  ms_state$stats <- list(
+    before = 0L, after = 0L,
+    removed_iso = 0L, removed_add = 0L,
+    removed_nl = 0L, removed_isf = 0L,
+    removed_mis = 0L, removed_ring = 0L
+  )
+
+  invalidate_after_ms()
+}
+
+invalidate_all_pipeline <- function() {
+  blank_state$applied <- FALSE
+  blank_state$show_summary <- FALSE
+  blank_state$kept <- NULL
+  blank_state$stats <- list(
+    before = 0L, after = 0L, removed_blank = 0L
+  )
+
+  invalidate_after_blank()
+}
+
   output$finalReady <- reactive({ !is.null(final_table()) })
   outputOptions(output, "finalReady", suspendWhenHidden = FALSE)
 
@@ -3959,9 +4314,7 @@ if ("target" %in% sel) {
         export_rt_factor   = shared$export_rt_factor %||% 1
       )
 
-      # 3) store both
-      final_table_raw <- reactiveVal(NULL)
-      final_table_raw(ftbl)
+      # 3) store
       final_table(ftbl_export)
 
       showNotification("FINAL compiled and aligned.", type = "message", duration = 3)
@@ -4056,7 +4409,8 @@ if ("target" %in% sel) {
       path           = file,
       df_export       = final_table(),
       type            = shared$data_type,
-      msdial_preamble = shared$msdial_preamble
+      msdial_preamble = shared$msdial_preamble,
+      msdial_export_names  = shared$msdial_export_names
     )
   }
   )
@@ -4089,7 +4443,7 @@ if ("target" %in% sel) {
               ")),
               bsTooltip(
                 id = "btnmgf",
-                title = "<b>Filtering MGF file based on final filtered table</b><br><br>Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns (see details in About Tab)",
+                title = "<b>Filtering MGF file based on final filtered table</b><br><br>Upload the MGF file corresponding to the peak table, then specify the matching Feature ID fields<br><br>Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns (see details in About Tab)",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -4097,50 +4451,15 @@ if ("target" %in% sel) {
             )
   })
 
-  filtered_mgf_sps <- reactiveVal(NULL)
-  mgf_processing <- reactiveVal(FALSE)
-  current_mgf <- reactiveVal(NULL)
-  mgf_attempted <- reactiveVal(FALSE)
-  parsed_mgf <- reactiveVal(NULL)
-  mgf_true_names <- reactiveVal(NULL)
-
   # 1. READ ONCE ON UPLOAD
   observeEvent(input$mgf_input, {
-    req(input$mgf_input)
-    mgf_attempted(FALSE)
-    ext <- tools::file_ext(input$mgf_input$name)
-    if (tolower(ext) != "mgf") {
-      showNotification("Error: Please upload a valid .mgf file.", type = "error", duration = 5)
-      shinyjs::reset("mgf_input")
-      current_mgf(NULL)
-      parsed_mgf(NULL)
-      mgf_true_names(NULL)
-      return()
-    }
+  req(input$mgf_input)
 
-    current_mgf(input$mgf_input$datapath)
-
-    w <- Waiter$new(
-      html = tagList(spin_6(), h4("Loading MGF into memory...", style="color:#ffffff !important; text-shadow:none !important;")),
-      color = "rgba(44, 62, 80, 0.8)"
-    )
-    w$show()
-
-    shinyjs::delay(50, {
-      tryCatch({
-        # Read the file and store it in RAM
-        sps <- Spectra::Spectra(input$mgf_input$datapath, source = MsBackendMgf::MsBackendMgf())
-        parsed_mgf(sps)
-        mgf_true_names(names(Spectra::spectraData(sps)))
-
-        showNotification(paste("MGF file", input$mgf_input$name, "loaded successfully!"), type = "message", duration = 3)
-      }, error = function(e) {
-        showNotification(paste("Error parsing MGF:", e$message), type = "error", duration = 5)
-      }, finally = {
-        w$hide()
-      })
-    })
-  })
+  load_mgf_file(
+    upload = input$mgf_input,
+    input_id = "mgf_input"
+  )
+}, ignoreInit = TRUE)
 
   # 2. GENERATE BOTH DROPDOWNS TOGETHER
   output$mgf_matching_ui <- renderUI({
@@ -4172,17 +4491,43 @@ if ("target" %in% sel) {
   # TRIGGER 1: The Button Click
   # This ONLY starts the animation and resets data
   observeEvent(input$run_mgf_filter, {
-    if (is.null(current_mgf())) {
-      showNotification("Please upload an MGF file first!", type = "error", duration = 5)
-      return()
-    }
-    req(input$mgf_input, final_table(), input$mgf_match_col, input$mgf_id_field)
 
-    filtered_mgf_sps(NULL)    # Clear old data
-    mgf_processing(TRUE)      # This is the "Flag" to start the work
-    mgf_attempted(TRUE)
-    shinyjs::disable("run_mgf_filter")
-  })
+  sps <- parsed_mgf()
+
+  if (is.null(sps) || length(sps) == 0) {
+    showNotification(
+      "Please upload an MGF file first!",
+      type = "error",
+      duration = 5
+    )
+    return()
+  }
+
+  req(
+    final_table(),
+    input$mgf_match_col,
+    input$mgf_id_field
+  )
+
+  filtered_mgf_sps(NULL)
+  mgf_processing(TRUE)
+  mgf_attempted(TRUE)
+
+  shinyjs::disable("run_mgf_filter")
+
+}, ignoreInit = TRUE)
+
+  output$final_mgf_loaded_ui <- renderUI({
+  sps <- parsed_mgf()
+  if (is.null(sps) || length(sps) == 0) return(NULL)
+
+  div(
+    style = "padding:8px; margin-bottom:10px; background:#dff0d8; color:#3c763d; border-radius:5px;",
+    tags$b("MGF already loaded: "),
+    current_mgf_name() %||% "MGF file",
+    sprintf(" (%d spectra). Re-upload only to replace it.", length(sps))
+  )
+})
 
   # TRIGGER 2: The Actual Calculation (From RAM)
   observe({
@@ -4195,12 +4540,29 @@ if ("target" %in% sel) {
         sps <- parsed_mgf()
 
         # Matching logic
-        sel_f <- as.character(final_table()[[input$mgf_match_col]])
+        sel_f <- trimws(as.character(final_table()[[input$mgf_match_col]]))
         id_field <- input$mgf_id_field
-        mgf_ids <- as.character(Spectra::spectraData(sps)[[id_field]])
+        mgf_ids <- trimws(as.character(Spectra::spectraData(sps)[[id_field]]))
 
-        idx <- which(trimws(mgf_ids) %in% trimws(sel_f))
-        if(length(idx) == 0) idx <- which(as.numeric(mgf_ids) %in% as.numeric(sel_f))
+        sel_ok <- !is.na(sel_f) & nzchar(sel_f)
+        mgf_ok <- !is.na(mgf_ids) & nzchar(mgf_ids)
+
+        # Exact ID matching
+        idx_exact <- which(mgf_ok & mgf_ids %in% sel_f[sel_ok])
+
+        # Numeric-equivalent matching, e.g. "12" vs "12.0"
+        mgf_num <- suppressWarnings(as.numeric(mgf_ids))
+        sel_num <- suppressWarnings(as.numeric(sel_f[sel_ok]))
+        sel_num <- sel_num[is.finite(sel_num)]
+
+        idx_num <- if (length(sel_num)) {
+          which(is.finite(mgf_num) & mgf_num %in% sel_num)
+        } else {
+          integer(0)
+        }
+
+        # Keep both exact and numeric-equivalent matches
+        idx <- sort(unique(c(idx_exact, idx_num)))
 
         if(length(idx) > 0) {
           res <- sps[idx]
@@ -4244,16 +4606,28 @@ if ("target" %in% sel) {
   })
 
   observeEvent(input$clear_mgf, {
-    shinyjs::reset("mgf_input")
-    current_mgf(NULL)
-    parsed_mgf(NULL)
-    mgf_true_names(NULL)
-    filtered_mgf_sps(NULL)
-    mgf_processing(FALSE)
-    mgf_attempted(FALSE)
-    gc()
-    showNotification("MGF file and filtered data cleared from memory.", type = "warning", duration = 4)
-  }, ignoreInit = TRUE)
+
+  shinyjs::reset("mgf_input")
+  shinyjs::reset("isf_mgf_input")
+
+  current_mgf(NULL)
+  current_mgf_name(NULL)
+  parsed_mgf(NULL)
+  mgf_true_names(NULL)
+
+  filtered_mgf_sps(NULL)
+  mgf_processing(FALSE)
+  mgf_attempted(FALSE)
+
+  gc()
+
+  showNotification(
+    "MGF file and filtered data cleared from memory.",
+    type = "warning",
+    duration = 4
+  )
+
+}, ignoreInit = TRUE)
 
   observe({
     sps <- filtered_mgf_sps()
@@ -4263,8 +4637,8 @@ if ("target" %in% sel) {
 
   output$dl_mgf <- downloadHandler(
     filename = function() {
-      paste0(tools::file_path_sans_ext(input$mgf_input$name), "_filtered.mgf")
-    },
+    nm <- current_mgf_name() %||% "spectra.mgf"
+    paste0(tools::file_path_sans_ext(basename(nm)), "_filtered.mgf")},
     content = function(file) {
       req(filtered_mgf_sps())
       # Export using the Mgf backend
@@ -4379,10 +4753,6 @@ br(),
       br(),
       div(class="highlight", "Tip: If 'No sample columns' message, your sample keywords don’t match sample column names."),
       br(),
-      div(class="highlight", "Note: The `feature_id` column is auto-generated by default. To avoid conflicts, please do not include a column with this exact name in your uploaded dataset."),
-      br(),
-      div(class="highlight", "Note: We recommend letting the application use its auto-generated `feature_id` to prevent any conflicts during  processing."),
-      br(),
       div(class="highlight", "Note: for xcms type rt column is automatically converted to min."),
       br(),
       div(class = "highlight",
@@ -4442,14 +4812,12 @@ br(),
         tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family.",
                 tags$br(),
                 "Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph."),
-        tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral losses features by graph and retains ion with the highest m/z in each family.",
+        tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral losses features and retains ion with the highest m/z in each pair."),
+        tags$li(tags$b("In-Source Fragments:"), " uses RT shifts + correlation threshold to detect in-source fragment features and retains ion with the highest m/z in each pair.",
                 tags$br(),
-                "Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph."),
-        tags$li(tags$b("In-Source Fragments:"), " uses RT shift + correlation threshold to detect in-source fragment features by graph and retains ion with the highest m/z in each family.",
+                "Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio.",
                 tags$br(),
-                "Note: we recommend to enable `Strict RT split inside clusters` option, that check that fragments always fulfill defined rt tolerance even after grouping by graph.",
-                tags$br(),
-                "Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio."),
+                "Note: we recommend, if possible, to enable `Require MS2 fragment match` option, that check if potential fragment is presented in associated precursor MS2 spectra"),
         tags$li(tags$b("Mispicked Ions:"), " uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others.",
                 tags$br(),
                 "Note: we recommend using this filter with caution, and only if you expect poor integration. Be aware of incorrectly merging isomeric peaks."),
@@ -4487,6 +4855,39 @@ br(),
       "."
     ),
     br(),
+    div(class="highlight", HTML("Tip: <b>MS2-supported in-source fragment matching and filtering</b><br><br>",
+                                "<u>Provides the most specific ISF filtering by requiring MS2 support, reducing the risk of removing true signals. Requires MS2 spectra linked to peak IDs and therefore applies only to features with acquired MS2 data, making it potentially less sensitive than MS1-only filtering.</u><br><br>",
+                  "Upload the MGF file corresponding to the peak table, then specify the Feature ID field, m/z tolerance, and relative abundance threshold.<br>",
+                  "Candidate ISF relationships are retained only when the putative fragment m/z (at specified tolerance) is detected in an MS2 spectrum (at specified minimum relative abundance) of the precursor feature.<br>",
+                  "<b>Important:</b> The <b>Feature ID</b> selected in the Upload tab must correspond to the values in the selected <b>MGF Feature ID field</b>.")),
+    br(),
+    div(
+  style = "
+    background-color: #f1e1ff;
+    border-left: 5px solid #9112f3;
+    padding: 10px 12px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    font-size: 18px;
+    line-height: 1.45;
+  ",
+  HTML("
+    <span style='
+      color:#6f00b8;
+      font-weight:700;
+      font-size:18px;
+    '>
+    <i class='fa fa-lightbulb-o'></i> Pro tip: Fragment search strategies
+    </span><br><br>
+
+    <b>Neutral Losses</b> and <b>In-Source Fragments</b> target two related but distinct types of fragment relationships. ISF is broad enough to cover both fragment types, whereas NL relies on specific mass differences, making it highly specific.<br><br>
+    <b>If only MS1 data is available:</b><br>
+    We recommend running only the <b>Neutral Losses</b> search with default settings. This ensures accuracy and minimizes the risk of accidentally deleting closely co-eluting peaks. <i>Note: While using both NL and ISF on MS1 data can clean the peak table more aggressively, it increases the risk of removing valid co-eluting peaks.</i><br><br>
+    <b>If MS2 data is available:</b><br>
+    We recommend running only the <b>In-Source Fragments</b> search, as it inherently covers neutral losses. Because MS2 fragmentation spectra provide much higher confidence (using the <b>Require MS2 fragment match</b> option), you can safely use an increased RT tolerance (for example, to <b>0.01 min</b>).
+")),
+  br(),
       div(
   style = "
     background-color: #f1e1ff;
@@ -4628,7 +5029,7 @@ div(
       h3("Final Summary"),
       tags$ul(
         tags$li(tags$b("Compile summary & final datasets:"), " final filtered peak table after all applied filters."),
-        tags$li(tags$b("MGF filtering:"), " activated after final compile. Filters MGF file based on final filtered table. Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns unless you have specific requirements.")
+        tags$li(tags$b("MGF filtering:"), " activated after final compile. Filters MGF file based on final filtered table. Upload the MGF file corresponding to the peak table, then specify the matching Feature ID fields. Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns unless you have specific requirements.")
       ),
       div(class="highlight", "Note: if something looks missing in final output, check tab by tab where it was filtered."),
       br(),

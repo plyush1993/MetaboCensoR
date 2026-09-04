@@ -31,18 +31,14 @@ format_final_table_as_input <- function(final_df_with_fid, type,
   df <- as.data.frame(final_df_with_fid, check.names = FALSE, stringsAsFactors = FALSE)
 
   # 1) drop internal columns EXACTLY as requested
-  if (identical(type, "mzmine")) {
-    df <- df[, setdiff(names(df), ".FID"), drop = FALSE]
-  } else {
-    df <- df[, setdiff(names(df), c("feature_id", ".FID")), drop = FALSE]
-  }
+  df <- df[, setdiff(names(df), ".FID"), drop = FALSE]
 
   # 2) restore xcms RT units (undo /60)
   if (is.finite(export_rt_factor) && export_rt_factor != 1 && "rt" %in% names(df)) {
     df$rt <- suppressWarnings(as.numeric(df$rt)) * export_rt_factor
   }
 
-  # 3) rename mz/rt back to original column names (and feature_id if ever needed)
+  # 3) rename mz/rt back to original column names
   if (!is.null(export_colmap) && length(export_colmap)) {
     for (std_nm in names(export_colmap)) {
       orig_nm <- export_colmap[[std_nm]]
@@ -62,31 +58,40 @@ format_final_table_as_input <- function(final_df_with_fid, type,
   df
 }
 
-write_final_table_csv <- function(path, df_export, type, msdial_preamble = NULL) {
+write_final_table_csv <- function(path, df_export, type, msdial_preamble = NULL, msdial_export_names = NULL) {
   df_export <- as.data.frame(df_export, check.names = FALSE, stringsAsFactors = FALSE)
 
   if (identical(type, "msdial") && !is.null(msdial_preamble) && nrow(msdial_preamble) > 0) {
-    pre <- as.data.frame(msdial_preamble, check.names = FALSE, stringsAsFactors = FALSE)
 
-    # match preamble columns to export columns (order + names)
-    pre <- pre[, intersect(names(df_export), names(pre)), drop = FALSE]
-    pre <- pre[, names(df_export), drop = FALSE]
+  pre <- as.data.frame(msdial_preamble, check.names = FALSE, stringsAsFactors = FALSE)
 
-    cleaned_names <- gsub("_[0-9]+$", "", names(df_export))
-    names(df_export) <- cleaned_names
+  # Align preamble while names are still unique internally
+  pre <- pre[, intersect(names(df_export), names(pre)), drop = FALSE]
+  pre <- pre[, names(df_export), drop = FALSE]
 
-    # 1) preamble WITHOUT header
-    write.table(pre, file = path, sep = ",",
-                row.names = FALSE, col.names = FALSE,
-                quote = TRUE, na = "", append = FALSE)
-
-    # 2) real table WITH header appended
-    write.table(df_export, file = path, sep = ",",
-                row.names = FALSE, col.names = TRUE,
-                quote = TRUE, na = "", append = TRUE)
-  } else {
-    write.csv(df_export, file = path, row.names = FALSE, quote = TRUE, na = "")
+  # Restore EXACT original MS-DIAL duplicate column names for export
+  if (!is.null(msdial_export_names) &&
+      length(msdial_export_names) == ncol(df_export)) {
+    names(df_export) <- msdial_export_names
   }
+
+  # Preamble without header
+  write.table(
+    pre, file = path, sep = ",",
+    row.names = FALSE, col.names = FALSE,
+    quote = TRUE, na = "", append = FALSE
+  )
+
+  # Main table with exact original header
+  write.table(
+    df_export, file = path, sep = ",",
+    row.names = FALSE, col.names = TRUE,
+    quote = TRUE, na = "", append = TRUE
+  )
+
+} else {
+  write.csv(df_export, file = path, row.names = FALSE, quote = TRUE, na = "")
+}
 }
 
 multi_sample_idx <- function(cols, kws) {
@@ -409,8 +414,12 @@ standardize_peak_table <- function(df, type) {
   type <- match.arg(type, c("mzmine", "default", "xcms", "msdial"))
 
   df <- as.data.frame(df)
-  # Basic name cleanup to start
   names(df) <- trimws(names(df))
+
+  # .FID is reserved for MetaboCensoR internal processing
+  if (".FID" %in% names(df)) {
+    stop("Column name '.FID' is reserved by MetaboCensoR. Please rename it before upload.")
+  }
 
   export_template  <- names(df)
   export_colmap    <- c()
@@ -445,10 +454,6 @@ standardize_peak_table <- function(df, type) {
     df <- dplyr::rename(df, mz = !!mz_col, rt = !!rt_col)
 
     id_col <- find_col("row id", names(df))
-    if (!is.na(id_col)) {
-      export_colmap <- c(export_colmap, feature_id = id_col)
-      df$feature_id <- df[[id_col]]
-    }
 
   } else if (type == "default") {
 
@@ -480,22 +485,27 @@ standardize_peak_table <- function(df, type) {
       # Store preamble
       if (hdr_i > 1) msdial_preamble <- df[1:(hdr_i - 1), , drop = FALSE]
 
-      # Extract new header names
-      new_names <- trimws(as.character(unlist(df[hdr_i, , drop = TRUE])))
+      # Exact original MS-DIAL column names
+      original_names <- trimws(as.character(unlist(df[hdr_i, , drop = TRUE])))
 
-      # Handle potential empty names or NAs in header
-      new_names[is.na(new_names) | new_names == ""] <- paste0("Unknown_", seq_along(new_names))[is.na(new_names) | new_names == ""]
-      new_names <- make.unique(new_names, sep = "_")
+      # Handle genuinely empty names
+      empty_names <- is.na(original_names) | original_names == ""
+      original_names[empty_names] <- paste0("Unknown_", seq_along(original_names))[empty_names]
 
-      # Apply names to metadata (for reference)
-      if (!is.null(msdial_preamble)) {
-        # Ensure preamble has same ncol as new_names.
-        # If preamble is narrower, pad it? Usually read.csv handles this with 'fill=TRUE'
-        if (ncol(msdial_preamble) == length(new_names)) names(msdial_preamble) <- new_names
+      # R needs unique names internally
+      new_names <- make.unique(original_names, sep = "_")
+
+      # Preamble uses internal unique names only for alignment
+      if (!is.null(msdial_preamble) && ncol(msdial_preamble) == length(new_names)) {
+        names(msdial_preamble) <- new_names
       }
 
-      msdial_export_names <- new_names
-      export_template <- new_names # Update template to matched names
+      # IMPORTANT:
+      # exact original names are saved separately for final export
+      msdial_export_names <- original_names
+
+      # internal template must stay unique
+      export_template <- new_names
 
       # Slice the dataframe: Keep rows AFTER header
       if (hdr_i < nrow(df)) {
@@ -531,17 +541,30 @@ standardize_peak_table <- function(df, type) {
     attr(df, "msdial_export_names") <- msdial_export_names
 
   } else if (type == "xcms") {
-    req_cols <- c("mzmed", "rtmed")
-    miss <- setdiff(req_cols, names(df))
-    if (length(miss)) stop("XCMS table missing: ", paste(miss, collapse = ", "))
 
-    export_template <- names(df)
-    export_colmap <- c(mz = "mzmed", rt = "rtmed")
+  req_cols <- c("mzmed", "rtmed")
+  miss <- setdiff(req_cols, names(df))
+  if (length(miss)) stop("XCMS table missing: ", paste(miss, collapse = ", "))
 
-    df <- dplyr::rename(df, mz = mzmed, rt = rtmed)
-    export_rt_factor <- 60
-    df$rt <- df$rt / 60
-  }
+  # First XCMS column contains the native feature IDs.
+  # It may arrive without a header and be named ...1 by vroom.
+  id_col <- names(df)[1]
+
+  export_template <- names(df)
+  export_colmap <- c(
+    "Feature ID" = id_col,
+    mz = "mzmed",
+    rt = "rtmed"
+  )
+
+  # Give the native XCMS ID column a meaningful internal/display name.
+  names(df)[1] <- "Feature ID"
+
+  df <- dplyr::rename(df, mz = mzmed, rt = rtmed)
+
+  export_rt_factor <- 60
+  df$rt <- df$rt / 60
+}
 
   # Final cleanup
   if ("mz" %in% names(df)) {
@@ -550,10 +573,6 @@ standardize_peak_table <- function(df, type) {
 
   if ("rt" %in% names(df)) {
     df$rt <- suppressWarnings(as.numeric(df$rt))
-  }
-
-  if (!"feature_id" %in% names(df)) {
-    df$feature_id <- seq_len(nrow(df))
   }
 
   attr(df, "export_template")  <- export_template
@@ -714,6 +733,165 @@ make_rt_pairs <- function(pk, rt_tol) {
   }
   if (!length(edges)) return(tibble::tibble(Feature1=character(), Feature2=character()))
   dplyr::bind_rows(edges)
+}
+
+check_isf_pairs_ms2 <- function(pairs, sps, id_field,
+                                min_rel_pct = 1,
+                                mz_tol_da = 0.01) {
+
+  if (is.null(pairs) || nrow(pairs) == 0) return(pairs)
+  if (is.null(sps) || length(sps) == 0) stop("No MGF spectra loaded.")
+
+  sd <- Spectra::spectraData(sps)
+  if (!id_field %in% names(sd))
+    stop("Selected MGF ID field was not found: ", id_field)
+
+  min_rel_pct <- suppressWarnings(as.numeric(min_rel_pct))
+  mz_tol_da <- suppressWarnings(as.numeric(mz_tol_da))
+
+  if (!is.finite(min_rel_pct)) min_rel_pct <- 1
+  if (!is.finite(mz_tol_da)) mz_tol_da <- 0.01
+
+  min_rel_pct <- max(0, min(100, min_rel_pct))
+  mz_tol_da <- abs(mz_tol_da)
+
+  mgf_ids <- trimws(as.character(sd[[id_field]]))
+
+  # Use MS2 spectra when msLevel information is available.
+  # If MGF has no msLevel metadata, treat its spectra as MS/MS.
+  lvl <- tryCatch(
+    as.integer(Spectra::msLevel(sps)),
+    error = function(e) rep(NA_integer_, length(sps))
+  )
+
+  use <- seq_len(length(sps))
+  if (length(lvl) == length(sps) && any(is.finite(lvl))) {
+  use <- which(lvl == 2L)
+  } else {
+    # MGF has no usable msLevel metadata -> treat spectra as MS/MS
+    use <- seq_len(length(sps))
+  }
+
+  sps2 <- sps[use]
+  ids2 <- mgf_ids[use]
+
+  # Only load peak data for spectra relevant to candidate precursors
+  needed <- unique(trimws(as.character(pairs$prec_feature)))
+  needed_num <- suppressWarnings(as.numeric(needed))
+  ids_num <- suppressWarnings(as.numeric(ids2))
+
+  keep <- ids2 %in% needed |
+    (is.finite(ids_num) & ids_num %in% needed_num[is.finite(needed_num)])
+
+  sps2 <- sps2[keep]
+  ids2 <- ids2[keep]
+
+  # No spectra matching any candidate precursor
+  if (length(sps2) == 0) {
+    return(pairs %>%
+      dplyr::mutate(
+        ms2_available = FALSE,
+        ms2_match = FALSE,
+        ms2_n_spectra = 0L,
+        ms2_match_mz = NA_real_,
+        ms2_error_da = NA_real_,
+        ms2_rel_int = NA_real_
+      ))
+  }
+
+  ids_num <- suppressWarnings(as.numeric(ids2))
+  pd <- Spectra::peaksData(sps2)
+
+  # Simple MS2 preprocessing: keep peaks >= x % of the base peak
+  pd <- lapply(pd, function(p) {
+    p <- as.matrix(p)
+
+    if (is.null(dim(p)) || nrow(p) == 0 || ncol(p) < 2)
+      return(tibble::tibble(mz = numeric(), rel_int = numeric()))
+
+    mz <- suppressWarnings(as.numeric(p[, 1]))
+    int <- suppressWarnings(as.numeric(p[, 2]))
+
+    ok <- is.finite(mz) & is.finite(int) & int > 0
+    mz <- mz[ok]
+    int <- int[ok]
+
+    if (!length(int))
+      return(tibble::tibble(mz = numeric(), rel_int = numeric()))
+
+    rel <- 100 * int / max(int)
+    keep <- rel >= min_rel_pct
+
+    tibble::tibble(mz = mz[keep], rel_int = rel[keep])
+  })
+
+  find_spectra <- function(feature) {
+  key <- trimws(as.character(feature))
+
+  # Exact matches
+  idx_exact <- which(ids2 == key)
+
+  # Numeric-equivalent matches: "12", 12, "12.0", etc.
+  key_num <- suppressWarnings(as.numeric(key))
+
+  idx_num <- if (is.finite(key_num)) {
+    which(is.finite(ids_num) & ids_num == key_num)
+  } else {
+    integer(0)
+  }
+
+  sort(unique(c(idx_exact, idx_num)))
+}
+
+  ann <- lapply(seq_len(nrow(pairs)), function(i) {
+
+    idx <- find_spectra(pairs$prec_feature[i])
+
+    if (!length(idx)) {
+      return(tibble::tibble(
+        ms2_available = FALSE,
+        ms2_match = FALSE,
+        ms2_n_spectra = 0L,
+        ms2_match_mz = NA_real_,
+        ms2_error_da = NA_real_,
+        ms2_rel_int = NA_real_
+      ))
+    }
+
+    target <- as.numeric(pairs$frag_mz[i])
+    best_err <- Inf
+    best_mz <- NA_real_
+    best_rel <- NA_real_
+
+    # If several MS2 spectra exist for one feature,
+    # accept support from any of them.
+    for (j in idx) {
+      p <- pd[[j]]
+      if (!nrow(p)) next
+
+      err <- abs(p$mz - target)
+      k <- which.min(err)
+
+      if (length(k) && is.finite(err[k]) && err[k] < best_err) {
+        best_err <- err[k]
+        best_mz <- p$mz[k]
+        best_rel <- p$rel_int[k]
+      }
+    }
+
+    matched <- is.finite(best_err) && best_err <= mz_tol_da
+
+    tibble::tibble(
+      ms2_available = TRUE,
+      ms2_match = matched,
+      ms2_n_spectra = length(idx),
+      ms2_match_mz = if (matched) best_mz else NA_real_,
+      ms2_error_da = if (is.finite(best_err)) best_err else NA_real_,
+      ms2_rel_int = if (matched) best_rel else NA_real_
+    )
+  })
+
+  dplyr::bind_cols(pairs, dplyr::bind_rows(ann))
 }
 
 make_mass_shift_edges <- function(pk, shifts, rt_tol, tol_fun) {
