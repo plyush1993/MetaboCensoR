@@ -68,3 +68,12 @@
 - Multiple range selection
 - Default data format is more universal
 - Limited data previews for large datasets
+
+<br>
+<br>
+
+### **`V.1.5.0`** 2026.09.04
+- Introducing MS2-supported ISF matching
+- Switched NL and ISF to directional pairwise filtering
+- Simplified Feature ID handling
+- Minor documentation and UI refinements
