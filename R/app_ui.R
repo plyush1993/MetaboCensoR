@@ -286,7 +286,7 @@ shiny::fluidPage(
               "mzMine"   = "mzmine",
               "xcms"     = "xcms",
               "MS-DIAL"  = "msdial",
-              "Default"  = "default"
+              "Generic"  = "default"
             ),
             selected = "mzmine"
           ),
