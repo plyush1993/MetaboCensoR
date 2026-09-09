@@ -8,7 +8,7 @@
 ### Description :bookmark_tabs:
 The [`R`](https://www.r-project.org/) [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and .mgf file. 
 - Read the output peak table from [`mzMine`](https://mzio.io/mzmine-news/), [`xcms`](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [`MS-DIAL`](https://systemsomicslab.github.io/compms/msdial/main.html), and `Generic format`.<br>
-Check compatibility with [`examples of inputs`](https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples).
+Check compatibility with [`input examples`](https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples).
   - Filter features detected in blank sample group(s) with a widget.
   - Filter Isotopes/Dimers, Adducts, Neutral Loses, In-Source Fragments, Mispicked Ions & Saturated (Ringing) Ions, and generate annotation tables.
   - Filter features by Zero, RSD, Mean, and Min values using selectable logical rules with a widget.
