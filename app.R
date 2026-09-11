@@ -2007,7 +2007,12 @@ ui <- fluidPage(
           uiOutput("upload_tab_error"),
           uiOutput("quick_stats_ui"),
           uiOutput("shared_header"),
-          DTOutput("shared_preview")
+          DTOutput("shared_preview"),
+          conditionalPanel(
+          condition = "output.sharedUploaded",
+          h4("Detected Sample Columns:"),
+          DTOutput("sample_list_table")
+        )
         )
       )
     ),
@@ -2239,7 +2244,7 @@ ui <- fluidPage(
           ),
           uiOutput("blank_header_in"),
           DTOutput("blank_table_in"),
-          conditionalPanel(condition = "input.show_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("blank_label_upload_warning"), DTOutput("labels_table")),
+          conditionalPanel(condition = "output.sharedUploaded && input.show_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("blank_label_upload_warning"), DTOutput("labels_table")),
           conditionalPanel(
             condition = "output.blankPlotReady && input.show_blank_plot",
             h4("Check Blank Ratio Distribution:"),
@@ -2964,7 +2969,7 @@ ui <- fluidPage(
           uiOutput("qc_header_in"),
           DTOutput("qc_table_in"),
 
-          conditionalPanel(condition = "input.show_qc_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("qc_label_upload_warning"), DTOutput("qc_labels_table")),
+          conditionalPanel(condition = "output.sharedUploaded && input.show_qc_labels_table", h4("Check matching Sample Names and Group Labels:"), uiOutput("qc_label_upload_warning"), DTOutput("qc_labels_table")),
 
           conditionalPanel(
             condition = "output.qcPlotReady && input.show_qc_plot",
@@ -3257,21 +3262,31 @@ ui <- fluidPage(
         mainPanel(
           conditionalPanel(
             condition = "!output.sharedUploaded",
-            div(class="alert alert-warning text-center", 
-            style="font-size: 18px; font-weight: bold; margin-top: 15px;", 
-            icon("exclamation-triangle"), " No dataset loaded. Please go to the 'Upload Data' tab.")
+            div(
+              class = "alert alert-warning text-center", 
+              style = "font-size: 18px; font-weight: bold; margin-top: 15px;", 
+              icon("exclamation-triangle"),
+              " No dataset loaded. Please go to the 'Upload Data' tab."
+            )
           ),
+        
           conditionalPanel(
             condition = "output.sharedUploaded && !output.finalReady",
-            div(class="alert alert-warning text-center", 
-            style="font-size: 18px; font-weight: bold; margin-top: 15px;", 
-            icon("exclamation-triangle"), " Not compiled yet. Click 'Compile output'.")
+            div(
+              class = "alert alert-warning text-center", 
+              style = "font-size: 18px; font-weight: bold; margin-top: 15px;", 
+              icon("exclamation-triangle"),
+              " Not compiled yet. Click 'Compile output'."
+            )
           ),
-
-          uiOutput("final_report_header"),
-          uiOutput("final_report_body"),
-          h3("Final table"),
-          DTOutput("final_preview_table")
+        
+          conditionalPanel(
+            condition = "output.sharedUploaded && output.finalReady",
+            uiOutput("final_report_header"),
+            uiOutput("final_report_body"),
+            h3("Final table"),
+            DTOutput("final_preview_table")
+          )
         )
       )
     ),
@@ -3752,7 +3767,7 @@ observeEvent(input$clear_shared, {
     }
   }
 
-  datatable(df_show, options = list(scrollX = TRUE, pageLength = 6))
+  datatable(df_show, options = list(scrollX = TRUE, pageLength = 5))
 })
 
   output$quick_stats_ui <- renderUI({
@@ -4097,6 +4112,28 @@ observeEvent(input$sample_cols0, {
   sample_cols0()
   })
 
+  output$sample_list_table <- renderDT({
+
+  req(sample_names())
+
+  tbl <- data.frame(
+    Sample = sample_names(),
+    stringsAsFactors = FALSE
+  )
+
+  datatable(
+    tbl,
+    options = list(
+      pageLength = 5,
+      scrollX = TRUE,
+      ordering = FALSE,
+      searching = FALSE
+    ),
+    rownames = FALSE
+  )
+
+}, server = FALSE)
+  
   raw_zeroed <- reactive({
     req(raw_fid(), sample_cols0())
     df <- raw_fid()
@@ -4334,7 +4371,7 @@ output$labels_table <- renderDT({
       FALSE
     },
     options = list(
-      pageLength = 6,
+      pageLength = 5,
       scrollX = TRUE,
   ordering = FALSE,
   searching = FALSE
@@ -6404,7 +6441,7 @@ output$qc_labels_table <- renderDT({
       FALSE
     },
     options = list(
-      pageLength = 6,
+      pageLength = 5,
       scrollX = TRUE,
   ordering = FALSE,
   searching = FALSE
