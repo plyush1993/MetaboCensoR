@@ -452,7 +452,7 @@ observeEvent(input$clear_shared, {
     }
   }
 
-  datatable(df_show, options = list(scrollX = TRUE, pageLength = 6))
+  datatable(df_show, options = list(scrollX = TRUE, pageLength = 5))
 })
 
   output$quick_stats_ui <- renderUI({
@@ -797,6 +797,28 @@ observeEvent(input$sample_cols0, {
   sample_cols0()
   })
 
+  output$sample_list_table <- renderDT({
+
+  req(sample_names())
+
+  tbl <- data.frame(
+    Sample = sample_names(),
+    stringsAsFactors = FALSE
+  )
+
+  datatable(
+    tbl,
+    options = list(
+      pageLength = 5,
+      scrollX = TRUE,
+      ordering = FALSE,
+      searching = FALSE
+    ),
+    rownames = FALSE
+  )
+
+}, server = FALSE)
+
   raw_zeroed <- reactive({
     req(raw_fid(), sample_cols0())
     df <- raw_fid()
@@ -1034,7 +1056,7 @@ output$labels_table <- renderDT({
       FALSE
     },
     options = list(
-      pageLength = 6,
+      pageLength = 5,
       scrollX = TRUE,
   ordering = FALSE,
   searching = FALSE
@@ -3104,7 +3126,7 @@ output$qc_labels_table <- renderDT({
       FALSE
     },
     options = list(
-      pageLength = 6,
+      pageLength = 5,
       scrollX = TRUE,
   ordering = FALSE,
   searching = FALSE
