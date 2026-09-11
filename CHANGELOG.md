@@ -77,3 +77,10 @@
 - Switched NL and ISF to directional pairwise filtering
 - Simplified Feature ID handling
 - Minor documentation and UI refinements
+  
+<br>
+<br>
+
+### **`V.1.5.1`** 2026.09.11
+- Added sample-column preview
+- Minor UI refinements
