@@ -3508,14 +3508,8 @@ options(shiny.maxRequestSize = 1024 * 1024^2)
       df0 <- as.data.frame(vroom::vroom(input$file0$datapath, delim = ",", show_col_types = FALSE))
     }
 
-    # Wrap standardization in tryCatch to handle format mismatches gracefully
-    df_std <- tryCatch({
-      standardize_peak_table(df0, type = type)
-    }, error = function(e) {
-      # If standardization fails (e.g. wrong type selected), show error but don't crash
-      upload_error(paste0("Parsing error: ", e$message))
-      return(NULL)
-    })
+    # Wrap standardization 
+    df_std <- standardize_peak_table(df0, type = type)
     
     req(df_std) # Stop if parsing failed
 
@@ -4045,8 +4039,6 @@ observeEvent(input$sample_cols0, {
   })
   
   sample_cols0 <- reactive({
-    # Reset error at the start of every check
-    upload_error(NULL) 
     
     req(raw_fid())
     df <- raw_fid()
