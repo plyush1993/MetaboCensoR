@@ -81,6 +81,6 @@
 <br>
 <br>
 
-### **`V.1.5.1`** 2026.09.11
+### **`V.1.5.1`** 2026.09.12
 - Added sample-column preview
 - Minor UI refinements
