@@ -2003,17 +2003,90 @@ ui <- fluidPage(
               )
             )
         ),
-        mainPanel(
-          uiOutput("upload_tab_error"),
-          uiOutput("quick_stats_ui"),
-          uiOutput("shared_header"),
-          DTOutput("shared_preview"),
-          conditionalPanel(
-          condition = "output.sharedUploaded",
-          h4("Detected Sample Columns:"),
-          DTOutput("sample_list_table")
+        
+mainPanel(
+  conditionalPanel(
+    condition = "!output.sharedUploaded",
+
+    div(
+      style = "
+        background: rgba(255,255,255,0.92);
+        border: 2px solid #2c3e50;
+        border-radius: 14px;
+        padding: 35px 40px;
+        margin-top: 20px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      ",
+
+      h2(
+        "Welcome to MetaboCensoR",
+        style = "
+          margin-top: 0;
+          font-weight: 800;
+          color: #2c3e50;
+        "
+      ),
+
+      tags$p(
+        "Shiny App for filtering redundant features in LC-MS",
+        style = "
+          font-size: 18px;
+          color: #555;
+          margin-top: 10px;
+          margin-bottom: 25px;
+        "
+      ),
+
+      tags$hr(),
+
+      div(
+        style = "
+          font-size: 17px;
+          line-height: 1.7;
+          color: #2c3e50;
+          margin-top: 25px;
+        ",
+
+        tags$p(
+          icon("file-arrow-up"),
+          HTML(
+            "&nbsp; <b>Upload</b> a peak table using the controls on the left to begin."
+          )
+        ),
+
+        tags$p(
+          icon("flask"),
+          HTML(
+            "&nbsp; Or use the <b>Example dataset</b> to explore the workflow."
+          )
+        ),
+        
+        tags$p(
+          icon("circle-info"),
+          HTML(
+            '&nbsp; See the 
+             <a href="#" onclick="$(\'a[data-value=help]\').tab(\'show\'); return false;">
+             <b>About</b> tab
+             </a> for more information.'
+          )
         )
-        )
+      )
+    )
+  ),
+
+  # Existing upload outputs
+  uiOutput("upload_tab_error"),
+  uiOutput("quick_stats_ui"),
+  uiOutput("shared_header"),
+  DTOutput("shared_preview"),
+
+  conditionalPanel(
+    condition = "output.sharedUploaded",
+    h4("Detected Sample Columns:"),
+    DTOutput("sample_list_table")
+  )
+)
       )
     ),
 
