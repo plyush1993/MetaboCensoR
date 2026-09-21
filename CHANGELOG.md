@@ -84,3 +84,9 @@
 ### **`V.1.5.1`** 2026.09.12
 - Added sample-column preview
 - Minor UI refinements
+  
+<br>
+<br>
+
+### **`V.1.5.2`** 2026.09.21
+- Introducing a welcome screen
