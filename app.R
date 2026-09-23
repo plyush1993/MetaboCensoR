@@ -4114,6 +4114,7 @@ observeEvent(input$sample_cols0, {
   sample_cols0 <- reactive({
     
     req(raw_fid())
+    upload_error(NULL)
     df <- raw_fid()
     cols <- names(df)
    
