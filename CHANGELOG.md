@@ -90,3 +90,10 @@
 
 ### **`V.1.5.2`** 2026.09.21
 - Introducing a welcome screen
+  
+<br>
+<br>
+
+### **`V.1.5.3`** 2026.09.27
+- Minor UI refinements
+- Added Zenodo archiving
