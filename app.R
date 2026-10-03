@@ -1673,6 +1673,58 @@ ui <- fluidPage(
   useShinyjs(),
   
   tags$head(
+  tags$script(HTML("
+    (function () {
+
+      function fixFileInputs() {
+        document.querySelectorAll('input[type=file]').forEach(
+          function (input) {
+
+            const button = input.closest('.btn-file');
+
+            if (!button) return;
+
+            // Keep the hidden input inside its Browse button.
+            button.style.setProperty(
+              'position', 'relative', 'important'
+            );
+
+            input.style.setProperty(
+              'position', 'absolute', 'important'
+            );
+            input.style.setProperty(
+              'top', '0', 'important'
+            );
+            input.style.setProperty(
+              'left', '0', 'important'
+            );
+            input.style.setProperty(
+              'width', '1px', 'important'
+            );
+            input.style.setProperty(
+              'height', '1px', 'important'
+            );
+            input.style.setProperty(
+              'opacity', '0', 'important'
+            );
+            input.style.setProperty(
+              'pointer-events', 'none', 'important'
+            );
+          }
+        );
+      }
+
+      // Inputs present when the page first loads.
+      $(fixFileInputs);
+
+      // Inputs subsequently created by renderUI().
+      $(document).on('shiny:bound', fixFileInputs);
+
+    })();
+  "))
+),
+  
+  tags$head(
     tags$title("MetaboCensoR"),
     tags$link(
       rel  = "icon",
