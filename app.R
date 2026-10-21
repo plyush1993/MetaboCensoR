@@ -1291,7 +1291,7 @@ keep_by_zeros <- function(ds, feats, mode, labs, zero_metric, zero_cutoff) {
     vec <- vapply(ds_sub[feats], function(x) {
       if (zm == "percent") mean(x == 0, na.rm = TRUE) * 100 else sum(x == 0, na.rm = TRUE)
     }, numeric(1))
-    return(names(vec)[is.finite(vec) & vec <= zcut])
+    return(names(vec)[is.finite(vec) & vec < zcut])
   }
 
   st <- ds %>%
@@ -1303,7 +1303,7 @@ keep_by_zeros <- function(ds, feats, mode, labs, zero_metric, zero_cutoff) {
   if (!nrow(st)) return(character(0))
 
   pred <- if (mode == "group_every") all else any
-  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(.x <= zcut, na.rm = TRUE)))
+  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(.x < zcut, na.rm = TRUE)))
   keep_true_cols(keep_df)
 }
 
@@ -1353,9 +1353,9 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
   keep_df <- st %>%
   select(-Label) %>%
   summarise(across(everything(), ~ {
-    x <- .x[is.finite(.x)]
-    length(x) > 0 && pred(x <= rcut)
-  }))
+  passes <- is.finite(.x) & (.x <= rcut)
+  pred(passes)
+}))
   
   keep_true_cols(keep_df)
 }
@@ -3058,7 +3058,7 @@ mainPanel(
           conditionalPanel(condition = "input.value_filters.indexOf('zeros') >= 0",
                            radioButtons("zero_metric", "Zeros metric", inline = TRUE,
                                         choices = c("Count" = "count", "Percent" = "percent"), selected = "count"),
-                           numericInput("zero_cutoff", label = HTML("Zeros &le; threshold (count or %)"), value = 0, min = 0, step = 1)
+                           numericInput("zero_cutoff", label = HTML("Zeros &lt; threshold (count or %)"), value = 1, min = 0, step = 1)
           ),
           conditionalPanel(condition = "input.value_filters.indexOf('mean') >= 0",
                            numericInput("mean_cutoff", label = HTML("Mean &ge; threshold"), value = 5000, min = 0, step = 100)
@@ -6661,7 +6661,7 @@ output$qc_labels_table <- renderDT({
       }
       res_list[["rsd"]] <- list(metric="rsd", mode=mode, data=long)
     }
-    res_list
+    res_list[intersect(c("zeros", "mean", "rsd", "min"), names(res_list))]
   }, ignoreInit = TRUE)
 
   output$qcPlotReady <- reactive({ !is.null(qc_plot_data()) })
@@ -6679,9 +6679,13 @@ output$qc_labels_table <- renderDT({
     
     for (metric_name in names(md_list)) {
       md <- md_list[[metric_name]]
-      df <- md$data
-      df <- df[is.finite(df$value), , drop = FALSE]
-      if (!nrow(df)) next
+      df_all <- md$data
+      if (!nrow(df_all)) next
+      
+      df <- df_all[is.finite(df_all$value), , drop = FALSE]
+      
+      # Preserve existing behavior for other metrics.
+      if (!nrow(df) && md$metric != "rsd") next
 
       mode <- md$mode
       mode_txt <- switch(mode, 
@@ -6706,14 +6710,27 @@ output$qc_labels_table <- renderDT({
       }
 
       # 2. EXACT MATH MATCHING
-      feat_eval <- df %>%
+      eval_df <- if (md$metric == "rsd") df_all else df
+
+      feat_eval <- eval_df %>%
         dplyr::group_by(Feature) %>%
         dplyr::summarise(
-          pass = if (md$metric %in% c("zeros", "rsd")) {
-            if (mode == "group_every") all(value <= cutoff, na.rm = TRUE) else any(value <= cutoff, na.rm = TRUE)
-          } else {
-            if (mode == "group_every") all(value >= cutoff, na.rm = TRUE) else any(value >= cutoff, na.rm = TRUE)
-          }
+          pass = {
+            if (md$metric == "rsd") {
+              passes <- is.finite(value) & (value <= cutoff)
+            } else if (md$metric == "zeros") {
+              passes <- value < cutoff
+            } else {
+              passes <- value >= cutoff
+            }
+      
+            if (mode == "group_every") {
+              all(passes, na.rm = TRUE)
+            } else {
+              any(passes, na.rm = TRUE)
+            }
+          },
+          .groups = "drop"
         )
       
       total_feats <- nrow(feat_eval)
@@ -6721,6 +6738,12 @@ output$qc_labels_table <- renderDT({
       perc_filt <- round((removed_feats / total_feats) * 100, 1)
 
       # 3. DOUBLE SAFETY: Put the xlab_txt (metric type) directly into the header
+      # If all RSD values are undefined, retain an empty histogram
+      # with a header reporting that all features fail.
+      if (!nrow(df)) {
+        df <- df_all[1, , drop = FALSE]
+        df$value <- NA_real_
+      }
       df$plot_header <- paste0(toupper(md$metric), " [", xlab_txt, "] - ", mode_txt, 
                                " | Filtered: ", removed_feats, " of ", total_feats, " (", perc_filt, "%)")
 
