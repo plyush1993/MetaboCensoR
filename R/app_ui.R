@@ -1405,7 +1405,7 @@ shiny::fluidPage(
           conditionalPanel(condition = "input.value_filters.indexOf('zeros') >= 0",
                            radioButtons("zero_metric", "Zeros metric", inline = TRUE,
                                         choices = c("Count" = "count", "Percent" = "percent"), selected = "count"),
-                           numericInput("zero_cutoff", label = HTML("Zeros &le; threshold (count or %)"), value = 0, min = 0, step = 1)
+                           numericInput("zero_cutoff", label = HTML("Zeros &lt; threshold (count or %)"), value = 1, min = 0, step = 1)
           ),
           conditionalPanel(condition = "input.value_filters.indexOf('mean') >= 0",
                            numericInput("mean_cutoff", label = HTML("Mean &ge; threshold"), value = 5000, min = 0, step = 100)

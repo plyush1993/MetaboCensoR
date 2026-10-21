@@ -1252,7 +1252,7 @@ keep_by_zeros <- function(ds, feats, mode, labs, zero_metric, zero_cutoff) {
     vec <- vapply(ds_sub[feats], function(x) {
       if (zm == "percent") mean(x == 0, na.rm = TRUE) * 100 else sum(x == 0, na.rm = TRUE)
     }, numeric(1))
-    return(names(vec)[is.finite(vec) & vec <= zcut])
+    return(names(vec)[is.finite(vec) & vec < zcut])
   }
 
   st <- ds %>%
@@ -1264,7 +1264,7 @@ keep_by_zeros <- function(ds, feats, mode, labs, zero_metric, zero_cutoff) {
   if (!nrow(st)) return(character(0))
 
   pred <- if (mode == "group_every") all else any
-  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(.x <= zcut, na.rm = TRUE)))
+  keep_df <- st %>% select(-Label) %>% summarise(across(everything(), ~ pred(.x < zcut, na.rm = TRUE)))
   keep_true_cols(keep_df)
 }
 
@@ -1314,9 +1314,9 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
   keep_df <- st %>%
   select(-Label) %>%
   summarise(across(everything(), ~ {
-    x <- .x[is.finite(.x)]
-    length(x) > 0 && pred(x <= rcut)
-  }))
+  passes <- is.finite(.x) & (.x <= rcut)
+  pred(passes)
+}))
 
   keep_true_cols(keep_df)
 }
