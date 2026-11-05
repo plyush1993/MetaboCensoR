@@ -41,7 +41,7 @@ if (!require("BiocManager", quietly = TRUE)) {
 if (!require("remotes", quietly = TRUE)) {
     install.packages("remotes")
 }
-remotes::install_github("plyush1993/MetaboCensoR", INSTALL_opts = "--no-multiarch")
+remotes::install_github("plyush1993/MetaboCensoR", INSTALL_opts = "--no-multiarch", build_vignettes = T)
 ```
 or
 ```r
