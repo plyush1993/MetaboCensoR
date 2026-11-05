@@ -12,56 +12,56 @@ mc_ms_parameters(...)
 \details{Pass the returned list to \code{mc_filter_ms(parameters = ...)}. Merely creating the list does not change any analysis. All RT tolerances are in minutes. Da and ppm tolerances are alternatives selected separately for each subfilter. Explicit filter names in \code{mc_filter_ms()} override the enable flags.
 
 \describe{
-\item{\code{enable_iso2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{TRUE}.}
-\item{\code{iso_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-\item{\code{iso_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.01}.}
-\item{\code{iso_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-\item{\code{iso_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-\item{\code{iso_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-\item{\code{iso_zmax2}}{Largest charge state searched for isotope shifts; positive integer. Default: \code{3}.}
-\item{\code{iso_n2}}{Largest isotope order k searched, using mass shifts 1.00336 * k / z; positive integer. Default: \code{1}.}
-\item{\code{iso_nd2}}{Number of additional dimer-pattern shifts, 1.00336 * (j + 0.5) for j from 1 to this value. Default: \code{3}.}
-\item{\code{enable_add2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{TRUE}.}
-\item{\code{add_pol2}}{Ionization polarity: positive or negative. This selects definitions for this subfilter only. Default: \code{positive}.}
-\item{\code{add_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-\item{\code{add_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.005}.}
-\item{\code{add_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-\item{\code{add_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-\item{\code{add_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-\item{\code{add_min_nm2}}{Candidate neutral masses must be greater than this value, in Da. Default: \code{50}.}
-\item{\code{add_strict_rt2}}{Limit the total RT spread within an adduct family to add_rt2. Default: \code{TRUE}.}
-\item{\code{enable_nl2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-\item{\code{nl_pol2}}{Ionization polarity: positive or negative. This selects definitions for this subfilter only. Default: \code{positive}.}
-\item{\code{nl_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.95}.}
-\item{\code{nl_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.002}.}
-\item{\code{nl_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-\item{\code{nl_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-\item{\code{nl_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-\item{\code{enable_isf2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-\item{\code{isf_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.95}.}
-\item{\code{isf_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.01}.}
-\item{\code{isf_control_int2}}{Require the mean fragment/precursor intensity ratio to lie within the configured interval. Default: \code{TRUE}.}
-\item{\code{isf_ratio_min2}}{Lower bound on mean fragment intensity divided by mean precursor intensity. Default: \code{0.001}.}
-\item{\code{isf_ratio_max2}}{Upper bound on mean fragment intensity divided by mean precursor intensity. Default: \code{2.5}.}
-\item{\code{isf_ms2_check2}}{Require fragment-mass support in an eligible precursor MS2 spectrum. FALSE uses MS1 evidence only. Default: \code{TRUE}.}
-\item{\code{isf_ms2_rel2}}{Minimum supporting MS2 peak intensity, as a percentage of that spectrum's base peak. Default: \code{1}.}
-\item{\code{isf_ms2_mz_tol2}}{Absolute tolerance in Da when matching a candidate ISF m/z to an MS2 peak. Default: \code{0.01}.}
-\item{\code{isf_mgf_id_field}}{Spectrum metadata field matched to feature identifiers. Default: \code{acquisitionNum}.}
-\item{\code{enable_mis2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-\item{\code{mis_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-\item{\code{mis_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.002}.}
-\item{\code{mis_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{ppm}.}
-\item{\code{mis_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-\item{\code{mis_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-\item{\code{enable_ring2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-\item{\code{ring_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-\item{\code{ring_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.05}.}
-\item{\code{ring_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-\item{\code{ring_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.95}.}
-\item{\code{ring_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{500}.}
-\item{\code{ring_min_anch2}}{Minimum mean intensity required for a ringing-artifact anchor. Default: \code{1e+05}.}
-\item{\code{ring_ratio2}}{Minimum anchor/artifact mean-intensity fold ratio; must be at least 1. Default: \code{10}.}
-\item{\code{ring_bidirectional2}}{TRUE searches both sides of the anchor m/z; FALSE restricts the artifact search to higher m/z. Default: \code{FALSE}.}
+\item{\code{enable_iso2}}{Enable isotope filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "isotopes" to select isotope filtering explicitly. Default: \code{TRUE}.}
+\item{\code{iso_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of a candidate isotope and its parent feature. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+\item{\code{iso_rt2}}{Maximum retention-time difference, in minutes, between a candidate isotope and its parent feature. Default: \code{0.01}.}
+\item{\code{iso_tol_type2}}{Mass-tolerance unit for isotope matching: "da" uses iso_mz_tol2; "ppm" uses iso_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+\item{\code{iso_mz_tol2}}{Absolute mass tolerance in Da for isotope matching. Used only when iso_tol_type2 = "da". Default: \code{0.005}.}
+\item{\code{iso_ppm2}}{Relative mass tolerance in ppm for isotope matching. Used only when iso_tol_type2 = "ppm". Default: \code{10}.}
+\item{\code{iso_zmax2}}{Maximum charge state searched for isotope relationships. For example, 3 searches charge states 1, 2 and 3. Default: \code{3}.}
+\item{\code{iso_n2}}{Maximum isotope order k searched. Expected isotope spacing is 1.00336 * k / z Da, for orders 1 through iso_n2 and charges 1 through iso_zmax2. Default: \code{1}.}
+\item{\code{iso_nd2}}{Number of additional dimer-pattern isotope shifts searched: 1.00336 * (j + 0.5) Da for j from 1 through iso_nd2. Default: \code{3}.}
+\item{\code{enable_add2}}{Enable adduct filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "adducts" to select adduct filtering explicitly. Default: \code{TRUE}.}
+\item{\code{add_pol2}}{Ionization polarity used to select adduct definitions: "positive" or "negative". Set nl_pol2 separately if neutral-loss filtering is also used. Default: \code{positive}.}
+\item{\code{add_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to belong to the same adduct family. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+\item{\code{add_rt2}}{Maximum retention-time difference, in minutes, between features proposed to belong to the same adduct family. Default: \code{0.005}.}
+\item{\code{add_tol_type2}}{Mass-tolerance unit for adduct matching: "da" uses add_mz_tol2; "ppm" uses add_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+\item{\code{add_mz_tol2}}{Absolute mass tolerance in Da for adduct matching. Used only when add_tol_type2 = "da". Default: \code{0.005}.}
+\item{\code{add_ppm2}}{Relative mass tolerance in ppm for adduct matching. Used only when add_tol_type2 = "ppm". Default: \code{10}.}
+\item{\code{add_min_nm2}}{Minimum candidate neutral mass in Da for adduct annotation. Candidate neutral masses must be strictly greater than this threshold. Default: \code{50}.}
+\item{\code{add_strict_rt2}}{If TRUE, restrict the total retention-time spread of an adduct family to add_rt2 minutes, in addition to pairwise matching. Default: \code{TRUE}.}
+\item{\code{enable_nl2}}{Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "neutral_losses" to select neutral-loss filtering explicitly. Default: \code{FALSE}.}
+\item{\code{nl_pol2}}{Ionization polarity used to select neutral-loss definitions: "positive" or "negative". Set add_pol2 separately if adduct filtering is also used. Default: \code{positive}.}
+\item{\code{nl_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to differ by a listed neutral loss. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.95}.}
+\item{\code{nl_rt2}}{Maximum retention-time difference, in minutes, between features proposed to differ by a listed neutral loss. Default: \code{0.002}.}
+\item{\code{nl_tol_type2}}{Mass-tolerance unit for neutral-loss matching: "da" uses nl_mz_tol2; "ppm" uses nl_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+\item{\code{nl_mz_tol2}}{Absolute mass tolerance in Da for neutral-loss matching. Used only when nl_tol_type2 = "da". Default: \code{0.005}.}
+\item{\code{nl_ppm2}}{Relative mass tolerance in ppm for neutral-loss matching. Used only when nl_tol_type2 = "ppm". Default: \code{10}.}
+\item{\code{enable_isf2}}{Enable in-source fragment filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "isf" to select in-source fragment filtering explicitly. Default: \code{FALSE}.}
+\item{\code{isf_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of a candidate in-source fragment and its precursor feature. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.95}.}
+\item{\code{isf_rt2}}{Maximum retention-time difference, in minutes, between a candidate in-source fragment and its precursor feature. Default: \code{0.01}.}
+\item{\code{isf_control_int2}}{If TRUE, require the mean fragment/precursor intensity ratio to fall between isf_ratio_min2 and isf_ratio_max2. If FALSE, omit this intensity-ratio condition. Default: \code{TRUE}.}
+\item{\code{isf_ratio_min2}}{Lower allowed ratio of mean candidate fragment intensity to mean precursor intensity. Used when isf_control_int2 = TRUE. Default: \code{0.001}.}
+\item{\code{isf_ratio_max2}}{Upper allowed ratio of mean candidate fragment intensity to mean precursor intensity. Used when isf_control_int2 = TRUE. Default: \code{2.5}.}
+\item{\code{isf_ms2_check2}}{If TRUE, require the candidate fragment m/z in an eligible MS2 spectrum of the precursor; supply spectra to mc_filter_ms(). Support in any eligible spectrum is sufficient. FALSE uses MS1 evidence only. Default: \code{TRUE}.}
+\item{\code{isf_ms2_rel2}}{Minimum intensity of a supporting MS2 peak, expressed as a percentage of that spectrum's base peak. For example, 1 means 1 percent. Used when isf_ms2_check2 = TRUE. Default: \code{1}.}
+\item{\code{isf_ms2_mz_tol2}}{Absolute tolerance in Da between the candidate in-source fragment m/z and a supporting MS2 peak. Used when isf_ms2_check2 = TRUE. Default: \code{0.01}.}
+\item{\code{isf_mgf_id_field}}{Spectrum metadata field used to match MGF spectra to precursor feature IDs for in-source fragment checking; typically "acquisitionNum". Default: \code{acquisitionNum}.}
+\item{\code{enable_mis2}}{Enable mispicked-ion filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "mispicked" to select mispicked-ion filtering explicitly. Default: \code{FALSE}.}
+\item{\code{mis_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to be duplicate peak detections. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+\item{\code{mis_rt2}}{Maximum retention-time difference, in minutes, between features proposed to be duplicate peak detections. Default: \code{0.002}.}
+\item{\code{mis_tol_type2}}{Mass-tolerance unit for mispicked-ion matching: "da" uses mis_mz_tol2; "ppm" uses mis_ppm2. Only the selected tolerance is used. Default: \code{ppm}.}
+\item{\code{mis_mz_tol2}}{Absolute mass tolerance in Da for mispicked-ion matching. Used only when mis_tol_type2 = "da". Default: \code{0.005}.}
+\item{\code{mis_ppm2}}{Relative mass tolerance in ppm for mispicked-ion matching. Used only when mis_tol_type2 = "ppm". Default: \code{10}.}
+\item{\code{enable_ring2}}{Enable ringing/saturated-ion filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "ringing" to select ringing/saturated-ion filtering explicitly. Default: \code{FALSE}.}
+\item{\code{ring_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of a candidate ringing artifact and its high-intensity anchor. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+\item{\code{ring_rt2}}{Maximum retention-time difference, in minutes, between a candidate ringing artifact and its high-intensity anchor. Default: \code{0.05}.}
+\item{\code{ring_tol_type2}}{Mass-tolerance unit for ringing/saturated-ion matching: "da" uses ring_mz_tol2; "ppm" uses ring_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+\item{\code{ring_mz_tol2}}{Absolute mass tolerance in Da for ringing/saturated-ion matching. Used only when ring_tol_type2 = "da". Default: \code{0.95}.}
+\item{\code{ring_ppm2}}{Relative mass tolerance in ppm for ringing/saturated-ion matching. Used only when ring_tol_type2 = "ppm". Default: \code{500}.}
+\item{\code{ring_min_anch2}}{Minimum mean sample intensity for a feature to act as the high-intensity anchor in ringing/saturated-ion filtering. Default: \code{1e+05}.}
+\item{\code{ring_ratio2}}{Minimum ratio of anchor mean intensity to candidate artifact mean intensity in ringing/saturated-ion filtering. For example, 10 requires the anchor to be at least ten times as intense; must be at least 1. Default: \code{10}.}
+\item{\code{ring_bidirectional2}}{If TRUE, search for ringing artifacts below and above the anchor m/z. If FALSE, search only above the anchor m/z. Default: \code{FALSE}.}
 }}
 \value{A named list containing every MS parameter, including unchanged defaults.}
 \seealso{\code{\link{mc_filter_ms}}, \code{\link{mc_read_mgf}}}

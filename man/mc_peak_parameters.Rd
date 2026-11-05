@@ -12,28 +12,28 @@ mc_peak_parameters(...)
 \details{Bounds have an effect only when their corresponding filter is selected. No peak filters are selected by default. Pass the returned list to \code{mc_filter_peak(parameters = ...)}.
 
 \describe{
-\item{\code{peak_filters}}{Selected filters: mz, rt, rmd, amd, target. Empty by default. Default: \code{character(0)}.}
-\item{\code{mz_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-\item{\code{mz_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{FALSE}.}
-\item{\code{peak_mz_min}}{Inclusive lower bound in m/z units. Default: \code{200}.}
-\item{\code{peak_mz_max}}{Inclusive upper bound in m/z units. Default: \code{1500}.}
-\item{\code{rt_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-\item{\code{rt_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{FALSE}.}
-\item{\code{peak_rt_min}}{Inclusive lower bound in minutes. Default: \code{1}.}
-\item{\code{peak_rt_max}}{Inclusive upper bound in minutes. Default: \code{30}.}
-\item{\code{rmd_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-\item{\code{rmd_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-\item{\code{peak_rmd_min}}{Inclusive lower bound in ppm. Default: \code{-2000}.}
-\item{\code{peak_rmd_max}}{Inclusive upper bound in ppm. Default: \code{2000}.}
-\item{\code{amd_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-\item{\code{amd_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-\item{\code{peak_amd_min}}{Inclusive lower bound in Da. Default: \code{0}.}
-\item{\code{peak_amd_max}}{Inclusive upper bound in Da. Default: \code{0.5}.}
-\item{\code{target_peak_action}}{remove deletes matching features; keep retains only matching features. Default: \code{remove}.}
-\item{\code{target_mz_tol_type}}{Mass-tolerance unit for targets: da or ppm. Default: \code{da}.}
-\item{\code{target_mz_tol_da}}{Absolute target m/z tolerance in Da; active when target_mz_tol_type is da. Default: \code{0.005}.}
-\item{\code{target_mz_tol_ppm}}{Relative target m/z tolerance in ppm; active when target_mz_tol_type is ppm. Default: \code{10}.}
-\item{\code{target_rt_tol}}{Target retention-time tolerance in minutes. Default: \code{0.05}.}
+\item{\code{peak_filters}}{Peak filters enabled when mc_filter_peak(filters = NULL): "mz", "rt", "rmd", "amd" and/or "target". An empty vector selects none. An explicit filters vector overrides this setting. Default: \code{character(0)}.}
+\item{\code{mz_min_enable}}{Enable the lower m/z limit, peak_mz_min, when the "mz" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+\item{\code{mz_max_enable}}{Enable the upper m/z limit, peak_mz_max, when the "mz" peak filter is selected. FALSE disables this bound only. Default: \code{FALSE}.}
+\item{\code{peak_mz_min}}{Lower m/z limit in m/z units. Keep values greater than or equal to this limit when mz_min_enable = TRUE and the "mz" filter is selected. Default: \code{200}.}
+\item{\code{peak_mz_max}}{Upper m/z limit in m/z units. Keep values less than or equal to this limit when mz_max_enable = TRUE and the "mz" filter is selected. Default: \code{1500}.}
+\item{\code{rt_min_enable}}{Enable the lower retention time limit, peak_rt_min, when the "rt" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+\item{\code{rt_max_enable}}{Enable the upper retention time limit, peak_rt_max, when the "rt" peak filter is selected. FALSE disables this bound only. Default: \code{FALSE}.}
+\item{\code{peak_rt_min}}{Lower retention time limit in minutes. Keep values greater than or equal to this limit when rt_min_enable = TRUE and the "rt" filter is selected. Default: \code{1}.}
+\item{\code{peak_rt_max}}{Upper retention time limit in minutes. Keep values less than or equal to this limit when rt_max_enable = TRUE and the "rt" filter is selected. Default: \code{30}.}
+\item{\code{rmd_min_enable}}{Enable the lower relative mass defect (RMD) limit, peak_rmd_min, when the "rmd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+\item{\code{rmd_max_enable}}{Enable the upper relative mass defect (RMD) limit, peak_rmd_max, when the "rmd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+\item{\code{peak_rmd_min}}{Lower relative mass defect (RMD) limit in ppm. Keep values greater than or equal to this limit when rmd_min_enable = TRUE and the "rmd" filter is selected. Default: \code{-2000}.}
+\item{\code{peak_rmd_max}}{Upper relative mass defect (RMD) limit in ppm. Keep values less than or equal to this limit when rmd_max_enable = TRUE and the "rmd" filter is selected. Default: \code{2000}.}
+\item{\code{amd_min_enable}}{Enable the lower absolute mass defect (AMD) limit, peak_amd_min, when the "amd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+\item{\code{amd_max_enable}}{Enable the upper absolute mass defect (AMD) limit, peak_amd_max, when the "amd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+\item{\code{peak_amd_min}}{Lower absolute mass defect (AMD) limit in Da. Keep values greater than or equal to this limit when amd_min_enable = TRUE and the "amd" filter is selected. Default: \code{0}.}
+\item{\code{peak_amd_max}}{Upper absolute mass defect (AMD) limit in Da. Keep values less than or equal to this limit when amd_max_enable = TRUE and the "amd" filter is selected. Default: \code{0.5}.}
+\item{\code{target_peak_action}}{Action for features matching a target by both m/z and retention time: "remove" discards matches; "keep" retains only matches. Used when the "target" peak filter is selected. Default: \code{remove}.}
+\item{\code{target_mz_tol_type}}{Mass-tolerance unit for target matching: "da" uses target_mz_tol_da; "ppm" uses target_mz_tol_ppm. Default: \code{da}.}
+\item{\code{target_mz_tol_da}}{Absolute m/z tolerance in Da for matching features to targets. Used only when target_mz_tol_type = "da". Default: \code{0.005}.}
+\item{\code{target_mz_tol_ppm}}{Relative m/z tolerance in ppm for matching features to targets. Used only when target_mz_tol_type = "ppm". Default: \code{10}.}
+\item{\code{target_rt_tol}}{Maximum retention-time difference in minutes between a feature and a target. Both the m/z and retention-time conditions must pass for a target match. Default: \code{0.05}.}
 }}
 \value{A named list containing every peak-filter parameter, including unchanged defaults.}
 \seealso{\code{\link{mc_filter_peak}}, \code{\link{mc_plot_peak}}}
