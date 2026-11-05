@@ -58,6 +58,7 @@
 
 #' Extract sample groups from column names
 #'
+#' @noMd
 #' @description Split each sample name at a chosen separator and use one part as its group label.
 #' @param sample_names Character vector of sample-column names, in the required output order.
 #' @param separator Literal separator, not a regular expression. Default: \code{"_"}.
@@ -66,30 +67,23 @@
 #' @return A character vector named by \code{sample_names}, in the same order.
 #' @seealso \code{\link{mc_labels_from_metadata}}, \code{\link{mc_labels_from_csv}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' # In Orbi names, token 2 is polarity (P), not Blank/Sample group.
-#' # Use mc_labels_from_metadata() for the biological/blank grouping.
-#' head(imported$sample_cols)
-#' name_labels <- mc_labels_from_names(
+#' # The bundled names are Orbi_Blank_A..., Orbi_Sample_A..., etc.
+#' imported$labels <- mc_labels_from_names(
 #'   imported$sample_cols, separator = "_", token = 2
 #' )
-#' data.frame(sample = names(name_labels), group = unname(name_labels))
-#' # Assign only after checking that these are your intended groups:
-#' # imported$labels <- name_labels
-#' }
+#' data.frame(
+#'   sample = names(imported$labels),
+#'   group = unname(imported$labels)
+#' )
+#'
 #' @export
 mc_labels_from_names <- function(sample_names, separator = "_", token = 2) {
   .mcs_scalar(token, "token", 1)
@@ -100,6 +94,7 @@ mc_labels_from_names <- function(sample_names, separator = "_", token = 2) {
 
 #' Match sample groups from a metadata CSV
 #'
+#' @noMd
 #' @description Read sample names and groups from two metadata columns and align the group labels to the peak-table sample order.
 #' @param path Local metadata CSV filename. The first row must contain column names. Download remote files before calling this function.
 #' @param sample_names Sample-column names to match, in the required output order.
@@ -111,28 +106,24 @@ mc_labels_from_names <- function(sample_names, separator = "_", token = 2) {
 #' @return A character vector named by \code{sample_names}, aligned to that order regardless of metadata row order.
 #' @seealso \code{\link{mc_prepare}}, \code{\link{mc_labels_from_csv}}, \code{\link{mc_labels_from_names}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
 #' )
 #' table(imported$labels)
-#' }
+#'
 #' @export
 mc_labels_from_metadata <- function(path, sample_names, sample_col, label_col,
                                     clean_names = FALSE, remove_suffixes = NULL) {
@@ -145,6 +136,7 @@ mc_labels_from_metadata <- function(path, sample_names, sample_col, label_col,
 
 #' Read sample groups from an ordered label CSV
 #'
+#' @noMd
 #' @description Read a headerless CSV containing one sample-group label per row.
 #' @param path Filename of a comma-separated, headerless label file. The first column is read as the label vector.
 #' @param sample_names Sample-column names in the same order as the labels in the file.
@@ -152,27 +144,21 @@ mc_labels_from_metadata <- function(path, sample_names, sample_col, label_col,
 #' @return A character vector named by \code{sample_names}.
 #' @seealso \code{\link{mc_labels_from_metadata}}, \code{\link{mc_prepare}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' label_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "Label.csv"), label_file, mode = "wb")
+#' label_file <- system.file(
+#'   "extdata", "Label.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_csv(label_file, imported$sample_cols)
 #' table(imported$labels)
-#' # Label.csv uses lowercase labels: blank and sample.
-#' # For blank filtering with these labels, use groups = "blank".
-#' }
+#'
 #' @export
 mc_labels_from_csv <- function(path, sample_names) {
   dat <- vroom::vroom(path, col_names = FALSE, delim = ",", show_col_types = FALSE)
@@ -184,61 +170,62 @@ mc_labels_from_csv <- function(path, sample_names) {
 
 #' Set tolerances and switches for MS filtering
 #'
+#' @noMd
 #' @description Create a complete named list of MS-filter settings, replacing selected defaults with your named arguments.
 #' @param ... Named settings to replace. Supported names, meanings, units, and defaults are listed below. Unknown names raise an error.
 #' @details Pass the returned list to \code{mc_filter_ms(parameters = ...)}. Merely creating the list does not change any analysis. All RT tolerances are in minutes. Da and ppm tolerances are alternatives selected separately for each subfilter. Explicit filter names in \code{mc_filter_ms()} override the enable flags.
 #'
 #' \describe{
-#' \item{\code{enable_iso2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{TRUE}.}
-#' \item{\code{iso_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-#' \item{\code{iso_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.01}.}
-#' \item{\code{iso_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-#' \item{\code{iso_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-#' \item{\code{iso_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-#' \item{\code{iso_zmax2}}{Largest charge state searched for isotope shifts; positive integer. Default: \code{3}.}
-#' \item{\code{iso_n2}}{Largest isotope order k searched, using mass shifts 1.00336 * k / z; positive integer. Default: \code{1}.}
-#' \item{\code{iso_nd2}}{Number of additional dimer-pattern shifts, 1.00336 * (j + 0.5) for j from 1 to this value. Default: \code{3}.}
-#' \item{\code{enable_add2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{TRUE}.}
-#' \item{\code{add_pol2}}{Ionization polarity: positive or negative. This selects definitions for this subfilter only. Default: \code{positive}.}
-#' \item{\code{add_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-#' \item{\code{add_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.005}.}
-#' \item{\code{add_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-#' \item{\code{add_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-#' \item{\code{add_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-#' \item{\code{add_min_nm2}}{Candidate neutral masses must be greater than this value, in Da. Default: \code{50}.}
-#' \item{\code{add_strict_rt2}}{Limit the total RT spread within an adduct family to add_rt2. Default: \code{TRUE}.}
-#' \item{\code{enable_nl2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-#' \item{\code{nl_pol2}}{Ionization polarity: positive or negative. This selects definitions for this subfilter only. Default: \code{positive}.}
-#' \item{\code{nl_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.95}.}
-#' \item{\code{nl_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.002}.}
-#' \item{\code{nl_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-#' \item{\code{nl_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-#' \item{\code{nl_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-#' \item{\code{enable_isf2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-#' \item{\code{isf_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.95}.}
-#' \item{\code{isf_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.01}.}
-#' \item{\code{isf_control_int2}}{Require the mean fragment/precursor intensity ratio to lie within the configured interval. Default: \code{TRUE}.}
-#' \item{\code{isf_ratio_min2}}{Lower bound on mean fragment intensity divided by mean precursor intensity. Default: \code{0.001}.}
-#' \item{\code{isf_ratio_max2}}{Upper bound on mean fragment intensity divided by mean precursor intensity. Default: \code{2.5}.}
-#' \item{\code{isf_ms2_check2}}{Require fragment-mass support in an eligible precursor MS2 spectrum. FALSE uses MS1 evidence only. Default: \code{TRUE}.}
-#' \item{\code{isf_ms2_rel2}}{Minimum supporting MS2 peak intensity, as a percentage of that spectrum's base peak. Default: \code{1}.}
-#' \item{\code{isf_ms2_mz_tol2}}{Absolute tolerance in Da when matching a candidate ISF m/z to an MS2 peak. Default: \code{0.01}.}
-#' \item{\code{isf_mgf_id_field}}{Spectrum metadata field matched to feature identifiers. Default: \code{acquisitionNum}.}
-#' \item{\code{enable_mis2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-#' \item{\code{mis_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-#' \item{\code{mis_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.002}.}
-#' \item{\code{mis_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{ppm}.}
-#' \item{\code{mis_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.005}.}
-#' \item{\code{mis_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{10}.}
-#' \item{\code{enable_ring2}}{Enable this MS subfilter when mc_filter_ms(filters = NULL) is used. Default: \code{FALSE}.}
-#' \item{\code{ring_cor2}}{Minimum Pearson correlation across sample intensities, from 0 to 1. Default: \code{0.8}.}
-#' \item{\code{ring_rt2}}{Maximum retention-time difference in minutes. Default: \code{0.05}.}
-#' \item{\code{ring_tol_type2}}{Mass-tolerance unit: da selects the absolute tolerance; ppm selects the relative tolerance. Default: \code{da}.}
-#' \item{\code{ring_mz_tol2}}{Absolute m/z tolerance in Da; used only when the corresponding tolerance type is da. Default: \code{0.95}.}
-#' \item{\code{ring_ppm2}}{Relative m/z tolerance in ppm; used only when the corresponding tolerance type is ppm. Default: \code{500}.}
-#' \item{\code{ring_min_anch2}}{Minimum mean intensity required for a ringing-artifact anchor. Default: \code{1e+05}.}
-#' \item{\code{ring_ratio2}}{Minimum anchor/artifact mean-intensity fold ratio; must be at least 1. Default: \code{10}.}
-#' \item{\code{ring_bidirectional2}}{TRUE searches both sides of the anchor m/z; FALSE restricts the artifact search to higher m/z. Default: \code{FALSE}.}
+#' \item{\code{enable_iso2}}{Enable isotope filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "isotopes" to select isotope filtering explicitly. Default: \code{TRUE}.}
+#' \item{\code{iso_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of a candidate isotope and its parent feature. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+#' \item{\code{iso_rt2}}{Maximum retention-time difference, in minutes, between a candidate isotope and its parent feature. Default: \code{0.01}.}
+#' \item{\code{iso_tol_type2}}{Mass-tolerance unit for isotope matching: "da" uses iso_mz_tol2; "ppm" uses iso_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+#' \item{\code{iso_mz_tol2}}{Absolute mass tolerance in Da for isotope matching. Used only when iso_tol_type2 = "da". Default: \code{0.005}.}
+#' \item{\code{iso_ppm2}}{Relative mass tolerance in ppm for isotope matching. Used only when iso_tol_type2 = "ppm". Default: \code{10}.}
+#' \item{\code{iso_zmax2}}{Maximum charge state searched for isotope relationships. For example, 3 searches charge states 1, 2 and 3. Default: \code{3}.}
+#' \item{\code{iso_n2}}{Maximum isotope order k searched. Expected isotope spacing is 1.00336 * k / z Da, for orders 1 through iso_n2 and charges 1 through iso_zmax2. Default: \code{1}.}
+#' \item{\code{iso_nd2}}{Number of additional dimer-pattern isotope shifts searched: 1.00336 * (j + 0.5) Da for j from 1 through iso_nd2. Default: \code{3}.}
+#' \item{\code{enable_add2}}{Enable adduct filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "adducts" to select adduct filtering explicitly. Default: \code{TRUE}.}
+#' \item{\code{add_pol2}}{Ionization polarity used to select adduct definitions: "positive" or "negative". Set nl_pol2 separately if neutral-loss filtering is also used. Default: \code{positive}.}
+#' \item{\code{add_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to belong to the same adduct family. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+#' \item{\code{add_rt2}}{Maximum retention-time difference, in minutes, between features proposed to belong to the same adduct family. Default: \code{0.005}.}
+#' \item{\code{add_tol_type2}}{Mass-tolerance unit for adduct matching: "da" uses add_mz_tol2; "ppm" uses add_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+#' \item{\code{add_mz_tol2}}{Absolute mass tolerance in Da for adduct matching. Used only when add_tol_type2 = "da". Default: \code{0.005}.}
+#' \item{\code{add_ppm2}}{Relative mass tolerance in ppm for adduct matching. Used only when add_tol_type2 = "ppm". Default: \code{10}.}
+#' \item{\code{add_min_nm2}}{Minimum candidate neutral mass in Da for adduct annotation. Candidate neutral masses must be strictly greater than this threshold. Default: \code{50}.}
+#' \item{\code{add_strict_rt2}}{If TRUE, restrict the total retention-time spread of an adduct family to add_rt2 minutes, in addition to pairwise matching. Default: \code{TRUE}.}
+#' \item{\code{enable_nl2}}{Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "neutral_losses" to select neutral-loss filtering explicitly. Default: \code{FALSE}.}
+#' \item{\code{nl_pol2}}{Ionization polarity used to select neutral-loss definitions: "positive" or "negative". Set add_pol2 separately if adduct filtering is also used. Default: \code{positive}.}
+#' \item{\code{nl_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to differ by a listed neutral loss. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.95}.}
+#' \item{\code{nl_rt2}}{Maximum retention-time difference, in minutes, between features proposed to differ by a listed neutral loss. Default: \code{0.002}.}
+#' \item{\code{nl_tol_type2}}{Mass-tolerance unit for neutral-loss matching: "da" uses nl_mz_tol2; "ppm" uses nl_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+#' \item{\code{nl_mz_tol2}}{Absolute mass tolerance in Da for neutral-loss matching. Used only when nl_tol_type2 = "da". Default: \code{0.005}.}
+#' \item{\code{nl_ppm2}}{Relative mass tolerance in ppm for neutral-loss matching. Used only when nl_tol_type2 = "ppm". Default: \code{10}.}
+#' \item{\code{enable_isf2}}{Enable in-source fragment filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "isf" to select in-source fragment filtering explicitly. Default: \code{FALSE}.}
+#' \item{\code{isf_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of a candidate in-source fragment and its precursor feature. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.95}.}
+#' \item{\code{isf_rt2}}{Maximum retention-time difference, in minutes, between a candidate in-source fragment and its precursor feature. Default: \code{0.01}.}
+#' \item{\code{isf_control_int2}}{If TRUE, require the mean fragment/precursor intensity ratio to fall between isf_ratio_min2 and isf_ratio_max2. If FALSE, omit this intensity-ratio condition. Default: \code{TRUE}.}
+#' \item{\code{isf_ratio_min2}}{Lower allowed ratio of mean candidate fragment intensity to mean precursor intensity. Used when isf_control_int2 = TRUE. Default: \code{0.001}.}
+#' \item{\code{isf_ratio_max2}}{Upper allowed ratio of mean candidate fragment intensity to mean precursor intensity. Used when isf_control_int2 = TRUE. Default: \code{2.5}.}
+#' \item{\code{isf_ms2_check2}}{If TRUE, require the candidate fragment m/z in an eligible MS2 spectrum of the precursor; supply spectra to mc_filter_ms(). Support in any eligible spectrum is sufficient. FALSE uses MS1 evidence only. Default: \code{TRUE}.}
+#' \item{\code{isf_ms2_rel2}}{Minimum intensity of a supporting MS2 peak, expressed as a percentage of that spectrum's base peak. For example, 1 means 1 percent. Used when isf_ms2_check2 = TRUE. Default: \code{1}.}
+#' \item{\code{isf_ms2_mz_tol2}}{Absolute tolerance in Da between the candidate in-source fragment m/z and a supporting MS2 peak. Used when isf_ms2_check2 = TRUE. Default: \code{0.01}.}
+#' \item{\code{isf_mgf_id_field}}{Spectrum metadata field used to match MGF spectra to precursor feature IDs for in-source fragment checking; typically "acquisitionNum". Default: \code{acquisitionNum}.}
+#' \item{\code{enable_mis2}}{Enable mispicked-ion filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "mispicked" to select mispicked-ion filtering explicitly. Default: \code{FALSE}.}
+#' \item{\code{mis_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to be duplicate peak detections. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+#' \item{\code{mis_rt2}}{Maximum retention-time difference, in minutes, between features proposed to be duplicate peak detections. Default: \code{0.002}.}
+#' \item{\code{mis_tol_type2}}{Mass-tolerance unit for mispicked-ion matching: "da" uses mis_mz_tol2; "ppm" uses mis_ppm2. Only the selected tolerance is used. Default: \code{ppm}.}
+#' \item{\code{mis_mz_tol2}}{Absolute mass tolerance in Da for mispicked-ion matching. Used only when mis_tol_type2 = "da". Default: \code{0.005}.}
+#' \item{\code{mis_ppm2}}{Relative mass tolerance in ppm for mispicked-ion matching. Used only when mis_tol_type2 = "ppm". Default: \code{10}.}
+#' \item{\code{enable_ring2}}{Enable ringing/saturated-ion filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "ringing" to select ringing/saturated-ion filtering explicitly. Default: \code{FALSE}.}
+#' \item{\code{ring_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of a candidate ringing artifact and its high-intensity anchor. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.8}.}
+#' \item{\code{ring_rt2}}{Maximum retention-time difference, in minutes, between a candidate ringing artifact and its high-intensity anchor. Default: \code{0.05}.}
+#' \item{\code{ring_tol_type2}}{Mass-tolerance unit for ringing/saturated-ion matching: "da" uses ring_mz_tol2; "ppm" uses ring_ppm2. Only the selected tolerance is used. Default: \code{da}.}
+#' \item{\code{ring_mz_tol2}}{Absolute mass tolerance in Da for ringing/saturated-ion matching. Used only when ring_tol_type2 = "da". Default: \code{0.95}.}
+#' \item{\code{ring_ppm2}}{Relative mass tolerance in ppm for ringing/saturated-ion matching. Used only when ring_tol_type2 = "ppm". Default: \code{500}.}
+#' \item{\code{ring_min_anch2}}{Minimum mean sample intensity for a feature to act as the high-intensity anchor in ringing/saturated-ion filtering. Default: \code{1e+05}.}
+#' \item{\code{ring_ratio2}}{Minimum ratio of anchor mean intensity to candidate artifact mean intensity in ringing/saturated-ion filtering. For example, 10 requires the anchor to be at least ten times as intense; must be at least 1. Default: \code{10}.}
+#' \item{\code{ring_bidirectional2}}{If TRUE, search for ringing artifacts below and above the anchor m/z. If FALSE, search only above the anchor m/z. Default: \code{FALSE}.}
 #' }
 #' @return A named list containing every MS parameter, including unchanged defaults.
 #' @seealso \code{\link{mc_filter_ms}}, \code{\link{mc_read_mgf}}
@@ -279,33 +266,34 @@ mc_ms_parameters <- function(...) {
 
 #' Set bounds and target tolerances for peak filtering
 #'
+#' @noMd
 #' @description Create a complete named list of peak-filter settings with selected defaults replaced.
 #' @param ... Named settings to replace. Supported names, meanings, units, and defaults are listed below. Unknown names raise an error.
 #' @details Bounds have an effect only when their corresponding filter is selected. No peak filters are selected by default. Pass the returned list to \code{mc_filter_peak(parameters = ...)}.
 #'
 #' \describe{
-#' \item{\code{peak_filters}}{Selected filters: mz, rt, rmd, amd, target. Empty by default. Default: \code{character(0)}.}
-#' \item{\code{mz_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-#' \item{\code{mz_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{FALSE}.}
-#' \item{\code{peak_mz_min}}{Inclusive lower bound in m/z units. Default: \code{200}.}
-#' \item{\code{peak_mz_max}}{Inclusive upper bound in m/z units. Default: \code{1500}.}
-#' \item{\code{rt_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-#' \item{\code{rt_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{FALSE}.}
-#' \item{\code{peak_rt_min}}{Inclusive lower bound in minutes. Default: \code{1}.}
-#' \item{\code{peak_rt_max}}{Inclusive upper bound in minutes. Default: \code{30}.}
-#' \item{\code{rmd_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-#' \item{\code{rmd_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-#' \item{\code{peak_rmd_min}}{Inclusive lower bound in ppm. Default: \code{-2000}.}
-#' \item{\code{peak_rmd_max}}{Inclusive upper bound in ppm. Default: \code{2000}.}
-#' \item{\code{amd_min_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-#' \item{\code{amd_max_enable}}{Apply this lower or upper bound when the corresponding peak filter is selected. Default: \code{TRUE}.}
-#' \item{\code{peak_amd_min}}{Inclusive lower bound in Da. Default: \code{0}.}
-#' \item{\code{peak_amd_max}}{Inclusive upper bound in Da. Default: \code{0.5}.}
-#' \item{\code{target_peak_action}}{remove deletes matching features; keep retains only matching features. Default: \code{remove}.}
-#' \item{\code{target_mz_tol_type}}{Mass-tolerance unit for targets: da or ppm. Default: \code{da}.}
-#' \item{\code{target_mz_tol_da}}{Absolute target m/z tolerance in Da; active when target_mz_tol_type is da. Default: \code{0.005}.}
-#' \item{\code{target_mz_tol_ppm}}{Relative target m/z tolerance in ppm; active when target_mz_tol_type is ppm. Default: \code{10}.}
-#' \item{\code{target_rt_tol}}{Target retention-time tolerance in minutes. Default: \code{0.05}.}
+#' \item{\code{peak_filters}}{Peak filters enabled when mc_filter_peak(filters = NULL): "mz", "rt", "rmd", "amd" and/or "target". An empty vector selects none. An explicit filters vector overrides this setting. Default: \code{character(0)}.}
+#' \item{\code{mz_min_enable}}{Enable the lower m/z limit, peak_mz_min, when the "mz" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+#' \item{\code{mz_max_enable}}{Enable the upper m/z limit, peak_mz_max, when the "mz" peak filter is selected. FALSE disables this bound only. Default: \code{FALSE}.}
+#' \item{\code{peak_mz_min}}{Lower m/z limit in m/z units. Keep values greater than or equal to this limit when mz_min_enable = TRUE and the "mz" filter is selected. Default: \code{200}.}
+#' \item{\code{peak_mz_max}}{Upper m/z limit in m/z units. Keep values less than or equal to this limit when mz_max_enable = TRUE and the "mz" filter is selected. Default: \code{1500}.}
+#' \item{\code{rt_min_enable}}{Enable the lower retention time limit, peak_rt_min, when the "rt" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+#' \item{\code{rt_max_enable}}{Enable the upper retention time limit, peak_rt_max, when the "rt" peak filter is selected. FALSE disables this bound only. Default: \code{FALSE}.}
+#' \item{\code{peak_rt_min}}{Lower retention time limit in minutes. Keep values greater than or equal to this limit when rt_min_enable = TRUE and the "rt" filter is selected. Default: \code{1}.}
+#' \item{\code{peak_rt_max}}{Upper retention time limit in minutes. Keep values less than or equal to this limit when rt_max_enable = TRUE and the "rt" filter is selected. Default: \code{30}.}
+#' \item{\code{rmd_min_enable}}{Enable the lower relative mass defect (RMD) limit, peak_rmd_min, when the "rmd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+#' \item{\code{rmd_max_enable}}{Enable the upper relative mass defect (RMD) limit, peak_rmd_max, when the "rmd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+#' \item{\code{peak_rmd_min}}{Lower relative mass defect (RMD) limit in ppm. Keep values greater than or equal to this limit when rmd_min_enable = TRUE and the "rmd" filter is selected. Default: \code{-2000}.}
+#' \item{\code{peak_rmd_max}}{Upper relative mass defect (RMD) limit in ppm. Keep values less than or equal to this limit when rmd_max_enable = TRUE and the "rmd" filter is selected. Default: \code{2000}.}
+#' \item{\code{amd_min_enable}}{Enable the lower absolute mass defect (AMD) limit, peak_amd_min, when the "amd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+#' \item{\code{amd_max_enable}}{Enable the upper absolute mass defect (AMD) limit, peak_amd_max, when the "amd" peak filter is selected. FALSE disables this bound only. Default: \code{TRUE}.}
+#' \item{\code{peak_amd_min}}{Lower absolute mass defect (AMD) limit in Da. Keep values greater than or equal to this limit when amd_min_enable = TRUE and the "amd" filter is selected. Default: \code{0}.}
+#' \item{\code{peak_amd_max}}{Upper absolute mass defect (AMD) limit in Da. Keep values less than or equal to this limit when amd_max_enable = TRUE and the "amd" filter is selected. Default: \code{0.5}.}
+#' \item{\code{target_peak_action}}{Action for features matching a target by both m/z and retention time: "remove" discards matches; "keep" retains only matches. Used when the "target" peak filter is selected. Default: \code{remove}.}
+#' \item{\code{target_mz_tol_type}}{Mass-tolerance unit for target matching: "da" uses target_mz_tol_da; "ppm" uses target_mz_tol_ppm. Default: \code{da}.}
+#' \item{\code{target_mz_tol_da}}{Absolute m/z tolerance in Da for matching features to targets. Used only when target_mz_tol_type = "da". Default: \code{0.005}.}
+#' \item{\code{target_mz_tol_ppm}}{Relative m/z tolerance in ppm for matching features to targets. Used only when target_mz_tol_type = "ppm". Default: \code{10}.}
+#' \item{\code{target_rt_tol}}{Maximum retention-time difference in minutes between a feature and a target. Both the m/z and retention-time conditions must pass for a target match. Default: \code{0.05}.}
 #' }
 #' @return A named list containing every peak-filter parameter, including unchanged defaults.
 #' @seealso \code{\link{mc_filter_peak}}, \code{\link{mc_plot_peak}}
@@ -332,6 +320,7 @@ mc_peak_parameters <- function(...) {
 
 #' Read mass spectra from an MGF file
 #'
+#' @noMd
 #' @description Import an MGF file as a Spectra object for fragment confirmation or synchronized peak-table and spectral export.
 #' @param path Local MGF filename. Download a remote MGF to a local file before reading it.
 #' @details Requires the Bioconductor packages \pkg{Spectra} and \pkg{MsBackendMgf}. The file is read using the MsBackendMgf backend. Keep the local input file available while using the spectra. Reading does not match spectra to a peak table, merge duplicate feature spectra, or apply feature filters.
@@ -339,15 +328,13 @@ mc_peak_parameters <- function(...) {
 #' @seealso \code{\link{mc_filter_ms}}, \code{\link{mc_filter_mgf}}, \code{\link{mc_export}}
 #' @examples
 #' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
+#' # The peak table and labels are bundled; only MGF requires internet.
+#' mgf_url <- paste0(
 #'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
+#'   "MetaboCensoR_Examples/main/orbi/orbi_iimn_gnps.mgf"
 #' )
 #' mgf_file <- tempfile(fileext = ".mgf")
-#' download.file(
-#'   paste0(base_url, "orbi_iimn_gnps.mgf"), mgf_file, mode = "wb"
-#' )
+#' download.file(mgf_url, mgf_file, mode = "wb")
 #' spectra <- mc_read_mgf(mgf_file)
 #' head(Spectra::spectraData(spectra))
 #' }
@@ -360,6 +347,7 @@ mc_read_mgf <- function(path) {
 
 #' Keep spectra matching retained feature identifiers
 #'
+#' @noMd
 #' @description Subset a Spectra object using the feature IDs in a filtered result or a supplied table.
 #' @param spectra A \code{Spectra} object to subset.
 #' @param table A \code{metabocensor_result} or a data frame identifying the features to retain.
@@ -370,21 +358,19 @@ mc_read_mgf <- function(path) {
 #' @seealso \code{\link{mc_read_mgf}}, \code{\link{mc_write_mgf}}, \code{\link{mc_export}}
 #' @examples
 #' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' # The peak table and labels are bundled; only MGF requires internet.
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -392,10 +378,12 @@ mc_read_mgf <- function(path) {
 #' after_blank <- mc_filter_blank(
 #'   imported, groups = "Blank", mode = "mean_cutoff", cutoff = 0.10
 #' )
-#' mgf_file <- tempfile(fileext = ".mgf")
-#' download.file(
-#'   paste0(base_url, "orbi_iimn_gnps.mgf"), mgf_file, mode = "wb"
+#' mgf_url <- paste0(
+#'   "https://raw.githubusercontent.com/plyush1993/",
+#'   "MetaboCensoR_Examples/main/orbi/orbi_iimn_gnps.mgf"
 #' )
+#' mgf_file <- tempfile(fileext = ".mgf")
+#' download.file(mgf_url, mgf_file, mode = "wb")
 #' spectra <- mc_read_mgf(mgf_file)
 #' filtered_spectra <- mc_filter_mgf(spectra, after_blank)
 #' length(filtered_spectra)
@@ -429,6 +417,7 @@ mc_filter_mgf <- function(spectra, table, match_col = NULL, id_field = "acquisit
 
 #' Write spectra to an MGF file
 #'
+#' @noMd
 #' @description Export a Spectra object to a specified MGF file.
 #' @param spectra A \code{Spectra} object to export.
 #' @param path Output MGF filename, including the desired directory. An existing file may be overwritten.
@@ -437,21 +426,19 @@ mc_filter_mgf <- function(spectra, table, match_col = NULL, id_field = "acquisit
 #' @seealso \code{\link{mc_filter_mgf}}, \code{\link{mc_export}}
 #' @examples
 #' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' # The peak table and labels are bundled; only MGF requires internet.
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -459,10 +446,12 @@ mc_filter_mgf <- function(spectra, table, match_col = NULL, id_field = "acquisit
 #' after_blank <- mc_filter_blank(
 #'   imported, groups = "Blank", mode = "mean_cutoff", cutoff = 0.10
 #' )
-#' mgf_file <- tempfile(fileext = ".mgf")
-#' download.file(
-#'   paste0(base_url, "orbi_iimn_gnps.mgf"), mgf_file, mode = "wb"
+#' mgf_url <- paste0(
+#'   "https://raw.githubusercontent.com/plyush1993/",
+#'   "MetaboCensoR_Examples/main/orbi/orbi_iimn_gnps.mgf"
 #' )
+#' mgf_file <- tempfile(fileext = ".mgf")
+#' download.file(mgf_url, mgf_file, mode = "wb")
 #' spectra <- mc_read_mgf(mgf_file)
 #' filtered_spectra <- mc_filter_mgf(spectra, after_blank)
 #' output_mgf <- file.path(tempdir(), "orbi_blank_filtered.mgf")
@@ -499,6 +488,7 @@ mc_write_mgf <- function(spectra, path) {
 
 #' Remove features associated with blank samples
 #'
+#' @noMd
 #' @description Compare feature intensities in blank and experimental groups, or remove every feature detected in a blank sample. Save the values and decisions for inspection and plotting.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param groups One or more existing group labels identifying blanks, for example \code{"Blank"}. All remaining groups are treated as experimental groups in ratio mode.
@@ -515,22 +505,18 @@ mc_write_mgf <- function(spectra, path) {
 #' \code{blank_tbl} includes every feature entering this step, including removed features. Ratio mode provides \code{Feature}, \code{Blank}, \code{Sample}, \code{Ratio}, \code{Status}, and \code{keep}. Detection mode provides \code{Feature}, \code{Detected}, \code{Status}, and \code{keep}. \code{Feature} corresponds to \code{.FID}; \code{keep} is the filtering decision.
 #' @seealso \code{\link{mc_prepare}}, \code{\link{mc_plot_blank}}, \code{\link{mc_run}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -541,7 +527,7 @@ mc_write_mgf <- function(spectra, path) {
 #' head(after_blank$blank_tbl)
 #' mc_summary(after_blank)
 #' mc_plot_blank(after_blank, interactive = FALSE)
-#' }
+#'
 #' @export
 mc_filter_blank <- function(x,groups,mode=c("mean_cutoff","drop_detected"),cutoff=.10,labels=NULL) {
   Label <- NULL
@@ -580,6 +566,7 @@ mc_filter_blank <- function(x,groups,mode=c("mean_cutoff","drop_detected"),cutof
 
 #' Filter features by reproducibility and signal intensity
 #'
+#' @noMd
 #' @description Calculate zero abundance, mean intensity, relative standard deviation, D-ratio, or minimum intensity for selected sample groups, then retain features that pass every selected metric.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param filters Character vector containing any of \code{"zeros"}, \code{"mean"}, \code{"rsd"}, \code{"dratio"}, and \code{"min"}. The default empty vector removes nothing.
@@ -607,22 +594,18 @@ mc_filter_blank <- function(x,groups,mode=c("mean_cutoff","drop_detected"),cutof
 #' \code{qc_tbl} contains \code{Feature}, \code{Label}, \code{metric}, \code{value}, \code{pass}, and \code{keep} for features entering the step. \code{pass} is the group-level comparison; \code{keep} is the group-aggregated decision for that metric, not the final decision across all metrics. Failures can overlap between metrics, so their counts should not be added.
 #' @seealso \code{\link{mc_plot_qc}}, \code{\link{mc_filter_blank}}, \code{\link{mc_run}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -637,7 +620,7 @@ mc_filter_blank <- function(x,groups,mode=c("mean_cutoff","drop_detected"),cutof
 #' )
 #' head(after_qc$qc_tbl)
 #' mc_plot_qc(after_qc, filters = "rsd", interactive = FALSE)
-#' }
+#'
 #' @export
 mc_filter_qc <- function(x,filters=character(),mode=c("group_any","group_every","pooled"),
   groups=NULL,zero_metric=c("count","percent"),zero_cutoff=1,mean_cutoff=5000,
@@ -677,6 +660,7 @@ mc_filter_qc <- function(x,filters=character(),mode=c("group_any","group_every",
 
 #' Export the filtered peak table and matching spectra
 #'
+#' @noMd
 #' @description Collect the current filtered peak table and optionally retain matching MGF spectra. Write either or both outputs when filenames are supplied.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param csv Optional output CSV filename. NULL returns the table without writing a CSV.
@@ -690,21 +674,19 @@ mc_filter_qc <- function(x,filters=character(),mode=c("group_any","group_every",
 #' @seealso \code{\link{mc_final_table}}, \code{\link{mc_filter_mgf}}, \code{\link{mc_write_table}}
 #' @examples
 #' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' # The peak table and labels are bundled; only MGF requires internet.
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -712,10 +694,12 @@ mc_filter_qc <- function(x,filters=character(),mode=c("group_any","group_every",
 #' after_blank <- mc_filter_blank(
 #'   imported, groups = "Blank", mode = "mean_cutoff", cutoff = 0.10
 #' )
-#' mgf_file <- tempfile(fileext = ".mgf")
-#' download.file(
-#'   paste0(base_url, "orbi_iimn_gnps.mgf"), mgf_file, mode = "wb"
+#' mgf_url <- paste0(
+#'   "https://raw.githubusercontent.com/plyush1993/",
+#'   "MetaboCensoR_Examples/main/orbi/orbi_iimn_gnps.mgf"
 #' )
+#' mgf_file <- tempfile(fileext = ".mgf")
+#' download.file(mgf_url, mgf_file, mode = "wb")
 #' spectra <- mc_read_mgf(mgf_file)
 #' ms_options <- mc_ms_parameters(
 #'   iso_rt2 = 0.01, iso_cor2 = 0.80,
@@ -727,13 +711,9 @@ mc_filter_qc <- function(x,filters=character(),mode=c("group_any","group_every",
 #'   isf_ms2_check2 = TRUE, isf_mgf_id_field = "acquisitionNum",
 #'   isf_ms2_mz_tol2 = 0.01, isf_ms2_rel2 = 1
 #' )
-#' adduct_table <- read.csv(
-#'   paste0(base_url, "adducts%20%28nontarget%20%2B%202xH2O%29.csv"),
-#'   check.names = FALSE
-#' )
 #' after_ms <- mc_filter_ms(
 #'   after_blank, filters = c("isotopes", "adducts", "isf"),
-#'   parameters = ms_options, adducts = adduct_table, spectra = spectra
+#'   parameters = ms_options, spectra = spectra
 #' )
 #' output <- mc_export(
 #'   after_ms,
@@ -767,6 +747,7 @@ mc_export <- function(x,csv=NULL,mgf=NULL,mgf_file=NULL,id_field="acquisitionNum
 
 #' Run several filtering stages in one call
 #'
+#' @noMd
 #' @description Apply selected filtering stages in the fixed order blank, MS, QC, and peak filtering.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param blank \code{NULL} to skip blank filtering, or a named list of arguments to \code{mc_filter_blank()} other than x.
@@ -778,29 +759,29 @@ mc_export <- function(x,csv=NULL,mgf=NULL,mgf_file=NULL,id_field="acquisitionNum
 #' @seealso \code{\link{mc_filter_blank}}, \code{\link{mc_filter_ms}}, \code{\link{mc_filter_qc}}, \code{\link{mc_filter_peak}}, \code{\link{mc_export}}
 #' @examples
 #' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' # The peak table and labels are bundled; only MGF requires internet.
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
 #' )
-#' mgf_file <- tempfile(fileext = ".mgf")
-#' download.file(
-#'   paste0(base_url, "orbi_iimn_gnps.mgf"), mgf_file, mode = "wb"
+#' mgf_url <- paste0(
+#'   "https://raw.githubusercontent.com/plyush1993/",
+#'   "MetaboCensoR_Examples/main/orbi/orbi_iimn_gnps.mgf"
 #' )
+#' mgf_file <- tempfile(fileext = ".mgf")
+#' download.file(mgf_url, mgf_file, mode = "wb")
 #' spectra <- mc_read_mgf(mgf_file)
 #' ms_options <- mc_ms_parameters(
 #'   iso_rt2 = 0.01, iso_cor2 = 0.80,
@@ -812,16 +793,12 @@ mc_export <- function(x,csv=NULL,mgf=NULL,mgf_file=NULL,id_field="acquisitionNum
 #'   isf_ms2_check2 = TRUE, isf_mgf_id_field = "acquisitionNum",
 #'   isf_ms2_mz_tol2 = 0.01, isf_ms2_rel2 = 1
 #' )
-#' adduct_table <- read.csv(
-#'   paste0(base_url, "adducts%20%28nontarget%20%2B%202xH2O%29.csv"),
-#'   check.names = FALSE
-#' )
 #' after_run <- mc_run(
 #'   imported,
 #'   blank = list(groups = "Blank", mode = "mean_cutoff", cutoff = 0.10),
 #'   ms = list(
 #'     filters = c("isotopes", "adducts", "isf"),
-#'     parameters = ms_options, adducts = adduct_table, spectra = spectra
+#'     parameters = ms_options, spectra = spectra
 #'   ),
 #'   qc = NULL,
 #'   peak = NULL
@@ -838,28 +815,25 @@ mc_run <- function(x,blank=NULL,ms=NULL,qc=NULL,peak=NULL) {
 
 #' Summarize feature counts after filtering
 #'
+#' @noMd
 #' @description Return feature counts before and after each completed filtering stage.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @details Counts are reported in execution order. For individual MS subfilters, inspect \code{x$ms$counts}. Metric and annotation tables remain accessible in the object and are not printed automatically.
 #' @return A data frame with \code{step}, \code{before}, \code{after}, and \code{removed}.
 #' @seealso \code{\link{mc_prepare}}, \code{\link{mc_plot_summary}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -868,11 +842,12 @@ mc_run <- function(x,blank=NULL,ms=NULL,qc=NULL,peak=NULL) {
 #'   imported, groups = "Blank", mode = "mean_cutoff", cutoff = 0.10
 #' )
 #' mc_summary(after_blank)
-#' }
+#'
 #' @export
 mc_summary <- function(x) { .mcs_check(x);x$counts }
 #' Print a filtering-result summary
 #'
+#' @noMd
 #' @description Display the current numbers of features and samples, followed by stage-level filtering counts.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param ... Additional arguments; currently unused.
@@ -880,22 +855,18 @@ mc_summary <- function(x) { .mcs_check(x);x$counts }
 #' @return The supplied object \code{x}, invisibly.
 #' @seealso \code{\link{mc_prepare}}, \code{\link{mc_plot_summary}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -904,7 +875,7 @@ mc_summary <- function(x) { .mcs_check(x);x$counts }
 #'   imported, groups = "Blank", mode = "mean_cutoff", cutoff = 0.10
 #' )
 #' print(after_blank)
-#' }
+#'
 #' @export
 print.metabocensor_result <- function(x,...) {
   cat("MetaboCensoR:",nrow(x$table),"features;",length(x$sample_cols),"samples\n")
@@ -1012,8 +983,9 @@ environment(.mcs_qc_values) <- .mcs_core
 
 #' Prepare an LC-MS peak table for filtering
 #'
+#' @noMd
 #' @description Read a feature-by-sample peak table, identify intensity columns, and assign sample groups. Feature metadata are retained alongside the intensity values.
-#' @param data A local CSV filename or a data frame with one feature per row. For a web-hosted CSV, first read it with \code{read.csv(url, check.names = FALSE)} and pass the resulting data frame.
+#' @param data A local CSV filename or a data frame with one feature per row. Bundled files can be located with \code{system.file()}. For a web-hosted CSV, first read it with \code{vroom::vroom(url, delim = ",")} and pass the resulting table.
 #' @param type Input format: \code{"mzmine"}, \code{"default"}, \code{"xcms"}, or \code{"msdial"}. XCMS retention times are converted from seconds to minutes. Other formats require retention times in minutes.
 #' @param sample_cols Intensity-column names or integer column positions after format conversion and column cleanup. Explicit selections take precedence over \code{sample_keywords}.
 #' @param sample_keywords Case-sensitive literal substrings used to identify intensity columns. A column is selected if its name contains at least one substring. If neither selector is supplied, columns with at least 70\% finite numeric entries are considered, excluding identified feature columns and names beginning with row.
@@ -1038,29 +1010,25 @@ environment(.mcs_qc_values) <- .mcs_core
 #' }
 #' @seealso \code{\link{mc_labels_from_metadata}}, \code{\link{mc_filter_blank}}, \code{\link{mc_export}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
 #' )
 #' table(imported$labels)
 #' head(imported$table)
-#' }
+#'
 #' @export
 mc_prepare <- function(data, type = c("mzmine", "default", "xcms", "msdial"),
                        sample_cols = NULL, sample_keywords = NULL,
@@ -1137,6 +1105,7 @@ mc_prepare <- function(data, type = c("mzmine", "default", "xcms", "msdial"),
 
 #' Reduce redundant ion features and annotate their relationships
 #'
+#' @noMd
 #' @description Apply isotope, adduct, neutral-loss, in-source-fragment, mispicked-ion, and ringing-artifact filters. Retain representative features and expose the annotation tables for inspection.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param filters Any of \code{"isotopes"}, \code{"adducts"}, \code{"neutral_losses"}, \code{"isf"}, \code{"mispicked"}, and \code{"ringing"}. An explicit vector overrides enable flags in parameters. \code{NULL} uses those flags; isotopes and adducts are enabled by default. \code{character(0)} disables all subfilters.
@@ -1171,21 +1140,19 @@ mc_prepare <- function(data, type = c("mzmine", "default", "xcms", "msdial"),
 #' @seealso \code{\link{mc_ms_parameters}}, \code{\link{mc_read_mgf}}, \code{\link{mc_plot_ms}}, \code{\link{mc_export}}
 #' @examples
 #' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' # The peak table and labels are bundled; only MGF requires internet.
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -1193,10 +1160,12 @@ mc_prepare <- function(data, type = c("mzmine", "default", "xcms", "msdial"),
 #' after_blank <- mc_filter_blank(
 #'   imported, groups = "Blank", mode = "mean_cutoff", cutoff = 0.10
 #' )
-#' mgf_file <- tempfile(fileext = ".mgf")
-#' download.file(
-#'   paste0(base_url, "orbi_iimn_gnps.mgf"), mgf_file, mode = "wb"
+#' mgf_url <- paste0(
+#'   "https://raw.githubusercontent.com/plyush1993/",
+#'   "MetaboCensoR_Examples/main/orbi/orbi_iimn_gnps.mgf"
 #' )
+#' mgf_file <- tempfile(fileext = ".mgf")
+#' download.file(mgf_url, mgf_file, mode = "wb")
 #' spectra <- mc_read_mgf(mgf_file)
 #' ms_options <- mc_ms_parameters(
 #'   iso_rt2 = 0.01, iso_cor2 = 0.80,
@@ -1208,13 +1177,9 @@ mc_prepare <- function(data, type = c("mzmine", "default", "xcms", "msdial"),
 #'   isf_ms2_check2 = TRUE, isf_mgf_id_field = "acquisitionNum",
 #'   isf_ms2_mz_tol2 = 0.01, isf_ms2_rel2 = 1
 #' )
-#' adduct_table <- read.csv(
-#'   paste0(base_url, "adducts%20%28nontarget%20%2B%202xH2O%29.csv"),
-#'   check.names = FALSE
-#' )
 #' after_ms <- mc_filter_ms(
 #'   after_blank, filters = c("isotopes", "adducts", "isf"),
-#'   parameters = ms_options, adducts = adduct_table, spectra = spectra
+#'   parameters = ms_options, spectra = spectra
 #' )
 #' after_ms$ms$counts
 #' head(after_ms$annot_tbls$add_table)
@@ -1262,6 +1227,7 @@ mc_filter_ms <- function(x, filters = NULL, parameters = mc_ms_parameters(),
 
 #' Filter features by m/z, retention time, mass defect, or target list
 #'
+#' @noMd
 #' @description Apply selected feature-property bounds or match a list of m/z and retention-time targets. Store values and filtering decisions for plotting.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param filters Any of \code{"mz"}, \code{"rt"}, \code{"rmd"}, \code{"amd"}, and \code{"target"}. \code{NULL} uses \code{parameters$peak_filters}; the default selects no filters.
@@ -1280,18 +1246,12 @@ mc_filter_ms <- function(x, filters = NULL, parameters = mc_ms_parameters(),
 #' \code{peak_tbl} includes all input features with \code{Feature}, \code{mz}, \code{RT}, \code{RMD}, \code{AMD}, per-filter \code{pass_*} columns, \code{target_hit}, and final \code{keep}.
 #' @seealso \code{\link{mc_peak_parameters}}, \code{\link{mc_plot_peak}}, \code{\link{mc_run}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
 #' # Illustration of peak filtering, not the published Orbi settings.
@@ -1304,7 +1264,7 @@ mc_filter_ms <- function(x, filters = NULL, parameters = mc_ms_parameters(),
 #' )
 #' head(after_peak$peak_tbl)
 #' mc_plot_peak(after_peak, interactive = FALSE)
-#' }
+#'
 #' @export
 mc_filter_peak <- function(x, filters = NULL, parameters = mc_peak_parameters(),
                            targets = NULL, target_text = NULL) {
@@ -1337,6 +1297,7 @@ mc_filter_peak <- function(x, filters = NULL, parameters = mc_peak_parameters(),
 
 #' Extract the current filtered peak table
 #'
+#' @noMd
 #' @description Return retained features as a data frame in the original, standardized, or internal layout.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param format Output layout: \code{"input"} restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.
@@ -1344,22 +1305,18 @@ mc_filter_peak <- function(x, filters = NULL, parameters = mc_peak_parameters(),
 #' @return A data frame with one row per retained feature.
 #' @seealso \code{\link{mc_write_table}}, \code{\link{mc_export}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -1370,7 +1327,7 @@ mc_filter_peak <- function(x, filters = NULL, parameters = mc_peak_parameters(),
 #' final_table <- mc_final_table(after_blank, format = "input")
 #' head(final_table)
 #' standard_table <- mc_final_table(after_blank, format = "standard")
-#' }
+#'
 #' @export
 mc_final_table <- function(x, format = c("input", "standard", "internal")) {
   .mcs_check(x); format <- match.arg(format)
@@ -1387,6 +1344,7 @@ mc_final_table <- function(x, format = c("input", "standard", "internal")) {
 
 #' Write the current filtered peak table to CSV
 #'
+#' @noMd
 #' @description Export retained features to a CSV file with a chosen column layout.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param path Output CSV filename, including the desired directory. Existing output is overwritten.
@@ -1395,22 +1353,18 @@ mc_final_table <- function(x, format = c("input", "standard", "internal")) {
 #' @return The output filename, returned invisibly.
 #' @seealso \code{\link{mc_final_table}}, \code{\link{mc_export}}
 #' @examples
-#' \dontrun{
-#' # Requires an internet connection.
-#' base_url <- paste0(
-#'   "https://raw.githubusercontent.com/plyush1993/",
-#'   "MetaboCensoR_Examples/main/orbi/"
-#' )
-#' peak_table <- read.csv(
-#'   paste0(base_url, "orbi_iimn_gnps_quant.csv"),
-#'   check.names = FALSE
+#' peak_file <- system.file(
+#'   "extdata", "orbi_iimn_gnps_quant.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
 #' )
 #' imported <- mc_prepare(
-#'   peak_table, type = "mzmine",
+#'   peak_file, type = "mzmine",
 #'   sample_keywords = c(".mzML", "Peak area")
 #' )
-#' metadata_file <- tempfile(fileext = ".csv")
-#' download.file(paste0(base_url, "metadata.csv"), metadata_file, mode = "wb")
+#' metadata_file <- system.file(
+#'   "extdata", "metadata.csv",
+#'   package = "MetaboCensoR", mustWork = TRUE
+#' )
 #' imported$labels <- mc_labels_from_metadata(
 #'   metadata_file, sample_names = imported$sample_cols,
 #'   sample_col = "Sample name", label_col = "Label"
@@ -1420,7 +1374,7 @@ mc_final_table <- function(x, format = c("input", "standard", "internal")) {
 #' )
 #' output_csv <- file.path(tempdir(), "orbi_blank_filtered.csv")
 #' mc_write_table(after_blank, output_csv, format = "input")
-#' }
+#'
 #' @export
 mc_write_table <- function(x, path, format = c("input", "standard", "internal")) {
   format <- match.arg(format); df <- mc_final_table(x, format)
