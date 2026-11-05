@@ -1350,12 +1350,139 @@ keep_by_min <- function(ds, feats, mode, labs, min_cutoff) {
   keep_true_cols(keep_df)
 }
 
+# Validate D-ratio settings.
+# Returns NULL when valid, otherwise an explanatory message.
+dratio_problem <- function(ds, value_groups, qc_group, cutoff) {
+  if (!"Label" %in% names(ds)) {
+    return("D-ratio requires sample group labels.")
+  }
+
+  available <- unique(as.character(ds$Label))
+  available <- available[!is.na(available) & nzchar(available)]
+
+  if (length(qc_group) != 1L ||
+      is.na(qc_group) ||
+      !nzchar(qc_group) ||
+      !qc_group %in% available) {
+    return("D-ratio: select a QC group.")
+  }
+
+  if (sum(ds$Label %in% qc_group) < 2L) {
+    return("D-ratio requires at least two samples in the selected QC group.")
+  }
+
+  biological_groups <- setdiff(
+    resolve_labs(ds, value_groups),
+    qc_group
+  )
+  biological_groups <- biological_groups[
+    !is.na(biological_groups) & nzchar(biological_groups)
+  ]
+
+  if (!length(biological_groups)) {
+    return(
+      paste(
+        "D-ratio: select at least one biological group",
+        "different from the QC group, or leave Group(s) to evaluate empty."
+      )
+    )
+  }
+
+  cutoff <- suppressWarnings(as.numeric(cutoff))
+  if (length(cutoff) != 1L || !is.finite(cutoff) || cutoff < 0) {
+    return("D-ratio: enter a finite, non-negative threshold in percent.")
+  }
+
+  NULL
+}
+
+
+# Shared calculation for filtering and plotting.
+dratio_values <- function(ds, feats, mode, value_groups, qc_group) {
+  biological_groups <- setdiff(
+    resolve_labs(ds, value_groups),
+    qc_group
+  )
+  biological_groups <- biological_groups[
+    !is.na(biological_groups) & nzchar(biological_groups)
+  ]
+
+  safe_sd <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) < 2L) return(NA_real_)
+    stats::sd(x)
+  }
+
+  qc_sd <- vapply(
+    ds[ds$Label %in% qc_group, feats, drop = FALSE],
+    safe_sd,
+    numeric(1)
+  )
+
+  make_values <- function(groups, label) {
+    biological_sd <- vapply(
+      ds[ds$Label %in% groups, feats, drop = FALSE],
+      safe_sd,
+      numeric(1)
+    )
+
+    value <- rep(NA_real_, length(feats))
+    valid <- is.finite(qc_sd) &
+      is.finite(biological_sd) &
+      biological_sd > 0
+
+    value[valid] <- 100 * qc_sd[valid] / biological_sd[valid]
+
+    tibble::tibble(
+      Label = label,
+      Feature = feats,
+      value = value
+    )
+  }
+
+  if (identical(mode, "pooled")) {
+    return(make_values(biological_groups, "Pooled"))
+  }
+
+  dplyr::bind_rows(lapply(biological_groups, function(group) {
+    make_values(group, group)
+  }))
+}
+
+
+keep_by_dratio <- function(ds, feats, mode, value_groups,
+                           qc_group, dratio_cutoff) {
+  problem <- dratio_problem(
+    ds, value_groups, qc_group, dratio_cutoff
+  )
+  if (!is.null(problem)) stop(problem, call. = FALSE)
+
+  if (!length(feats)) return(character(0))
+
+  values <- dratio_values(
+    ds, feats, mode, value_groups, qc_group
+  )
+
+  pred <- if (identical(mode, "group_every")) all else any
+
+  evaluated <- values %>%
+    dplyr::group_by(Feature) %>%
+    dplyr::summarise(
+      pass = pred(is.finite(value) & value <= dratio_cutoff),
+      .groups = "drop"
+    )
+
+  evaluated$Feature[evaluated$pass]
+}
+
 run_qc_value_filters <- function(ds_with_label, feats_base,
                                 filters, mode, value_groups,
-                                zero_metric, zero_cutoff, mean_cutoff, rsd_cutoff, min_cutoff) {
+                                zero_metric, zero_cutoff, mean_cutoff, rsd_cutoff, min_cutoff,
+                                dratio_qc_group = NULL,
+                                dratio_cutoff = 50) {
 
   filters <- (filters %||% character(0))
-  filters <- filters[filters %in% c("zeros", "mean", "rsd", "min")]
+  filters <- filters[filters %in% c("zeros", "mean", "rsd", "dratio", "min")]
 
   stats <- list(
     before        = length(feats_base),
@@ -1363,6 +1490,7 @@ run_qc_value_filters <- function(ds_with_label, feats_base,
     removed_zeros = 0L,
     removed_mean  = 0L,
     removed_rsd   = 0L,
+    removed_dratio = 0L,
     removed_min   = 0L,
     removed_total = 0L
   )
@@ -1392,6 +1520,20 @@ run_qc_value_filters <- function(ds_with_label, feats_base,
     k <- intersect(feats_base, k)
     stats$removed_rsd <- length(setdiff(feats_base, k))
     kept_lists[["rsd"]] <- k
+  }
+  if ("dratio" %in% filters) {
+    k <- keep_by_dratio(
+      ds = ds_with_label,
+      feats = feats_base,
+      mode = mode,
+      value_groups = value_groups,
+      qc_group = dratio_qc_group,
+      dratio_cutoff = dratio_cutoff
+    )
+
+    k <- intersect(feats_base, k)
+    stats$removed_dratio <- length(setdiff(feats_base, k))
+    kept_lists[["dratio"]] <- k
   }
   if ("min" %in% filters) {
     k <- keep_by_min(ds_with_label, feats_base, mode, labs, min_cutoff)
@@ -1549,7 +1691,7 @@ read_metadata_csv <- function(upload, context = "metadata") {
   req(upload)
 
   ext <- tolower(tools::file_ext(upload$name))
-  validate(need(ext == "csv", paste0("Upload a .csv file for ", context, ".")))
+  shiny::validate(need(ext == "csv", paste0("Upload a .csv file for ", context, ".")))
 
   as.data.frame(
     vroom::vroom(
@@ -1572,7 +1714,7 @@ metadata_labels_by_sample <- function(upload,
                                       context = "metadata labels") {
   meta <- read_metadata_csv(upload, context = context)
 
-  validate(
+  shiny::validate(
     need(sample_col %in% names(meta), "Selected metadata sample-name column was not found."),
     need(label_col %in% names(meta), "Selected metadata label column was not found.")
   )
@@ -1589,7 +1731,7 @@ metadata_labels_by_sample <- function(upload,
     remove_suffixes = remove_suffixes
   )
 
-  validate(
+  shiny::validate(
     need(!anyDuplicated(app_key),
          "Detected sample names are duplicated after optional cleaning."),
     need(!anyDuplicated(meta_key),
@@ -1601,7 +1743,7 @@ metadata_labels_by_sample <- function(upload,
   if (any(is.na(idx))) {
     missing_samples <- app_key[is.na(idx)]
 
-    validate(
+    shiny::validate(
       need(
         FALSE,
         paste0(
@@ -1615,10 +1757,356 @@ metadata_labels_by_sample <- function(upload,
 
   labs <- trimws(as.character(meta[[label_col]][idx]))
 
-  validate(
+  shiny::validate(
     need(!any(is.na(labs) | labs == ""),
          "Selected metadata label column contains empty values.")
   )
 
   labs
+}
+
+# -------------------------------------------------------------------------
+# Analysis settings: supported inputs
+# -------------------------------------------------------------------------
+
+settings_spec <- function(type, stage, multiple = FALSE,
+                          min = NULL, max = NULL) {
+  out <- list(type = type, stage = stage, multiple = multiple)
+  if (!is.null(min)) out$min <- min
+  if (!is.null(max)) out$max <- max
+  out
+}
+
+settings_registry <- list(
+  # Upload and parsing
+  data_type0 = settings_spec("selectInput", "upload"),
+  row_id_col0 = settings_spec("selectInput", "upload"),
+  mz_col0 = settings_spec("selectInput", "upload"),
+  rt_col0 = settings_spec("selectInput", "upload"),
+  sample_mode0 = settings_spec("radioButtons", "upload"),
+  sample_keyword0 = settings_spec("selectizeInput", "upload", TRUE),
+  sample_cols0 = settings_spec("selectizeInput", "upload", TRUE),
+
+  # Blank filters and labels
+  label_source = settings_spec("radioButtons", "blank"),
+  label_index = settings_spec("numericInput", "blank", min = 1),
+  token_sep = settings_spec("textInput", "blank"),
+  blank_clean_metadata_names = settings_spec("prettyCheckbox", "blank"),
+  blank_metadata_remove_suffixes = settings_spec("selectizeInput", "blank", TRUE),
+  blank_metadata_sample_col = settings_spec("selectInput", "blank"),
+  blank_metadata_label_col = settings_spec("selectizeInput", "blank"),
+  enable_blank = settings_spec("materialSwitch", "blank"),
+  groups_to_remove = settings_spec("selectizeInput", "blank", TRUE),
+  blank_mode = settings_spec("radioButtons", "blank"),
+  blank_cutoff = settings_spec("numericInput", "blank", min = 0),
+
+  # Isotopes
+  enable_iso2 = settings_spec("materialSwitch", "ms"),
+  iso_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  iso_rt2 = settings_spec("numericInput", "ms", min = 0),
+  iso_tol_type2 = settings_spec("radioButtons", "ms"),
+  iso_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  iso_ppm2 = settings_spec("numericInput", "ms", min = 0),
+  iso_zmax2 = settings_spec("numericInput", "ms", min = 1),
+  iso_n2 = settings_spec("numericInput", "ms", min = 1),
+  iso_nd2 = settings_spec("numericInput", "ms", min = 1),
+
+  # Adducts
+  enable_add2 = settings_spec("materialSwitch", "ms"),
+  add_pol2 = settings_spec("radioButtons", "ms"),
+  add_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  add_rt2 = settings_spec("numericInput", "ms", min = 0),
+  add_tol_type2 = settings_spec("radioButtons", "ms"),
+  add_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  add_ppm2 = settings_spec("numericInput", "ms", min = 0),
+  add_min_nm2 = settings_spec("numericInput", "ms", min = 0),
+  add_strict_rt2 = settings_spec("prettyCheckbox", "ms"),
+
+  # Neutral losses
+  enable_nl2 = settings_spec("materialSwitch", "ms"),
+  nl_pol2 = settings_spec("radioButtons", "ms"),
+  nl_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  nl_rt2 = settings_spec("numericInput", "ms", min = 0),
+  nl_tol_type2 = settings_spec("radioButtons", "ms"),
+  nl_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  nl_ppm2 = settings_spec("numericInput", "ms", min = 0),
+
+  # In-source fragments
+  enable_isf2 = settings_spec("materialSwitch", "ms"),
+  isf_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  isf_rt2 = settings_spec("numericInput", "ms", min = 0),
+  isf_control_int2 = settings_spec("prettyCheckbox", "ms"),
+  isf_ratio_min2 = settings_spec("numericInput", "ms", min = 0),
+  isf_ratio_max2 = settings_spec("numericInput", "ms", min = 0),
+  isf_ms2_check2 = settings_spec("prettyCheckbox", "ms"),
+  isf_ms2_rel2 = settings_spec("numericInput", "ms", min = 0, max = 100),
+  isf_ms2_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  isf_mgf_id_field = settings_spec("selectInput", "ms"),
+
+  # Mispicked ions
+  enable_mis2 = settings_spec("materialSwitch", "ms"),
+  mis_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  mis_rt2 = settings_spec("numericInput", "ms", min = 0),
+  mis_tol_type2 = settings_spec("radioButtons", "ms"),
+  mis_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  mis_ppm2 = settings_spec("numericInput", "ms", min = 0),
+
+  # Saturated ions
+  enable_ring2 = settings_spec("materialSwitch", "ms"),
+  ring_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  ring_rt2 = settings_spec("numericInput", "ms", min = 0),
+  ring_tol_type2 = settings_spec("radioButtons", "ms"),
+  ring_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  ring_ppm2 = settings_spec("numericInput", "ms", min = 0),
+  ring_min_anch2 = settings_spec("numericInput", "ms", min = 0),
+  ring_ratio2 = settings_spec("numericInput", "ms", min = 1),
+  ring_bidirectional2 = settings_spec("prettyCheckbox", "ms"),
+
+  # QC labels and filtering
+  qc_label_source = settings_spec("radioButtons", "qc"),
+  qc_label_index = settings_spec("numericInput", "qc", min = 1),
+  qc_token_sep = settings_spec("textInput", "qc"),
+  qc_clean_metadata_names = settings_spec("prettyCheckbox", "qc"),
+  qc_metadata_remove_suffixes = settings_spec("selectizeInput", "qc", TRUE),
+  qc_metadata_sample_col = settings_spec("selectInput", "qc"),
+  qc_metadata_label_col = settings_spec("selectizeInput", "qc"),
+  value_filters = settings_spec("checkboxGroupButtons", "qc", TRUE),
+  value_mode = settings_spec("radioButtons", "qc"),
+  value_groups = settings_spec("selectizeInput", "qc", TRUE),
+  zero_metric = settings_spec("radioButtons", "qc"),
+  zero_cutoff = settings_spec("numericInput", "qc", min = 0),
+  mean_cutoff = settings_spec("numericInput", "qc", min = 0),
+  rsd_cutoff = settings_spec("numericInput", "qc", min = 0),
+  dratio_cutoff = settings_spec("numericInput", "qc", min = 0),
+  dratio_qc_group = settings_spec("selectizeInput", "qc"),
+  min_cutoff = settings_spec("numericInput", "qc", min = 0),
+
+  # Peak filters
+  peak_filters = settings_spec("checkboxGroupButtons", "peak", TRUE),
+  mz_min_enable = settings_spec("prettyCheckbox", "peak"),
+  mz_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_mz_min = settings_spec("numericInput", "peak", min = 0),
+  peak_mz_max = settings_spec("numericInput", "peak", min = 0),
+  rt_min_enable = settings_spec("prettyCheckbox", "peak"),
+  rt_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_rt_min = settings_spec("numericInput", "peak", min = 0),
+  peak_rt_max = settings_spec("numericInput", "peak", min = 0),
+  rmd_min_enable = settings_spec("prettyCheckbox", "peak"),
+  rmd_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_rmd_min = settings_spec("numericInput", "peak", min = -1000000, max = 1000000),
+  peak_rmd_max = settings_spec("numericInput", "peak", min = -1000000, max = 1000000),
+  amd_min_enable = settings_spec("prettyCheckbox", "peak"),
+  amd_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_amd_min = settings_spec("numericInput", "peak", min = -1, max = 1),
+  peak_amd_max = settings_spec("numericInput", "peak", min = -1, max = 1),
+
+  # Target peaks
+  target_peak_action = settings_spec("radioButtons", "peak"),
+  target_mz_tol_type = settings_spec("radioButtons", "peak"),
+  target_mz_tol_da = settings_spec("numericInput", "peak", min = 0),
+  target_mz_tol_ppm = settings_spec("numericInput", "peak", min = 0),
+  target_rt_tol = settings_spec("numericInput", "peak", min = 0),
+  target_peak_text = settings_spec("textAreaInput", "peak"),
+
+  # Final MGF filtering
+  enable_mgf_filter = settings_spec("materialSwitch", "final"),
+  mgf_match_col = settings_spec("selectInput", "final"),
+  mgf_id_field = settings_spec("selectInput", "final")
+)
+
+# -------------------------------------------------------------------------
+# Analysis settings: helpers
+# -------------------------------------------------------------------------
+
+settings_aux_ids <- c(
+  "meta_csv", "blank_metadata_csv",
+  "qc_meta_csv", "qc_metadata_csv",
+  "adduct_file2", "nl_file2", "target_peak_csv"
+)
+
+settings_file_ids <- c(
+  "file0", settings_aux_ids, "isf_mgf_input", "mgf_input"
+)
+
+settings_utc <- function() {
+  format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
+settings_version <- function() {
+  tryCatch(
+    as.character(utils::packageVersion("MetaboCensoR")),
+    error = function(e) "standalone app; package version unavailable"
+  )
+}
+
+settings_file_record <- function(upload, embed = FALSE) {
+  if (is.null(upload) || !nrow(upload)) return(NULL)
+
+  path <- upload$datapath[[1]]
+  if (!file.exists(path)) return(NULL)
+
+  size <- unname(file.info(path)$size)
+
+  out <- list(
+    name = basename(upload$name[[1]]),
+    size_bytes = size,
+    md5 = unname(tools::md5sum(path))
+  )
+
+  # Embed auxiliary CSVs up to 20 MB.
+  if (embed && size <= 20 * 1024^2) {
+    out$content_base64 <- jsonlite::base64_enc(
+      readBin(path, "raw", n = size)
+    )
+  }
+
+  out
+}
+
+settings_validate_values <- function(values, registry) {
+  if (!is.list(values) ||
+      is.null(names(values)) ||
+      anyDuplicated(names(values))) {
+    stop(
+      "Settings must be a JSON object with unique input names.",
+      call. = FALSE
+    )
+  }
+
+  unknown <- setdiff(names(values), names(registry))
+
+  if (length(unknown)) {
+    stop(
+      "Unknown settings: ",
+      paste(unknown, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  for (id in names(values)) {
+    v <- values[[id]]
+    spec <- registry[[id]]
+
+    if (is.list(v)) {
+      if (length(v) &&
+          !all(vapply(
+            v,
+            function(z) is.atomic(z) && length(z) == 1L,
+            logical(1)
+          ))) {
+        stop("Invalid setting: ", id)
+      }
+
+      v <- unlist(v, use.names = FALSE)
+    }
+
+    if (spec$type == "numericInput") {
+      if (!is.numeric(v) || length(v) != 1L || !is.finite(v)) {
+        stop("Invalid number: ", id)
+      }
+
+      if (!is.null(spec$min) && v < spec$min) {
+        stop("Below minimum: ", id)
+      }
+
+      if (!is.null(spec$max) && v > spec$max) {
+        stop("Above maximum: ", id)
+      }
+
+    } else if (spec$type %in% c("prettyCheckbox", "materialSwitch")) {
+      if (!is.logical(v) || length(v) != 1L || is.na(v)) {
+        stop("Invalid switch: ", id)
+      }
+
+    } else {
+      if (!length(v)) v <- character(0)
+
+      if (!is.character(v) ||
+          anyNA(v) ||
+          (!isTRUE(spec$multiple) && length(v) > 1L)) {
+        stop("Invalid selection/text: ", id)
+      }
+
+      if (spec$type %in% c("textInput", "textAreaInput") &&
+          length(v) != 1L) {
+        stop("Invalid text: ", id)
+      }
+    }
+
+    values[id] <- list(v)
+  }
+
+  values
+}
+
+settings_update_input <- function(session, id, value, type) {
+  switch(
+    type,
+    numericInput =
+      shiny::updateNumericInput(session, id, value = value),
+
+    textInput =
+      shiny::updateTextInput(session, id, value = value),
+
+    textAreaInput =
+      shiny::updateTextAreaInput(session, id, value = value),
+
+    selectInput =
+      shiny::updateSelectInput(session, id, selected = value),
+
+    selectizeInput =
+      shiny::updateSelectizeInput(session, id, selected = value),
+
+    radioButtons =
+      shiny::updateRadioButtons(session, id, selected = value),
+
+    checkboxGroupButtons =
+      shinyWidgets::updateCheckboxGroupButtons(
+        session, id, selected = value
+      ),
+
+    prettyCheckbox =
+      shinyWidgets::updatePrettyCheckbox(
+        session, id, value = value
+      ),
+
+    materialSwitch =
+      shinyWidgets::updateMaterialSwitch(
+        session, id, value = value
+      )
+  )
+}
+
+settings_choice_problem <- function(id, wanted, available) {
+  # These selectors intentionally allow user-created values.
+  if (id %in% c(
+    "sample_keyword0",
+    "blank_metadata_remove_suffixes",
+    "qc_metadata_remove_suffixes"
+  )) {
+    return(NULL)
+  }
+
+  missing <- setdiff(
+    as.character(wanted),
+    as.character(available)
+  )
+
+  if (length(missing)) {
+    paste("Unavailable:", paste(missing, collapse = ", "))
+  } else {
+    NULL
+  }
+}
+
+settings_record_metadata <- function(record) {
+  if (is.null(record)) return(NULL)
+
+  # Avoid repeating embedded CSV contents in every log entry.
+  record$files <- lapply(record$files, function(f) {
+    if (!is.null(f)) f$content_base64 <- NULL
+    f
+  })
+
+  record
 }

@@ -12,6 +12,7 @@
 #' @import shinycssloaders
 #' @import htmltools
 #' @import plotly
+#' @import jsonlite
 app_ui <- function() {
 shiny::fluidPage(
   use_waiter(),
@@ -19,6 +20,136 @@ shiny::fluidPage(
   theme = shinytheme("flatly"),
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
   useShinyjs(),
+
+      tags$script(HTML("
+(function() {
+  var token = null;
+  var ids = [];
+  var gestures = {};
+  var sequence = 0;
+
+  function register() {
+    if (!window.Shiny || !window.jQuery) {
+      setTimeout(register, 100);
+      return;
+    }
+
+    // Distinguish real user interaction from programmatic updates.
+    ['pointerdown', 'keydown', 'input'].forEach(function(type) {
+      document.addEventListener(type, function(event) {
+        if (!event.isTrusted) return;
+
+        ids.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (!el) return;
+
+          var box = el.closest('.shiny-input-container');
+          var dropdown = el.selectize && el.selectize.$dropdown[0];
+
+          if (
+            el === event.target ||
+            el.contains(event.target) ||
+            (box && box.contains(event.target)) ||
+            (dropdown && dropdown.contains(event.target))
+          ) {
+            gestures[id] = Date.now();
+          }
+        });
+      }, true);
+    });
+
+    window.jQuery(document).on(
+      'shiny:inputchanged.settingsAuto',
+      function(event) {
+        var id = event.name;
+
+        if (!gestures[id] || Date.now() - gestures[id] > 2000) return;
+
+        delete gestures[id];
+        var thisToken = token;
+
+        setTimeout(function() {
+          Shiny.setInputValue(
+            'settings_user_override',
+            {
+              token: thisToken,
+              id: id,
+              sequence: ++sequence
+            },
+            {priority: 'event'}
+          );
+        }, 0);
+      }
+    );
+
+    Shiny.addCustomMessageHandler('settings-probe', function(message) {
+      if (token !== message.token) {
+        token = message.token;
+        gestures = {};
+      }
+
+      ids = Array.isArray(message.ids) ? message.ids : [message.ids];
+      var thisIds = ids.slice();
+
+      setTimeout(function() {
+        if (token !== message.token) return;
+
+        var controls = {};
+
+        thisIds.forEach(function(id) {
+          var el = document.getElementById(id);
+
+          if (
+            !el ||
+            !window.jQuery(el).data('shiny-input-binding')
+          ) return;
+
+          var choices = [];
+
+          if (el.tagName === 'SELECT') {
+            choices = Array.from(el.options).map(function(o) {
+              return o.value;
+            });
+
+            if (el.selectize) {
+              var field = el.selectize.settings.valueField || 'value';
+
+              choices = choices.concat(
+                Object.keys(el.selectize.options).map(function(key) {
+                  var value = el.selectize.options[key][field];
+                  return value == null ? String(key) : String(value);
+                })
+              );
+            }
+
+            choices = Array.from(new Set(choices));
+
+          } else {
+            choices = Array.from(
+              el.querySelectorAll('input[type=radio],input[type=checkbox]')
+            ).map(function(o) {
+              return o.value;
+            });
+          }
+
+          controls[id] = {choices: choices};
+        });
+
+        Shiny.setInputValue(
+          'settings_probe_result',
+          {
+            token: message.token,
+            controls: controls
+          },
+          {priority: 'event'}
+        );
+      }, message.delay || 200);
+    });
+  }
+
+  register();
+})();
+  ")),
 
   tags$head(
   tags$script(HTML("
@@ -401,73 +532,135 @@ shiny::fluidPage(
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
               )
+            ),
+          tags$hr(),
+                    h3(class = "highlight", "Analysis settings"),
+
+          div(
+            style = "position: relative; margin-bottom: 15px;",
+
+            fileInput(
+              "settings_json",
+              "Import analysis settings (.json):",
+              accept = ".json"
+            ),
+
+            actionButton(
+              inputId = "btn_settings_help",
+              label = "?",
+              class = "btn-primary btn-xs",
+              style = paste0(
+                "position: absolute; top: 0px; left: 215px;",
+                "border-radius: 50%; width: 22px; height: 22px;",
+                "padding: 0; line-height: 1; font-size: 12px;"
+              )
+            ),
+
+            bsTooltip(
+              id = "btn_settings_help",
+              title = paste0(
+                "<b>Import analysis settings</b><br><br>",
+
+                "Upload your peak table, import the JSON file, ",
+                "then check the import report.<br><br>",
+
+                "<b>Restored settings:</b><br>",
+                "Filter switches, thresholds, evaluation modes, ",
+                "compatible column/group selections, manual labels, ",
+                "and embedded auxiliary CSV files.<br><br>",
+
+                "<b>Peak tables and MGF files:</b><br>",
+                "These must be uploaded separately.<br><br>",
+
+                "<b>Automatic restoration:</b><br>",
+                "Available settings are restored immediately. ",
+                "Selections requiring an MGF, metadata file, or final table ",
+                "are restored automatically when those inputs become available.<br><br>",
+
+                "<b>Different groups or columns:</b><br>",
+                "Choose replacements manually if saved names do not match ",
+                "the new dataset. Your manual choices are preserved.<br><br>",
+
+                "<b>Filters are not run automatically.</b><br>",
+                "Review the settings and apply the required steps."
+              ),
+              placement = "right",
+              trigger = "click",
+              options = list(
+                container = "body",
+                html = TRUE
+              )
             )
+          ),
+
+          uiOutput("settings_import_report")
         ),
-        mainPanel(
-          conditionalPanel(
-            condition = "!output.sharedUploaded",
 
-            div(
-              style = "
-                background: rgba(255,255,255,0.92);
-                border: 2px solid #2c3e50;
-                border-radius: 14px;
-                padding: 35px 40px;
-                margin-top: 20px;
-                text-align: center;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-              ",
+mainPanel(
+  conditionalPanel(
+    condition = "!output.sharedUploaded",
 
-              h2(
-                "Welcome to MetaboCensoR",
-                style = "
-                  margin-top: 0;
-                  font-weight: 800;
-                  color: #2c3e50;
-                "
-              ),
+    div(
+      style = "
+        background: rgba(255,255,255,0.92);
+        border: 2px solid #2c3e50;
+        border-radius: 14px;
+        padding: 35px 40px;
+        margin-top: 20px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      ",
 
-              tags$p(
-                "Shiny App for filtering redundant features in LC-MS",
-                style = "
-                  font-size: 18px;
-                  color: #555;
-                  margin-top: 10px;
-                  margin-bottom: 25px;
-                "
-              ),
+      h2(
+        "Welcome to MetaboCensoR",
+        style = "
+          margin-top: 0;
+          font-weight: 800;
+          color: #2c3e50;
+        "
+      ),
 
-              tags$hr(),
+      tags$p(
+        "Shiny App for filtering redundant features in LC-MS",
+        style = "
+          font-size: 18px;
+          color: #555;
+          margin-top: 10px;
+          margin-bottom: 25px;
+        "
+      ),
 
-              div(
-                style = "
-                  font-size: 17px;
-                  line-height: 1.7;
-                  color: #2c3e50;
-                  margin-top: 25px;
-                ",
+      tags$hr(),
 
-                tags$p(
-                  icon("file-arrow-up"),
-                  HTML(
-                    "&nbsp; <b>Upload</b> a peak table using the controls on the left to begin."
-                  )
-                ),
+      div(
+        style = "
+          font-size: 17px;
+          line-height: 1.7;
+          color: #2c3e50;
+          margin-top: 25px;
+        ",
 
-                tags$p(
-                  icon("flask"),
-                  HTML(
-                    "&nbsp; Or use the <b>Example dataset</b> to explore the workflow."
-                  )
-                ),
+        tags$p(
+          icon("file-arrow-up"),
+          HTML(
+            "&nbsp; <b>Upload</b> a peak table using the controls on the left to begin."
+          )
+        ),
 
-                tags$p(
-                  icon("circle-info"),
-                  HTML(
-                    '&nbsp; See the
-                     <a href="#" onclick="$(\'a[data-value=help]\').tab(\'show\'); return false;">
-                     <b>About</b> tab
-                     </a> for more information.'
+        tags$p(
+          icon("flask"),
+          HTML(
+            "&nbsp; Or use the <b>Example dataset</b> to explore the workflow."
+          )
+        ),
+
+        tags$p(
+          icon("circle-info"),
+          HTML(
+            '&nbsp; See the
+             <a href="#" onclick="$(\'a[data-value=help]\').tab(\'show\'); return false;">
+             <b>About</b> tab
+             </a> for more information.'
           )
         )
       )
@@ -938,7 +1131,7 @@ shiny::fluidPage(
           conditionalPanel(
             condition = "input.enable_isf2",
             numericInput("isf_cor2", HTML("Correlation &ge;"), value = 0.95, min = 0, max = 1, step = 0.01),
-            numericInput("isf_rt2",  "rt tolerance (min)", value = 0.002, min = 0, step = 0.001),
+            numericInput("isf_rt2",  "rt tolerance (min)", value = 0.01, min = 0, step = 0.001),
             prettyCheckbox("isf_control_int2", "Control intensity ratio", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
             conditionalPanel(
               condition = "input.isf_control_int2",
@@ -949,7 +1142,7 @@ shiny::fluidPage(
                 style = "display:flex; align-items:center; margin-bottom:5px;",
                 div(style = "margin-bottom:-15px;",
                   prettyCheckbox(
-                    "isf_ms2_check2", "Require MS2 fragment match", FALSE,
+                    "isf_ms2_check2", "Require MS2 fragment match", TRUE,
                     icon = icon("check"), status = "primary", animation = "jelly")),
                 actionButton(
                   "btnisfms2", "?",
@@ -1336,6 +1529,7 @@ shiny::fluidPage(
               choices = c("Zeros" = "zeros",
                           "Mean" = "mean",
                           "RSD" = "rsd",
+                          "D-ratio" = "dratio",
                           "Min" = "min"),
               justified = F, individual = T,
               size = "norm",
@@ -1357,7 +1551,17 @@ shiny::fluidPage(
               ")),
               bsTooltip(
                 id = "btnqcv",
-                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage<br><br>RSD calculation requires at least 2 samples per group; all-zero or all-missing features produce NA RSD and fail the RSD filter",
+                title = paste0(
+  "<b>Enable statistical value filtering</b><br><br>",
+  "Select values for filtering.<br><br>",
+  "Zero values can be evaluated by Count or Percentage.<br><br>",
+  "RSD requires at least 2 samples per evaluated group; ",
+  "all-zero or all-missing features produce NA RSD and fail.<br><br>",
+  "D-ratio (%) = SD(QC) / SD(biological samples) × 100. ",
+  "A QC group is required and is excluded from the biological groups. ",
+  "At least 2 finite values are required in each SD calculation. ",
+  "Zero biological SD or undefined ratios fail."
+),
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -1412,6 +1616,10 @@ shiny::fluidPage(
           ),
           conditionalPanel(condition = "input.value_filters.indexOf('rsd') >= 0",
                            numericInput("rsd_cutoff",  label = HTML("RSD &le; threshold"),  value = 30, min = 0, step = 1)
+          ),
+          conditionalPanel(condition = "input.value_filters.indexOf('dratio') >= 0",
+            uiOutput("dratio_qc_group_ui"),
+            numericInput("dratio_cutoff", label = HTML("D-ratio &le; threshold (%)"), value = 50, min = 0, step = 1)
           ),
           conditionalPanel(condition = "input.value_filters.indexOf('min') >= 0",
                            numericInput("min_cutoff",  label = HTML("Min &ge; threshold"),  value = 1000, min = 0, step = 100)
@@ -1729,6 +1937,59 @@ shiny::fluidPage(
           ),
             br(),
             shinyjs::disabled(downloadButton("dl_mgf", "Download Filtered MGF", class = "btn btn-success"))
+          ),
+          br(), br(),
+                    h3(class = "highlight", "Analysis settings"),
+
+          div(
+            style = "display: flex; align-items: center; gap: 8px;",
+
+            shinyjs::disabled(
+              downloadButton(
+                "download_analysis_settings",
+                "Download settings (.json)",
+                class = "btn btn-success"
+              )
+            ),
+
+            actionButton(
+              inputId = "btn_settings_download_help",
+              label = "?",
+              class = "btn-primary btn-xs",
+              style = paste0(
+                "border-radius: 50%; width: 22px; height: 22px;",
+                "padding: 0; line-height: 1; font-size: 12px;",
+                "flex-shrink: 0;"
+              )
+            )
+          ),
+
+          bsTooltip(
+            id = "btn_settings_download_help",
+            title = paste0(
+              "<b>Export analysis settings</b><br><br>",
+
+              "<b>Included:</b><br>",
+              "Filter settings, group and column selections, ",
+              "sample labels, file information, and filtering counts.<br><br>",
+
+              "<b>Auxiliary CSV files:</b><br>",
+              "Files up to 20 MB each are embedded and can be ",
+              "restored when importing the JSON.<br><br>",
+
+              "<b>Peak tables and MGF files:</b><br>",
+              "Only their file information is recorded; ",
+              "they must be uploaded separately.<br><br>",
+
+              "Import this JSON in the Upload Data tab ",
+              "to reuse the settings in another analysis."
+            ),
+            placement = "bottom",
+            trigger = "click",
+            options = list(
+              container = "body",
+              html = TRUE
+            )
           )
         ),
         mainPanel(
