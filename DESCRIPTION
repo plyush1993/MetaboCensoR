@@ -36,6 +36,11 @@ Imports:
     vroom,
     waiter,
     jsonlite
+Suggests:
+    knitr,
+    rmarkdown,
+    prettydoc
+VignetteBuilder: knitr
 biocViews: MassSpectrometry, Metabolomics
 Depends: 
     R (>= 4.1.2)
