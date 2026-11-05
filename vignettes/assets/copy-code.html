@@ -1,0 +1,15 @@
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+ document.querySelectorAll('pre').forEach(function(pre) {
+  if (!pre.querySelector('code')) return;
+  var b=document.createElement('button'); b.className='copy-code'; b.textContent='Copy'; b.type='button';
+  pre.parentNode.insertBefore(b,pre);
+  b.onclick=async function() {
+   var text=pre.querySelector('code').textContent;
+   try { await navigator.clipboard.writeText(text); }
+   catch(e) { var t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();var ok=document.execCommand('copy');t.remove();if(!ok){b.textContent='Select code to copy';return;} }
+   b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500);
+  };
+ });
+});
+</script>
