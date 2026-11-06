@@ -23,7 +23,7 @@ knitr::opts_chunk$set(eval = FALSE, collapse = TRUE, comment = "#>")
 This reference displays code without running it. Examples are independent recipes,
 not one script to execute from top to bottom. Argument templates include required
 placeholders; replace them with your objects. See the Orbi vignette for a complete
-analysis. Retention times are in minutes.
+analysis.
 
 ## Prepare bundled data
 
@@ -395,14 +395,14 @@ Each template shows the complete argument list. Choice vectors in templates list
 Read a feature-by-sample peak table, identify intensity columns, and assign sample groups. Feature metadata are retained alongside the intensity values.
 
 ```{r usage-mc_prepare}
-# mc_prepare(data, type = c("mzmine", "default", "xcms", "msdial"), 
+# mc_prepare(data, type = c("mzmine", "generic", "xcms", "msdial"), 
 #     sample_cols = NULL, sample_keywords = NULL, id_col = NULL, 
 #     mz_col = NULL, rt_col = NULL, labels = NULL, token_sep = "_", 
 #     token_index = 2)
 ```
 
 - `data`: A local CSV filename or a data frame with one feature per row. Bundled files can be located with `system.file()`. For a web-hosted CSV, first read it with `vroom::vroom(url, delim = ",")` and pass the resulting table.
-- `type`: Input format: `"mzmine"`, `"default"`, `"xcms"`, or `"msdial"`. XCMS retention times are converted from seconds to minutes. Other formats require retention times in minutes.
+- `type`: Input format: `"mzmine"` (default), `"generic"`, `"xcms"`, or `"msdial"`. XCMS retention times are converted from seconds to minutes. Other formats require retention times in minutes. See [compatible peak-table examples](https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples) for the supported input layouts.
 - `sample_cols`: Intensity-column names or integer column positions after format conversion and column cleanup. Explicit selections take precedence over `sample_keywords`.
 - `sample_keywords`: Case-sensitive literal substrings used to identify intensity columns. A column is selected if its name contains at least one substring. If neither selector is supplied, columns with at least 70% finite numeric entries are considered, excluding identified feature columns and names beginning with row.
 - `id_col`: Feature-ID column name. If omitted, searches for row ID, Feature ID, or Alignment ID, then uses the first column. Original names recognized during format conversion may also be supplied.
@@ -466,7 +466,7 @@ Compare feature intensities in blank and experimental groups, or remove every fe
 
 - `x`: A `metabocensor_result` returned by `mc_prepare()` or a filtering function.
 - `groups`: One or more existing group labels identifying blanks, for example `"Blank"`. All remaining groups are treated as experimental groups in ratio mode.
-- `mode`: `"mean_cutoff"` compares blank and experimental group means. `"drop_detected"` removes any feature with intensity greater than zero in any selected blank sample.
+- `mode`: `"mean_cutoff"` (default) compares blank and experimental group means. `"drop_detected"` removes any feature with intensity greater than zero in any selected blank sample.
 - `cutoff`: Nonnegative blank-to-sample ratio threshold, default 0.10. Used only in `"mean_cutoff"` mode. A ratio equal to the cutoff does not pass.
 - `labels`: Optional sample-group labels. An unnamed vector must follow `x$sample_cols`; a named vector must cover those sample names exactly. `NULL` uses `x$labels`.
 
@@ -484,10 +484,10 @@ Calculate zero abundance, mean intensity, relative standard deviation, D-ratio, 
 
 - `x`: A `metabocensor_result` returned by `mc_prepare()` or a filtering function.
 - `filters`: Character vector containing any of `"zeros"`, `"mean"`, `"rsd"`, `"dratio"`, and `"min"`. The default empty vector removes nothing.
-- `mode`: `"group_any"`: each metric must pass in at least one selected group. `"group_every"`: each metric must pass in every selected group. `"pooled"`: combine selected samples before calculating each metric.
+- `mode`: `"group_any"` (default): each metric must pass in at least one selected group. `"group_every"`: each metric must pass in every selected group. `"pooled"`: combine selected samples before calculating each metric.
 - `groups`: Group labels to evaluate. `NULL` or an empty vector selects all groups. For D-ratio, the group specified by `qc_group` is excluded from the biological denominator. Select biological groups explicitly to avoid including blanks.
 - `zero_metric`: Express zeros as `"count"` or `"percent"` of evaluated samples.
-- `zero_cutoff`: Maximum zero count or percentage, with a strict less-than rule. For example, count cutoff 1 allows no zeros; percent cutoff 50 rejects features with exactly 50% zeros.
+- `zero_cutoff`: 	Zero-count or zero-percentage threshold. Default: 1. Features pass only when their zero count or percentage is strictly less than this threshold. With `"zero_metric"` = `"count"`, a cutoff of 1 allows no zeros. With `"zero_metric"` = `"percent"`, a cutoff of 50 rejects features with exactly 50 percent zeros.
 - `mean_cutoff`: Minimum arithmetic mean intensity. Equality passes. Default: 5000.
 - `rsd_cutoff`: Maximum RSD in percent. Equality passes. Default: 30.
 - `min_cutoff`: Minimum observed intensity. Equality passes. Default: 1000.

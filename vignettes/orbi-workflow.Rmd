@@ -138,10 +138,9 @@ knitr::include_graphics("assets/orbi-summary.png")
 Annotation tables and removed IDs remain accessible independently of the exported peak table.
 
 ```{r annotations, eval=FALSE}
-# Inspect these interactively; avoid printing entire tables in the report.
+# Inspect annotation tables interactively
 head(after_ms$annot_tbls$add_table)
 head(after_ms$annot_tbls$isf_table)
-after_ms$removed_ids$ms
 ```
 
 The export restores the input table layout and keeps MGF spectra matching retained feature IDs. Replace `tempdir()` with your output directory to keep the files permanently.
