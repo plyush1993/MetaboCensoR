@@ -492,7 +492,7 @@ mc_write_mgf <- function(spectra, path) {
 #' @description Compare feature intensities in blank and experimental groups, or remove every feature detected in a blank sample. Save the values and decisions for inspection and plotting.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param groups One or more existing group labels identifying blanks, for example \code{"Blank"}. All remaining groups are treated as experimental groups in ratio mode.
-#' @param mode \code{"mean_cutoff"} compares blank and experimental group means. \code{"drop_detected"} removes any feature with intensity greater than zero in any selected blank sample.
+#' @param mode \code{"mean_cutoff"} (default) compares blank and experimental group means. \code{"drop_detected"} removes any feature with intensity greater than zero in any selected blank sample.
 #' @param cutoff Nonnegative blank-to-sample ratio threshold, default 0.10. Used only in \code{"mean_cutoff"} mode. A ratio equal to the cutoff does not pass.
 #' @param labels Optional sample-group labels. An unnamed vector must follow \code{x$sample_cols}; a named vector must cover those sample names exactly. \code{NULL} uses \code{x$labels}.
 #' @details For each feature in \code{"mean_cutoff"} mode, calculate its mean intensity within each group. Let B be the mean of the selected blank-group means, and S the largest mean among the remaining groups. Retain the feature only when \code{B < cutoff * S}. Blank groups have equal weight even if their sample counts differ.
@@ -570,10 +570,17 @@ mc_filter_blank <- function(x,groups,mode=c("mean_cutoff","drop_detected"),cutof
 #' @description Calculate zero abundance, mean intensity, relative standard deviation, D-ratio, or minimum intensity for selected sample groups, then retain features that pass every selected metric.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param filters Character vector containing any of \code{"zeros"}, \code{"mean"}, \code{"rsd"}, \code{"dratio"}, and \code{"min"}. The default empty vector removes nothing.
-#' @param mode \code{"group_any"}: each metric must pass in at least one selected group. \code{"group_every"}: each metric must pass in every selected group. \code{"pooled"}: combine selected samples before calculating each metric.
+#' @param mode How to combine samples or group-level filtering decisions.
+#'   Default: \code{"group_any"}.
+#'   \describe{
+#'     \item{\code{"group_any"}}{For each selected metric, a feature must pass in at least one evaluated group. Different groups may satisfy different metrics.}
+#'     \item{\code{"group_every"}}{For each selected metric, a feature must pass in every evaluated group.}
+#'     \item{\code{"pooled"}}{Combine samples from the evaluated groups before calculating each metric.}
+#'   }
+#'   When multiple metrics are selected, a feature must pass all of them.
 #' @param groups Group labels to evaluate. \code{NULL} or an empty vector selects all groups. For D-ratio, the group specified by \code{qc_group} is excluded from the biological denominator. Select biological groups explicitly to avoid including blanks.
-#' @param zero_metric Express zeros as \code{"count"} or \code{"percent"} of evaluated samples.
-#' @param zero_cutoff Maximum zero count or percentage, with a strict less-than rule. For example, count cutoff 1 allows no zeros; percent cutoff 50 rejects features with exactly 50\% zeros.
+#' @param zero_metric How to express zero intensities: \code{"count"} (default) counts samples with zero intensity; \code{"percent"} expresses these samples as a percentage of the evaluated samples. Used only when \code{"zeros"} is selected in \code{filters}.
+#' @param zero_cutoff Zero-count or zero-percentage threshold. Default: \code{1}. Features pass only when their zero count or percentage is strictly less than this threshold. With \code{zero_metric = "count"}, a cutoff of 1 allows no zeros. With \code{zero_metric = "percent"}, a cutoff of 50 rejects features with exactly 50 percent zeros.
 #' @param mean_cutoff Minimum arithmetic mean intensity. Equality passes. Default: 5000.
 #' @param rsd_cutoff Maximum RSD in percent. Equality passes. Default: 30.
 #' @param min_cutoff Minimum observed intensity. Equality passes. Default: 1000.
@@ -922,7 +929,7 @@ print.metabocensor_result <- function(x,...) {
         )
       )
     }
-    
+
     if ("zeros" %in% filters) {
       zm <- input$zero_metric %||% "count"
       if (mode %in% c("group_any","group_every")) {
@@ -986,7 +993,7 @@ environment(.mcs_qc_values) <- .mcs_core
 #' @noMd
 #' @description Read a feature-by-sample peak table, identify intensity columns, and assign sample groups. Feature metadata are retained alongside the intensity values.
 #' @param data A local CSV filename or a data frame with one feature per row. Bundled files can be located with \code{system.file()}. For a web-hosted CSV, first read it with \code{vroom::vroom(url, delim = ",")} and pass the resulting table.
-#' @param type Input format: \code{"mzmine"}, \code{"default"}, \code{"xcms"}, or \code{"msdial"}. XCMS retention times are converted from seconds to minutes. Other formats require retention times in minutes.
+#' @param type Input format: \code{"mzmine"} (default), \code{"generic"}, \code{"xcms"}, or \code{"msdial"}. XCMS retention times are converted from seconds to minutes. Other formats require retention times in minutes. See \href{https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples}{compatible peak-table examples} for the supported input layouts.
 #' @param sample_cols Intensity-column names or integer column positions after format conversion and column cleanup. Explicit selections take precedence over \code{sample_keywords}.
 #' @param sample_keywords Case-sensitive literal substrings used to identify intensity columns. A column is selected if its name contains at least one substring. If neither selector is supplied, columns with at least 70\% finite numeric entries are considered, excluding identified feature columns and names beginning with row.
 #' @param id_col Feature-ID column name. If omitted, searches for row ID, Feature ID, or Alignment ID, then uses the first column. Original names recognized during format conversion may also be supplied.
@@ -1030,7 +1037,7 @@ environment(.mcs_qc_values) <- .mcs_core
 #' head(imported$table)
 #'
 #' @export
-mc_prepare <- function(data, type = c("mzmine", "default", "xcms", "msdial"),
+mc_prepare <- function(data, type = c("mzmine", "generic", "xcms", "msdial"),
                        sample_cols = NULL, sample_keywords = NULL,
                        id_col = NULL, mz_col = NULL, rt_col = NULL,
                        labels = NULL, token_sep = "_", token_index = 2) {

@@ -393,25 +393,25 @@ build_feature_meta <- function(raw_df_fid, mz_col, rt_col, ds_matrix = NULL) {
 }
 
 standardize_peak_table <- function(df, type) {
-  type <- match.arg(type, c("mzmine", "default", "xcms", "msdial"))
+  type <- match.arg(type, c("mzmine", "generic", "xcms", "msdial"))
 
   df <- as.data.frame(df)
   names(df) <- trimws(names(df))
-  
+
   # .FID is reserved for MetaboCensoR internal processing
   if (".FID" %in% names(df)) {
     stop("Column name '.FID' is reserved by MetaboCensoR. Please rename it before upload.")
   }
-  
-  export_template  <- names(df)       
-  export_colmap    <- c()            
-  export_rt_factor <- 1  
+
+  export_template  <- names(df)
+  export_colmap    <- c()
+  export_rt_factor <- 1
   msdial_preamble <- NULL
   msdial_export_names <- NULL
 
   # Helper: Normalize strings for soft matching
   norm <- function(x) gsub("[^a-z0-9]", "", tolower(x))
-  
+
   # Helper: Find a column in the CURRENT names matching a target
   find_col <- function(target, current_names) {
     n_target <- norm(target)
@@ -421,12 +421,12 @@ standardize_peak_table <- function(df, type) {
   }
 
   if (type == "mzmine") {
-    mz_col <- find_col("row m/z", names(df)) 
+    mz_col <- find_col("row m/z", names(df))
     if (is.na(mz_col)) mz_col <- find_col("mz", names(df))
-    
+
     rt_col <- find_col("row retention time", names(df))
     if (is.na(rt_col)) rt_col <- find_col("rt", names(df))
-    
+
     export_colmap <- c(mz = mz_col, rt = rt_col)
     export_template <- names(df)
 
@@ -434,10 +434,10 @@ standardize_peak_table <- function(df, type) {
       stop("MZmine table missing m/z or RT column.")
     }
     df <- dplyr::rename(df, mz = !!mz_col, rt = !!rt_col)
-    
+
     id_col <- find_col("row id", names(df))
 
-  } else if (type == "default") {
+  } else if (type == "generic") {
 
   # Universal/default CSV:
   # keep all original column names and let the user specify
@@ -448,9 +448,9 @@ standardize_peak_table <- function(df, type) {
   } else if (type == "msdial") {
     # 1. Try to find the header row by scanning for "Alignment ID" and "Average Mz"
     #    We assume the file might be read as V1, V2... or have metadata rows.
-    
+
     header_keywords <- c("Alignment ID", "Average Mz", "Average Rt")
-    
+
     # Scan the first 30 rows for a row containing ANY of the strict keywords
     hdr_i <- NA
     for (i in 1:min(30, nrow(df))) {
@@ -469,23 +469,23 @@ standardize_peak_table <- function(df, type) {
 
       # Exact original MS-DIAL column names
       original_names <- trimws(as.character(unlist(df[hdr_i, , drop = TRUE])))
-      
+
       # Handle genuinely empty names
       empty_names <- is.na(original_names) | original_names == ""
       original_names[empty_names] <- paste0("Unknown_", seq_along(original_names))[empty_names]
-      
+
       # R needs unique names internally
       new_names <- make.unique(original_names, sep = "_")
-      
+
       # Preamble uses internal unique names only for alignment
       if (!is.null(msdial_preamble) && ncol(msdial_preamble) == length(new_names)) {
         names(msdial_preamble) <- new_names
       }
-      
+
       # IMPORTANT:
       # exact original names are saved separately for final export
       msdial_export_names <- original_names
-      
+
       # internal template must stay unique
       export_template <- new_names
 
@@ -512,16 +512,16 @@ standardize_peak_table <- function(df, type) {
     }
 
     export_colmap <- c(mz = mz_col, rt = rt_col)
-    
+
     df <- dplyr::rename(df, mz = !!mz_col, rt = !!rt_col)
-    
+
     # Ensure numeric
     df$mz <- suppressWarnings(as.numeric(df$mz))
     df$rt <- suppressWarnings(as.numeric(df$rt))
 
     attr(df, "msdial_preamble") <- msdial_preamble
     attr(df, "msdial_export_names") <- msdial_export_names
-  
+
   } else if (type == "xcms") {
 
   req_cols <- c("mzmed", "rtmed")
@@ -552,15 +552,15 @@ standardize_peak_table <- function(df, type) {
   if ("mz" %in% names(df)) {
     df$mz <- suppressWarnings(as.numeric(df$mz))
   }
-  
+
   if ("rt" %in% names(df)) {
     df$rt <- suppressWarnings(as.numeric(df$rt))
   }
-  
+
   attr(df, "export_template")  <- export_template
   attr(df, "export_colmap")    <- export_colmap
   attr(df, "export_rt_factor") <- export_rt_factor
-   
+
   df
 }
 
@@ -720,7 +720,7 @@ check_isf_pairs_ms2 <- function(pairs, sps, id_field,
 
   if (!is.finite(min_rel_pct)) min_rel_pct <- 1
   if (!is.finite(mz_tol_da)) mz_tol_da <- 0.01
-  
+
   min_rel_pct <- max(0, min(100, min_rel_pct))
   mz_tol_da <- abs(mz_tol_da)
 
@@ -980,10 +980,10 @@ collapse_components_keep_most_intense <- function(edges_df, pk, group_col = "gro
 make_mispicked_edges <- function(pk, rt_tol, tol_fun) {
   pk <- pk[is.finite(pk$mz) & is.finite(pk$rt), , drop = FALSE]
   if (nrow(pk) <= 1) return(tibble::tibble(Feature1=character(), Feature2=character()))
-  
+
   o <- order(pk$mz)
   pk <- pk[o, , drop = FALSE]
-  
+
   edges <- list()
   n <- nrow(pk)
   for (i in 1:(n-1)) {
@@ -992,7 +992,7 @@ make_mispicked_edges <- function(pk, rt_tol, tol_fun) {
       dm <- pk$mz[j] - pk$mz[i]
       tol <- tol_fun(mean(c(pk$mz[i], pk$mz[j])))
       if (dm > tol) break
-      
+
       if (abs(pk$rt[j] - pk$rt[i]) <= rt_tol) {
         edges[[length(edges)+1]] <- tibble::tibble(Feature1 = pk$Feature[i], Feature2 = pk$Feature[j])
       }
@@ -1037,13 +1037,13 @@ make_ringing_edges <- function(pk, rt_tol, tol_fun, min_anchor_int, max_ratio, b
         if (bidirectional) {
           max_int <- max(int_i, int_j, na.rm = TRUE)
           min_int <- min(int_i, int_j, na.rm = TRUE)
-        
+
           if (is.finite(max_int) &&
               is.finite(min_int) &&
               min_int > 0 &&
               max_int >= min_anchor_int &&
               (max_int / min_int) >= max_ratio) {
-        
+
             if (int_i >= int_j) {
               edges[[length(edges) + 1]] <- tibble::tibble(
                 Feature1 = pk$Feature[i],
@@ -1058,7 +1058,7 @@ make_ringing_edges <- function(pk, rt_tol, tol_fun, min_anchor_int, max_ratio, b
               )
             }
           }
-        
+
         } else {
           # Strict TOF mode:
           # lower m/z = strong anchor
@@ -1068,7 +1068,7 @@ make_ringing_edges <- function(pk, rt_tol, tol_fun, min_anchor_int, max_ratio, b
               int_j > 0 &&
               int_i >= min_anchor_int &&
               (int_i / int_j) >= max_ratio) {
-        
+
             edges[[length(edges) + 1]] <- tibble::tibble(
               Feature1 = pk$Feature[i],
               Feature2 = pk$Feature[j],
@@ -1182,7 +1182,7 @@ built_in_neutral_losses_full <- function() {
     Pos = c("-", "+", "-", "+", "-", "+", "+", "+", "-", "-", "+", "+", "-", "-", "-", "-", "+", "+", "-", "+", "+", "-", "+", "-", "+", "-", "+", "-", "+", "-", "+", "+", "+", "+", "-", "-", "+", "+", "+", "+", "+", "-", "+", "+", "+", "+", "+", "+", "+", "+", "+", "+", "+", "-", "+", "-", "+", "-", "-", "-", "-", "+", "+", "+", "+", "-", "+", "-", "+", "-", "-", "-", "+", "+", "+", "-", "-", "+", "+", "+", "-", "+", "-", "-", "-", "-", "-", "+", "+", "-", "-", "-", "+", "+", "+", "+", "+", "-", "+", "+", "+", "+", "+", "+", "-", "+", "+", "-", "+", "+", "-", "+", "+", "+", "+", "+", "+", "+", "+", "-", "-", "+", "-", "+", "+", "+", "+", "+", "+", "-", "+", "+", "-", "-", "+", "+", "+", "+", "+", "+", "+", "+", "-", "+", "-", "+"),
     Neg = c("-", "-", "-", "-", "-", "+", "-", "-", "-", "-", "+", "+", "+", "-", "-", "-", "+", "+", "+", "-", "-", "-", "-", "+", "-", "-", "-", "-", "-", "+", "-", "-", "-", "+", "-", "-", "-", "-", "-", "+", "+", "+", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "-", "+", "-", "+", "+", "+", "-", "-", "-", "-", "-", "-", "+", "-", "-", "-", "-", "+", "-", "-", "-", "-", "-", "+", "-", "-", "+", "-", "-", "-", "+", "-", "+", "-", "-", "-", "-", "+", "-", "-", "-", "-", "-", "+", "-", "-", "-", "-", "-", "+", "+", "-", "-", "+", "-", "-", "+", "-", "+", "-", "-", "-", "-", "-", "-", "+", "+", "-", "+", "+", "-", "-", "-", "-", "-", "+", "+", "-", "+", "+", "-", "+", "-", "-", "-", "+", "-", "-", "+", "-", "+", "-"),
     `Ion source` = c("ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI/NCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI", "ESI/APCI", "ESI/APCI", "ESI/APCI", "ESI", "ESI", "ESI", "ESI/APCI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI", "ESI/APCI", "ESI", "ESI", "ESI/APCI", "ESI", "ESI"),
-    `substructure or compound class` = c("Aromatic amines ", "Aromatic N-methylamines, methoxy derivative, tert. Butyl ", "Nitrotoluenes ", "Aromatic amines ", "Methoxy derivatives ", "Nitroaromatic compounds[1], N-oxides[2] ", "Aliph. amines (arom. amines), oximes ", "Carboxylic acids, aldehydes, ester ", "Fluorides ", "Nitrile ", "Amines, aromatic nitrile, aminosulfonic acids ", "aldehydes,ketones, nitroaromatic compounds ", "Aromatic amine ", "Triazines ", "Nitroaromatics, anthraquinones ", "Ethyl derivatives ", "Nitroaromatics ", "Aldehydes* ", "Nitroaromatics ", "Ethanolaminoanthraquinones ", "Aromatic N-methyl groups ", "Sulfur compounds ", "Methyl esters ", "Aromatic methoxy group ", "Thiols* ", "Chlorides ", "Chlorides ", "Dihydroxy compounds ", "N-acetyl derivatives ", "Arginine ", "Triazines ", "Citrulline containing peptides ", "Isopropyl derivatives ", "Carboxylic acids, carbamates ", "Aromatic diamines ", "Aromatic dimethylamines ", "Carboxylic acids ", "Aminoanthraquinones ", "Amitriptyline ", "Nitroaromatics ", "Carboxylic acids ", "Nitroaromatics ", "Methyl sufide* ", "Nitroaldehydes ", "Phosphates of 2+ charge state (especially phosphoserine and phosphothreonine) ", "Chloride adduct of Phosphatidylcholines (PC) ", "Aminoanthrachinones ", "Methoxycarboxylic acids, anthraquinones, hydroxycarboxylic acids ", "Anthraquinones ", "N-methyl carbamate ", "Nitroaromatics, hydroxyaldehydes ", "Naphthoxylcarboxylic acid ", "Phosphatidylcholines (PC) ", "Nitroaromatics ", "\u00ce\u00b1,\u00ce\u00b2-unsaturated acids* ", "Phosphatidylcholines (PC) ", "Aminocarboxylic acids ", "Carboxylic acids ", "Nitrate group ", "Sulfonic acids, sulfonates ", "Chloroanthraquinones ", "Methionine sulfoxide ", "Aromatic trifluoromethyl ", "Serine residue ", "Hydroxycarboxylic acids ", "Nitroanilines ", "Nitroaldehydes, nitroaromatics ", "Hydroxyanthraquinones ", "Methionine side chain ", "Glycine conjugate, CysGly conjugate, glutathione conjugate ", "Nitroaromatics ", "Phenyl(in deferasirox) ", "Phenyl ", "Triazines ", "Phenyl ", "Bromides ", "Bromides ", "Sulfonic acids ", "Phophates (especially phosphotyrosine and phosphohistidine) ", 
+    `substructure or compound class` = c("Aromatic amines ", "Aromatic N-methylamines, methoxy derivative, tert. Butyl ", "Nitrotoluenes ", "Aromatic amines ", "Methoxy derivatives ", "Nitroaromatic compounds[1], N-oxides[2] ", "Aliph. amines (arom. amines), oximes ", "Carboxylic acids, aldehydes, ester ", "Fluorides ", "Nitrile ", "Amines, aromatic nitrile, aminosulfonic acids ", "aldehydes,ketones, nitroaromatic compounds ", "Aromatic amine ", "Triazines ", "Nitroaromatics, anthraquinones ", "Ethyl derivatives ", "Nitroaromatics ", "Aldehydes* ", "Nitroaromatics ", "Ethanolaminoanthraquinones ", "Aromatic N-methyl groups ", "Sulfur compounds ", "Methyl esters ", "Aromatic methoxy group ", "Thiols* ", "Chlorides ", "Chlorides ", "Dihydroxy compounds ", "N-acetyl derivatives ", "Arginine ", "Triazines ", "Citrulline containing peptides ", "Isopropyl derivatives ", "Carboxylic acids, carbamates ", "Aromatic diamines ", "Aromatic dimethylamines ", "Carboxylic acids ", "Aminoanthraquinones ", "Amitriptyline ", "Nitroaromatics ", "Carboxylic acids ", "Nitroaromatics ", "Methyl sufide* ", "Nitroaldehydes ", "Phosphates of 2+ charge state (especially phosphoserine and phosphothreonine) ", "Chloride adduct of Phosphatidylcholines (PC) ", "Aminoanthrachinones ", "Methoxycarboxylic acids, anthraquinones, hydroxycarboxylic acids ", "Anthraquinones ", "N-methyl carbamate ", "Nitroaromatics, hydroxyaldehydes ", "Naphthoxylcarboxylic acid ", "Phosphatidylcholines (PC) ", "Nitroaromatics ", "\u00ce\u00b1,\u00ce\u00b2-unsaturated acids* ", "Phosphatidylcholines (PC) ", "Aminocarboxylic acids ", "Carboxylic acids ", "Nitrate group ", "Sulfonic acids, sulfonates ", "Chloroanthraquinones ", "Methionine sulfoxide ", "Aromatic trifluoromethyl ", "Serine residue ", "Hydroxycarboxylic acids ", "Nitroanilines ", "Nitroaldehydes, nitroaromatics ", "Hydroxyanthraquinones ", "Methionine side chain ", "Glycine conjugate, CysGly conjugate, glutathione conjugate ", "Nitroaromatics ", "Phenyl(in deferasirox) ", "Phenyl ", "Triazines ", "Phenyl ", "Bromides ", "Bromides ", "Sulfonic acids ", "Phophates (especially phosphotyrosine and phosphohistidine) ",
                                          "Sulfonic acids ", "Histidine residue ", "Sulfonate group ", "Anthraquinones ", "Triazines ", "Hydroxytriazines ", "Nitroaromatics ", "Phosphatidylserines (PS) ", "Nitroaromatics ", "Metal-monosaccharide complexes ", "Chloroanthraquinones ", "Nitroaromatics ", "Nitrosulfonic acids ", "Phophates (especially phosphoserine and phosphothreonine) ", "Anthraquinone carboxylic acids ", "Butylesters of most amino acids ", "Nitroaromatics ", "Alkylated methionine ", "Peptides with tyrosyl residue ", "Peptides with tyrosyl residue ", "Phenylthio compounds ", "Hydroxyanthraquinones ", "Nitroaromatics ", "Metal-monosaccharide complexes ", "Cysteine conjugates ", "Nitrosulfonic acids ", "Aromatic iodides ", "Aliphatic-GSH(glutathione conjugates) ", "N-Acetylcysteines ", "Dideoxyhexoside ", "Pentoside ", "Nitroaromatics, trinitrocarboxylic acids ", "Phosphatidylethanolamines (PE) or Lyso-PE  ", "Deoxyhexoside ", "Conjugate with gamma-GluCys or glutathione ", "Lysophosphatidic acids (Lyso-PA) ", "4-hydroxy-2-nonenal (HNE)-containing peptides ", "Aminodeoxyhexoside ", "Hexoside ", "N-acetylcysteine conjugate ", "Rhamonoside ", "N-acetyl-L-lysine side chain ", "Lysophosphatidylglycerols (Lyso-PG) ", "Gly-cysteinyl ", "Glucuronides ", "Gly-cysteinyl ", "Monogalactosyldiacylglycerols (MGDG) ", "Phosphatidylserines (PS) ", "Phosphatidylglycerols (PG) ", "Glucuronides (benzylic) ", "Lysophosphatidylethanolamines (Lyso-PE) ", "Conjugate with N-acetylglucosamine (benzylic) ", "Conjugate with N-acetylglucosamine ", "Lysophosphatidylcholines (Lyso-PC) ", "Lysophosphatidylglycerols (Lyso-PG) ", "Malonylglucuronides ", "Conjugate with gamma-GluCys ", "Lysophosphatidylinositols (Lyso-PI) ", "Sulfoquinovosyldiacylglycerols (SQDG) ", "Malonylglucuronides (benzylic) ", "GSH(glutathione conjugates) ", "Aryl-GSH(glutathione conjugates) ", "Phosphatidylinositols (PI) ", "GSH(glutathione conjugates) ", "Glutathione conjugates ", "Lysophosphatidylinositols (Lyso-PI) ", "Digalactosyldiacylglycerols (DGDG) ")
   ) |> dplyr::mutate(`Accurate Mass` = as.numeric(`Accurate Mass`))
 }
@@ -1283,7 +1283,7 @@ keep_by_rsd <- function(ds, feats, mode, labs, rsd_cutoff) {
   passes <- is.finite(.x) & (.x <= rcut)
   pred(passes)
 }))
-  
+
   keep_true_cols(keep_df)
 }
 
@@ -1550,7 +1550,7 @@ build_final_feature_table <- function(raw_df_fid,
     if (!is.null(merge_map) && nrow(merge_map) > 0) {
       raw2 <- apply_merge_map_to_raw(raw2, merge_map, sample_cols)
     }
-    
+
     # Step 2b: remove non-representative redundant/artifact features
     if (length(del_ms)) {
       raw2 <- raw2[!raw2$.FID %in% del_ms, , drop = FALSE]
@@ -1708,14 +1708,14 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
       result$stats$removed_isf  <- 0L
       result$stats$removed_mis  <- 0L
       result$stats$removed_ring <- 0L
-      
+
       result$del_iso  <- character(0)
       result$del_add  <- character(0)
       result$del_nl   <- character(0)
       result$del_isf  <- character(0)
       result$del_mis  <- character(0)
       result$del_ring <- character(0)
-      
+
       result$mis_merge_map <- NULL
       result$iso_table  <- NULL
       result$add_table  <- NULL
@@ -1723,7 +1723,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
       result$isf_table  <- NULL
       result$mis_table  <- NULL
       result$ring_table <- NULL
-    
+
       # helper to refresh intensity after each filtering step
       refresh_ft <- function(ds, ft) {
         ints <- suppressWarnings(colMeans(ds, na.rm = TRUE))
@@ -1732,7 +1732,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
         ft2
       }
       ft <- refresh_ft(ds, ft)
-    
+
       # ==========================
       # A) Isotopes / dimer-series collapse
       # ==========================
@@ -1741,50 +1741,50 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
         n_iso <- as.integer(parameters$iso_n2 %||% 1)
         n_d   <- as.integer(parameters$iso_nd2 %||% 3)
         delta <- 1.00336
-    
+
         shifts_iso <- tidyr::expand_grid(z = 1:z_max, k = 1:n_iso) %>%
           dplyr::mutate(
             name = paste0("C13*", k, " (z=", z, ")"),
             delta_mz = delta * k / z
           ) %>% dplyr::select(name, delta_mz)
-    
+
         shifts_dimer <- tibble::tibble(
           name = paste0("C13*(", 1:n_d, "+0.5)"),
           delta_mz = delta * ((1:n_d) + 0.5)
         )
-    
+
         shifts <- dplyr::bind_rows(shifts_iso, shifts_dimer)
-    
+
         pk <- ft %>%
           dplyr::transmute(Feature, mz, rt, intensity) %>%
           dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds))
-    
+
         tol_fun <- mz_tol_fun_factory(
           type = parameters$iso_tol_type2 %||% "da",
           mz_tol_da = as.numeric(parameters$iso_mz_tol2 %||% 0.005),
           ppm = as.numeric(parameters$iso_ppm2 %||% 10)
         )
-    
+
         edges <- make_mass_shift_edges(
           pk = pk, shifts = shifts,
           rt_tol = as.numeric(parameters$iso_rt2 %||% 0.01),
           tol_fun = tol_fun
         )
         edges$r <- NA_real_
-        
+
         if (nrow(edges) > 0) {
           X <- as.matrix(ds)
           idx1 <- match(edges$Feature1, colnames(X))
           idx2 <- match(edges$Feature2, colnames(X))
           edges$r <- cor_for_pairs(X, idx1, idx2)
-          
-          rm(X); gc() 
-          
+
+          rm(X); gc()
+
           edges <- edges %>% dplyr::filter(is.finite(r), r >= as.numeric(parameters$iso_cor2 %||% 0.80))
         }
-        
+
         res_iso <- collapse_components_keep_most_intense(edges, pk, group_col = "iso_group")
-        
+
         # Isotope/dimer annotation per feature \u2014 include both directions
         iso_by_peak <- dplyr::bind_rows(
           edges %>%
@@ -1812,7 +1812,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
             r = paste(formatC(r, format = "f", digits = 3), collapse = "; "),
             .groups = "drop"
           )
-        
+
         iso_tbl <- res_iso$table %>%
           dplyr::left_join(iso_by_peak, by = "Feature") %>%
           dplyr::mutate(
@@ -1821,11 +1821,11 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
             r = tidyr::replace_na(r, "none")
           ) %>%
           dplyr::relocate(connected_to, .after = Feature)
-        
+
         result$del_iso <- setdiff(colnames(ds), res_iso$keep)
         result$stats$removed_iso <- length(result$del_iso)
         result$iso_table <- iso_tbl
-    
+
         if (length(result$del_iso) > 0) {
           ds <- ds[, setdiff(colnames(ds), result$del_iso), drop = FALSE]
           ft <- refresh_ft(ds, ft)
@@ -1833,27 +1833,27 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
         suppressWarnings(rm(shifts_iso, shifts_dimer, shifts, pk, edges, res_iso))
         gc()
       }
-    
+
       # ==========================
       # B) Adduct families collapse (neutral mass)
       # ==========================
       if (isTRUE(parameters$enable_add2) && ncol(ds) > 0) {
         pol <- parameters$add_pol2 %||% "positive"
-    
+
         adducts_df <- adduct_table
         if (is.null(adducts_df)) adducts_df <- built_in_adducts_full()
-    
+
         # Expect columns like: Ion_mode, Name, Charge, Mult, Mass (your file)
         adducts_df <- as.data.frame(adducts_df, stringsAsFactors = FALSE)
         if (!all(c("Name","Charge","Mult","Mass") %in% names(adducts_df))) {
           .mc_notice("Adduct CSV missing required columns (Name, Charge, Mult, Mass). Using built-in adducts.", type="warning", duration=5)
           adducts_df <- built_in_adducts_full()
         }
-    
+
         if ("Ion_mode" %in% names(adducts_df)) {
           adducts_df <- adducts_df %>% dplyr::filter(tolower(Ion_mode) == tolower(pol))
         }
-    
+
         add_def <- adducts_df %>%
           dplyr::transmute(
             adduct = as.character(Name),
@@ -1862,23 +1862,23 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
             shift  = as.numeric(Mass)
           ) %>%
           dplyr::filter(is.finite(z), is.finite(mult), is.finite(shift), z > 0, mult > 0)
-    
+
         pk <- ft %>%
           dplyr::transmute(Feature, mz = as.numeric(mz), rt = as.numeric(rt), intensity = as.numeric(intensity)) %>%
           dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds)) %>%
           dplyr::mutate(peak_id = as.character(row_number()))
-    
+
         feat_by_pid <- setNames(pk$Feature, pk$peak_id)
-    
+
         tol_fun <- mz_tol_fun_factory(
           type = parameters$add_tol_type2 %||% "da",
           mz_tol_da = as.numeric(parameters$add_mz_tol2 %||% 0.005),
           ppm = as.numeric(parameters$add_ppm2 %||% 10)
         )
-    
+
         min_NM <- as.numeric(parameters$add_min_nm2 %||% 50)
         rt_tol_add <- as.numeric(parameters$add_rt2 %||% 0.005)
-    
+
         peaks <- pk %>%
           dplyr::transmute(
             peak_id = as.character(peak_id),
@@ -1887,7 +1887,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
             ret     = as.numeric(rt),
             int     = as.numeric(intensity)
           )
-    
+
         # Build neutral mass intervals for each (peak, adduct)
         pad <- tidyr::crossing(peaks, add_def) %>%
           dplyr::mutate(
@@ -1897,17 +1897,17 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
             nm_hi  = M + (tol_mz * z / mult)
           ) %>%
           dplyr::filter(is.finite(M), is.finite(nm_lo), is.finite(nm_hi), M > min_NM)
-    
+
         if (nrow(pad) > 0) {
           pad_dt <- data.table::as.data.table(pad)
           data.table::setkey(pad_dt, nm_lo, nm_hi)
-    
+
           hits_dt <- data.table::foverlaps(
             x = pad_dt, y = pad_dt,
             by.x = c("nm_lo","nm_hi"), by.y = c("nm_lo","nm_hi"),
             type = "any", nomatch = 0L
           )
-    
+
           hits <- tibble::as_tibble(hits_dt) %>%
             dplyr::filter(
               peak_id < i.peak_id,
@@ -1928,9 +1928,9 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               to_adduct   = i.adduct
             ) %>%
             dplyr::distinct()
-    
+
           suppressWarnings(rm(pad_dt, hits_dt, pad)); gc()
-          
+
           if (nrow(hits) > 0) {
             # Correlation filter on edges
             X <- as.matrix(ds)
@@ -1939,22 +1939,22 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
             idx1 <- match(f1, colnames(X))
             idx2 <- match(f2, colnames(X))
             hits$r <- cor_for_pairs(X, idx1, idx2)
-    
+
             rm(X); gc()
-            
+
             hits_corr <- hits %>%
               dplyr::filter(is.finite(r), r >= as.numeric(parameters$add_cor2 %||% 0.80))
-    
+
             # Raw groups (all edges) + refined families (corr edges only)
             g_raw <- igraph::graph_from_data_frame(hits[,c("from","to")], directed = FALSE)
             memb_raw <- igraph::components(g_raw)$membership
             group_map <- tibble::tibble(peak_id = names(memb_raw), group_id = as.integer(memb_raw))
-            
+
             suppressWarnings(rm(g_raw, memb_raw)); gc()
-            
+
             # strict rt control
             if (isTRUE(parameters$add_strict_rt2)) {
-              
+
               # 1. Assign strict RT group to each node within its broad group
               nodes_rt <- peaks %>%
                 dplyr::inner_join(group_map, by = "peak_id") %>%
@@ -1962,25 +1962,25 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                 dplyr::arrange(ret, .by_group = TRUE) %>%
                 dplyr::mutate(rt_group = split_rt_strict(ret, as.numeric(parameters$add_rt2 %||% 0.005))) %>%
                 dplyr::ungroup()
-              
+
               # 2. Filter hits_corr to ONLY keep edges where both nodes share the same strict RT group
               edges_corr_rt <- hits_corr %>%
-                dplyr::left_join(nodes_rt %>% dplyr::select(peak_id, group_id, rt_from = rt_group), 
+                dplyr::left_join(nodes_rt %>% dplyr::select(peak_id, group_id, rt_from = rt_group),
                                  by = c("from" = "peak_id")) %>%
-                dplyr::left_join(nodes_rt %>% dplyr::select(peak_id, rt_to = rt_group), 
+                dplyr::left_join(nodes_rt %>% dplyr::select(peak_id, rt_to = rt_group),
                                  by = c("to" = "peak_id")) %>%
                 dplyr::filter(!is.na(rt_from), !is.na(rt_to), rt_from == rt_to) %>%
                 dplyr::mutate(block = paste0(group_id, "_", rt_from))
-              
+
               suppressWarnings(rm(nodes_rt))
-              
+
             } else {
               # Fallback if strict RT control is turned off
               edges_corr_rt <- hits_corr %>%
                 dplyr::left_join(group_map, by = c("from" = "peak_id")) %>%
                 dplyr::mutate(block = as.character(group_id))
             }
-            
+
             fam_map <- edges_corr_rt %>%
               dplyr::group_by(block) %>%
               dplyr::group_modify(~{
@@ -1993,7 +1993,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                   family_id = paste0(.y$block, "_F", as.integer(memb))
                 )
               }) %>% dplyr::ungroup()
-    
+
             # adduct annotation per peak (from/to lists)
             # adduct annotation per peak, based only on final correlated / strict-RT edges
               add_by_peak <- dplyr::bind_rows(
@@ -2003,7 +2003,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                     pair = paste0(from_adduct, " -> ", to_adduct, " [", feat_by_pid[to], "]"),
                     r_value = as.numeric(r)
                   ),
-              
+
                 edges_corr_rt %>%
                   dplyr::transmute(
                     peak_id = as.character(to),
@@ -2020,7 +2020,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                   r = paste(formatC(r_value[match(sort(unique(pair)), pair)], format = "f", digits = 3), collapse = "; "),
                   .groups = "drop"
                 )
-    
+
             # representative per family = max intensity
             reps <- peaks %>%
               dplyr::left_join(fam_map, by = "peak_id") %>%
@@ -2029,16 +2029,16 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               dplyr::slice_max(order_by = int, n = 1, with_ties = FALSE) %>%
               dplyr::ungroup() %>%
               dplyr::transmute(peak_id, keep_rep = TRUE)
-    
+
             in_family <- unique(fam_map$peak_id)
-    
+
           fam_map_simple <- fam_map %>%
             dplyr::select(peak_id, family_id) %>%
             dplyr::distinct()
-          
+
           add_tbl <- peaks %>%
             dplyr::left_join(group_map, by="peak_id") %>%
-            dplyr::left_join(fam_map_simple, by="peak_id") %>%   
+            dplyr::left_join(fam_map_simple, by="peak_id") %>%
             dplyr::left_join(add_by_peak, by="peak_id") %>%
             dplyr::left_join(reps, by="peak_id") %>%
             dplyr::mutate(
@@ -2054,32 +2054,32 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               )
             ) %>%
             dplyr::arrange(group_id, family_id, dplyr::desc(int))
-          
+
             result$add_table <- add_tbl
-    
+
             del_pids <- add_tbl %>%
               dplyr::filter(status == "filtered") %>%
               dplyr::pull(peak_id) %>% as.character()
-    
+
             result$del_add <- unname(feat_by_pid[del_pids])
             result$del_add <- result$del_add[!is.na(result$del_add)]
             result$stats$removed_add <- length(result$del_add)
-    
+
             if (result$stats$removed_add > 0) {
               ds <- ds[, setdiff(colnames(ds), result$del_add), drop = FALSE]
               ft <- refresh_ft(ds, ft)
             }
-            
+
             suppressWarnings(rm(hits, hits_corr, group_map, edges_corr_rt, fam_map, fam_map_simple, add_by_peak, reps, add_tbl))
             gc()
-            
+
           }
         }
-        
+
         suppressWarnings(rm(adducts_df, add_def, pk, peaks)); gc()
-        
+
       }
-    
+
       # ==========================
       # C) Neutral losses collapse
       # ==========================
@@ -2087,13 +2087,13 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
         nl_pol <- parameters$nl_pol2 %||% "positive"
         nl_df <- neutral_loss_table
         if (is.null(nl_df)) nl_df <- built_in_neutral_losses_full()
-    
+
         if (is.null(nl_df)) {
           .mc_notice("Neutral loss table not found (upload or place CSV in app folder). Skipping NL step.", type="warning", duration=5)
         } else {
           # try to standardize expected columns (your file)
           nl_df <- as.data.frame(nl_df, stringsAsFactors = FALSE)
-          
+
           if ("Pos" %in% names(nl_df) && "Neg" %in% names(nl_df)) {
             if (nl_pol == "positive") {
               nl_df <- nl_df %>% dplyr::filter(Pos == "+")
@@ -2101,7 +2101,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               nl_df <- nl_df %>% dplyr::filter(Neg == "+")
             }
           }
-          
+
           has_formula <- "Formula" %in% names(nl_df)
           has_class   <- "substructure or compound class" %in% names(nl_df)
           if (!all(c("Accurate Mass","Neutral Loss") %in% names(nl_df))) {
@@ -2114,13 +2114,13 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                 loss_formula = if (has_formula) as.character(.data[["Formula"]]) else NA_character_,
                 loss_class   = if (has_class)   as.character(.data[["substructure or compound class"]]) else NA_character_
               ) %>% dplyr::filter(is.finite(loss_mass), loss_mass > 0)
-    
+
             pk <- ft %>%
               dplyr::transmute(Feature, mz = as.numeric(mz), rt = as.numeric(rt), intensity = as.numeric(intensity)) %>%
               dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds)) %>%
               dplyr::mutate(peak_id = as.character(row_number()))
             feat_by_pid <- setNames(pk$Feature, pk$peak_id)
-    
+
             # candidate pairs by RT proximity
             rt_pairs <- make_rt_pairs(pk, rt_tol = as.numeric(parameters$nl_rt2 %||% 0.002))
             if (nrow(rt_pairs) > 0) {
@@ -2128,11 +2128,11 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               idx1 <- match(rt_pairs$Feature1, colnames(X))
               idx2 <- match(rt_pairs$Feature2, colnames(X))
               rt_pairs$r <- cor_for_pairs(X, idx1, idx2)
-              
+
               rm(X); gc()
-              
+
               rt_pairs <- rt_pairs %>% dplyr::filter(is.finite(r), r >= as.numeric(parameters$nl_cor2 %||% 0.95))
-    
+
               if (nrow(rt_pairs) > 0) {
                 # add mz/rt + compute delta_mz
                 pkm <- pk %>% dplyr::select(Feature, mz, rt, peak_id)
@@ -2149,34 +2149,34 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                     delta_mz = prec_mz - frag_mz,
                     delta_rt = abs(rt1 - rt2)
                   ) %>% dplyr::filter(is.finite(delta_mz), delta_mz > 0)
-    
+
                 tol_fun <- mz_tol_fun_factory(
                   type = parameters$nl_tol_type2 %||% "da",
                   mz_tol_da = as.numeric(parameters$nl_mz_tol2 %||% 0.005),
                   ppm = as.numeric(parameters$nl_ppm2 %||% 10)
                 )
-    
+
                 # range match via foverlaps
                 dt_pairs <- data.table::as.data.table(pairs2)
                 dt_pairs[, `:=`(lo = delta_mz - tol_fun(delta_mz), hi = delta_mz + tol_fun(delta_mz))]
                 dt_nl <- data.table::as.data.table(nl_tbl)
                 dt_nl[, `:=`(lo = loss_mass, hi = loss_mass)]
-    
+
                 data.table::setkey(dt_pairs, lo, hi)
                 data.table::setkey(dt_nl, lo, hi)
-    
+
                 hits_dt <- data.table::foverlaps(dt_pairs, dt_nl, type = "any", nomatch = 0L)
-                
+
                 suppressWarnings(rm(dt_pairs, dt_nl)); gc()
-                
+
                 hits <- tibble::as_tibble(hits_dt) %>%
                   dplyr::mutate(diff = abs(delta_mz - loss_mass)) %>%
                   dplyr::arrange(diff, dplyr::desc(r)) %>%
                   dplyr::distinct(prec_id, frag_id, loss_name, .keep_all = TRUE) %>%
                   dplyr::select(prec_id, frag_id, prec_mz, frag_mz, delta_mz, loss_name, loss_formula, loss_class, r, diff, delta_rt)
-    
+
                 suppressWarnings(rm(hits_dt)); gc()
-    
+
                 if (nrow(hits) > 0) {
 
   # Pairwise directional filtering:
@@ -2220,13 +2220,13 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
 }
               }
             }
-            
+
             suppressWarnings(rm(pk, rt_pairs, nl_tbl, nl_df)); gc()
-            
+
           }
         }
       }
-    
+
       # ==========================
       # D) Fragments (ISF) collapse
       # ==========================
@@ -2236,18 +2236,18 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
           dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds)) %>%
           dplyr::mutate(peak_id = as.character(row_number()))
         feat_by_pid <- setNames(pk$Feature, pk$peak_id)
-    
+
         rt_pairs <- make_rt_pairs(pk, rt_tol = as.numeric(parameters$isf_rt2 %||% 0.002))
         if (nrow(rt_pairs) > 0) {
           X <- as.matrix(ds)
           idx1 <- match(rt_pairs$Feature1, colnames(X))
           idx2 <- match(rt_pairs$Feature2, colnames(X))
           rt_pairs$r <- cor_for_pairs(X, idx1, idx2)
-          
+
           rm(X); gc()
-          
+
           rt_pairs <- rt_pairs %>% dplyr::filter(is.finite(r), r >= as.numeric(parameters$isf_cor2 %||% 0.95))
-    
+
           if (nrow(rt_pairs) > 0) {
             pkm <- pk %>% dplyr::select(Feature, mz, rt, intensity, peak_id)
             pairs2 <- rt_pairs %>%
@@ -2266,7 +2266,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                 frag_to_prec = (frag_int + 1e-12) / (prec_int + 1e-12),
                 delta_rt = abs(rt1 - rt2)
               )
-    
+
             if (isTRUE(parameters$isf_control_int2)) {
               pairs2 <- pairs2 %>%
                 dplyr::filter(
@@ -2274,7 +2274,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                   frag_to_prec <= as.numeric(parameters$isf_ratio_max2 %||% 2.5)
                 )
             }
-            
+
             # Add canonical feature IDs to candidate precursor/fragment pairs.
             # These IDs are used for MGF matching.
             pairs2 <- pairs2 %>%
@@ -2282,10 +2282,10 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                 prec_feature = unname(feat_by_pid[as.character(prec_id)]),
                 frag_feature = unname(feat_by_pid[as.character(frag_id)])
               )
-            
+
             # OPTIONAL: MS2 confirmation of ISF relationships
             if (isTRUE(parameters$isf_ms2_check2) && nrow(pairs2) > 0) {
-            
+
               pairs2 <- check_isf_pairs_ms2(
                 pairs = pairs2,
                 sps = spectra,
@@ -2293,29 +2293,29 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
                 min_rel_pct = as.numeric(parameters$isf_ms2_rel2 %||% 1),
                 mz_tol_da = as.numeric(parameters$isf_ms2_mz_tol2 %||% 0.01)
               )
-            
+
               if (!any(pairs2$ms2_available)) {
               .mc_notice(
                 "No precursor Feature IDs matched the selected MGF ID field. Check that the Feature ID selected during upload corresponds to the MGF spectrum IDs.",
                 type = "warning", duration = 8
               )
             }
-              
+
               n_all <- nrow(pairs2)
               n_ms2 <- sum(pairs2$ms2_available)
               n_supported <- sum(pairs2$ms2_available & pairs2$ms2_match)
-              
+
               .mc_notice(
                 sprintf("MS2 confirmation: %d/%d candidate pairs had precursor MS2; %d were supported.",
                         n_ms2, n_all, n_supported),
                 type = "message", duration = 6
               )
-                            
+
               # Keep only candidate edges supported by MS2
               pairs2 <- pairs2 %>%
                 dplyr::filter(ms2_available, ms2_match)
             }
-            
+
             if (nrow(pairs2) > 0) {
 
   # Pairwise directional filtering:
@@ -2371,11 +2371,11 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
 }
           }
         }
-        
+
         suppressWarnings(rm(pk, rt_pairs, pairs2, pkm)); gc()
-        
+
       }
-    
+
       # ==========================
       # E) Mispicked ions collapse
       # ==========================
@@ -2383,26 +2383,26 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
         pk <- ft %>%
           dplyr::transmute(Feature, mz = as.numeric(mz), rt = as.numeric(rt), intensity = as.numeric(intensity)) %>%
           dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds))
-        
+
         tol_fun <- mz_tol_fun_factory(
           type = parameters$mis_tol_type2 %||% "ppm",
           mz_tol_da = as.numeric(parameters$mis_mz_tol2 %||% 0.005),
           ppm = as.numeric(parameters$mis_ppm2 %||% 10)
         )
-        
+
         edges <- make_mispicked_edges(pk = pk, rt_tol = as.numeric(parameters$mis_rt2 %||% 0.002), tol_fun = tol_fun)
         edges$r <- NA_real_
-        
+
         if (nrow(edges) > 0) {
           X <- as.matrix(ds)
           idx1 <- match(edges$Feature1, colnames(X))
           idx2 <- match(edges$Feature2, colnames(X))
           edges$r <- cor_for_pairs(X, idx1, idx2)
           rm(X); gc()
-          
+
           edges <- edges %>% dplyr::filter(is.finite(r), r >= as.numeric(parameters$mis_cor2 %||% 0.80))
         }
-        
+
         res_mis <- collapse_components_keep_most_intense(edges, pk, group_col = "mis_group")
         mis_r <- dplyr::bind_rows(
           edges %>%
@@ -2410,13 +2410,13 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               Feature = Feature1,
               r_value = r
             ),
-        
+
           edges %>%
             dplyr::transmute(
               Feature = Feature2,
               r_value = r
             )
-        
+
         ) %>%
           dplyr::group_by(Feature) %>%
           dplyr::summarise(
@@ -2430,28 +2430,28 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
             ),
             .groups = "drop"
           )
-        
+
         result$mis_table <- res_mis$table %>%
           dplyr::left_join(
             mis_r,
             by = "Feature"
           )
         result$mis_merge_map <- res_mis$merge_map
-        
+
         # Sum mispicked ion intensities into representative ion
         if (!is.null(result$mis_merge_map) && nrow(result$mis_merge_map) > 0) {
           ds <- apply_merge_map_to_matrix(ds, result$mis_merge_map)
         }
-        
+
         # Delete non-representative features after summing
         result$del_mis <- setdiff(colnames(ds), res_mis$keep)
         result$stats$removed_mis <- length(result$del_mis)
-        
+
         if (length(result$del_mis) > 0) {
           ds <- ds[, setdiff(colnames(ds), result$del_mis), drop = FALSE]
           ft <- refresh_ft(ds, ft)
         }
-        
+
         suppressWarnings(rm(edges, res_mis)); gc()
       }
 
@@ -2462,13 +2462,13 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
         pk <- ft %>%
           dplyr::transmute(Feature, mz = as.numeric(mz), rt = as.numeric(rt), intensity = as.numeric(intensity)) %>%
           dplyr::filter(is.finite(mz), is.finite(rt), Feature %in% colnames(ds))
-        
+
         tol_fun_ring <- mz_tol_fun_factory(
           type = parameters$ring_tol_type2 %||% "da",
           mz_tol_da = as.numeric(parameters$ring_mz_tol2 %||% 0.95),
           ppm = as.numeric(parameters$ring_ppm2 %||% 500)
         )
-        
+
         edges <- make_ringing_edges(
           pk = pk,
           rt_tol = as.numeric(parameters$ring_rt2 %||% 0.05),
@@ -2478,19 +2478,19 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
           bidirectional = isTRUE(parameters$ring_bidirectional2)
         )
         edges$r <- NA_real_
-        
+
         if (nrow(edges) > 0) {
           X <- as.matrix(ds)
           idx1 <- match(edges$Feature1, colnames(X))
           idx2 <- match(edges$Feature2, colnames(X))
           edges$r <- cor_for_pairs(X, idx1, idx2)
           rm(X); gc()
-          
+
           edges <- edges %>% dplyr::filter(is.finite(r), r >= as.numeric(parameters$ring_cor2 %||% 0.80))
         }
-        
+
         res_ring <- collapse_components_keep_most_intense(edges, pk, group_col = "ring_group")
-        
+
         ring_r <- dplyr::bind_rows(
 
           edges %>%
@@ -2498,7 +2498,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               Feature = Feature1,
               r_value = r
             ),
-        
+
           edges %>%
             dplyr::transmute(
               Feature = Feature2,
@@ -2515,7 +2515,7 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               collapse = "; "
             ),
             .groups = "drop")
-        
+
         result$ring_table <- res_ring$table %>%
           dplyr::left_join(
             ring_r,
@@ -2523,14 +2523,14 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
           )
         result$del_ring <- setdiff(colnames(ds), res_ring$keep)
         result$stats$removed_ring <- length(result$del_ring)
-        
+
         if (length(result$del_ring) > 0) {
           ds <- ds[, setdiff(colnames(ds), result$del_ring), drop = FALSE]
           ft <- refresh_ft(ds, ft)
         }
         suppressWarnings(rm(edges, res_ring)); gc()
       }
-      
+
       # finalize
       result$matrix <- ds
       result$applied <- TRUE
@@ -2547,10 +2547,10 @@ peak_engine <- function(df, parameters, targets, matches) {
     sel <- parameters$peak_filters %||% character(0)
     before <- nrow(df)
     result$stats$before <- before
-  
+
     mzv <- suppressWarnings(as.numeric(df[[parameters$mz_col0]]))
     rtv <- suppressWarnings(as.numeric(df[[parameters$rt_col0]]))
-  
+
     rmd_values <- calculate_RMD(mzv)
     amd_values <- calculate_AMD(mzv, absolute = TRUE)
     # initialize PASS vectors (so missing filters don't break)
@@ -2558,7 +2558,7 @@ peak_engine <- function(df, parameters, targets, matches) {
     rt_pass  <- rep(TRUE, before)
     rmd_pass <- rep(TRUE, before)
     amd_pass <- rep(TRUE, before)
-  
+
     # initialize FAIL vectors
     fail_mz  <- rep(FALSE, before)
     fail_rt  <- rep(FALSE, before)
@@ -2569,11 +2569,11 @@ peak_engine <- function(df, parameters, targets, matches) {
     target_matches <- empty_peak_matches()
     target_action <- parameters$target_peak_action %||% "remove"
     target_skipped_empty <- FALSE
-      
+
     if ("mz" %in% sel) {
       mz_pass_min <- rep(TRUE, before)
       mz_pass_max <- rep(TRUE, before)
-      
+
       if (isTRUE(parameters$mz_min_enable)) {
         mzmin <- suppressWarnings(as.numeric(parameters$peak_mz_min))
         .mc_validate(.mc_need(is.finite(mzmin), "m/z min cutoff must be numeric."))
@@ -2584,7 +2584,7 @@ peak_engine <- function(df, parameters, targets, matches) {
         .mc_validate(.mc_need(is.finite(mzmax), "m/z max cutoff must be numeric."))
         mz_pass_max <- is.finite(mzv) & (mzv <= mzmax)
       }
-      
+
       mz_pass <- mz_pass_min & mz_pass_max
       fail_mz <- !mz_pass
     }
@@ -2592,7 +2592,7 @@ peak_engine <- function(df, parameters, targets, matches) {
     if ("rt" %in% sel) {
       rt_pass_min <- rep(TRUE, before)
       rt_pass_max <- rep(TRUE, before)
-      
+
       if (isTRUE(parameters$rt_min_enable)) {
         rtmin <- suppressWarnings(as.numeric(parameters$peak_rt_min))
         .mc_validate(.mc_need(is.finite(rtmin), "rt min cutoff must be numeric."))
@@ -2603,16 +2603,16 @@ peak_engine <- function(df, parameters, targets, matches) {
         .mc_validate(.mc_need(is.finite(rtmax), "rt max cutoff must be numeric."))
         rt_pass_max <- is.finite(rtv) & (rtv <= rtmax)
       }
-      
+
       rt_pass <- rt_pass_min & rt_pass_max
       fail_rt <- !rt_pass
     }
-  
+
     if ("rmd" %in% sel) {
       rmd_pass_min <- rep(TRUE, before)
       rmd_pass_max <- rep(TRUE, before)
       rmd_vals <- rmd_values
-      
+
       if (isTRUE(parameters$rmd_min_enable)) {
         rmin <- suppressWarnings(as.numeric(parameters$peak_rmd_min))
         .mc_validate(.mc_need(is.finite(rmin), "RMD min bound must be numeric."))
@@ -2623,7 +2623,7 @@ peak_engine <- function(df, parameters, targets, matches) {
         .mc_validate(.mc_need(is.finite(rmax), "RMD max bound must be numeric."))
         rmd_pass_max <- is.finite(rmd_vals) & (rmd_vals <= rmax)
       }
-      
+
       rmd_pass <- rmd_pass_min & rmd_pass_max
       fail_rmd <- !rmd_pass
     }
@@ -2632,7 +2632,7 @@ peak_engine <- function(df, parameters, targets, matches) {
       amd_pass_min <- rep(TRUE, before)
       amd_pass_max <- rep(TRUE, before)
       amd_vals <- amd_values
-      
+
       if (isTRUE(parameters$amd_min_enable)) {
         amin <- suppressWarnings(as.numeric(parameters$peak_amd_min))
         .mc_validate(.mc_need(is.finite(amin), "AMD min bound must be numeric."))
@@ -2643,11 +2643,11 @@ peak_engine <- function(df, parameters, targets, matches) {
         .mc_validate(.mc_need(is.finite(amax), "AMD max bound must be numeric."))
         amd_pass_max <- is.finite(amd_vals) & (amd_vals <= amax)
       }
-      
+
       amd_pass <- amd_pass_min & amd_pass_max
       fail_amd <- !amd_pass
     }
-  
+
 if ("target" %in% sel) {
 
   targets_now <- targets
@@ -2694,14 +2694,14 @@ if ("target" %in% sel) {
     }
   }
 }
-    
+
     keep_idx <- if (length(sel) == 0) {
         rep(TRUE, before)
       } else {
         (mz_pass & rt_pass & rmd_pass & amd_pass) & !fail_target
       }
     ids_kept <- as.character(df[[rid]][keep_idx])
-  
+
     after <- sum(keep_idx)
     result$stats$after <- after
     result$stats$removed_mz  <- sum(fail_mz)
@@ -2713,7 +2713,7 @@ if ("target" %in% sel) {
     result$stats$target_action <- target_action
     result$target_matches <- target_matches
     result$stats$removed_total <- before - after
-  
+
 
   result$values <- data.frame(Feature=as.character(df[[rid]]), mz=mzv, RT=rtv,
     RMD=rmd_values, AMD=amd_values, pass_mz=mz_pass, pass_rt=rt_pass,
