@@ -4,13 +4,13 @@
 \title{Remove features associated with blank samples}
 \description{Compare feature intensities in blank and experimental groups, or remove every feature detected in a blank sample. Save the values and decisions for inspection and plotting.}
 \usage{
-mc_filter_blank(x, groups, mode = c("mean_cutoff", "drop_detected"), 
+mc_filter_blank(x, groups, mode = c("mean_cutoff", "drop_detected"),
     cutoff = 0.1, labels = NULL)
 }
 \arguments{
 \item{x}{A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.}
 \item{groups}{One or more existing group labels identifying blanks, for example \code{"Blank"}. All remaining groups are treated as experimental groups in ratio mode.}
-\item{mode}{\code{"mean_cutoff"} compares blank and experimental group means. \code{"drop_detected"} removes any feature with intensity greater than zero in any selected blank sample.}
+\item{mode}{\code{"mean_cutoff"} (default) compares blank and experimental group means. \code{"drop_detected"} removes any feature with intensity greater than zero in any selected blank sample.}
 \item{cutoff}{Nonnegative blank-to-sample ratio threshold, default 0.10. Used only in \code{"mean_cutoff"} mode. A ratio equal to the cutoff does not pass.}
 \item{labels}{Optional sample-group labels. An unnamed vector must follow \code{x$sample_cols}; a named vector must cover those sample names exactly. \code{NULL} uses \code{x$labels}.}
 }

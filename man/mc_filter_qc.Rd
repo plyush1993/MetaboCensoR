@@ -4,18 +4,23 @@
 \title{Filter features by reproducibility and signal intensity}
 \description{Calculate zero abundance, mean intensity, relative standard deviation, D-ratio, or minimum intensity for selected sample groups, then retain features that pass every selected metric.}
 \usage{
-mc_filter_qc(x, filters = character(), mode = c("group_any", "group_every", 
-    "pooled"), groups = NULL, zero_metric = c("count", "percent"), 
-    zero_cutoff = 1, mean_cutoff = 5000, rsd_cutoff = 30, min_cutoff = 1000, 
+mc_filter_qc(x, filters = character(), mode = c("group_any", "group_every",
+    "pooled"), groups = NULL, zero_metric = c("count", "percent"),
+    zero_cutoff = 1, mean_cutoff = 5000, rsd_cutoff = 30, min_cutoff = 1000,
     qc_group = NULL, dratio_cutoff = 50, labels = NULL)
 }
 \arguments{
 \item{x}{A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.}
 \item{filters}{Character vector containing any of \code{"zeros"}, \code{"mean"}, \code{"rsd"}, \code{"dratio"}, and \code{"min"}. The default empty vector removes nothing.}
-\item{mode}{\code{"group_any"}: each metric must pass in at least one selected group. \code{"group_every"}: each metric must pass in every selected group. \code{"pooled"}: combine selected samples before calculating each metric.}
+\item{mode}{How to combine samples or group-level filtering decisions. Default: \code{"group_any"}.
+\describe{
+  \item{\code{"group_any"}}{For each selected metric, a feature must pass in at least one evaluated group. Different groups may satisfy different metrics.}
+  \item{\code{"group_every"}}{For each selected metric, a feature must pass in every evaluated group.}
+  \item{\code{"pooled"}}{Combine samples from the evaluated groups before calculating each metric.}}
+  When multiple metrics are selected, a feature must pass all of them.}
 \item{groups}{Group labels to evaluate. \code{NULL} or an empty vector selects all groups. For D-ratio, the group specified by \code{qc_group} is excluded from the biological denominator. Select biological groups explicitly to avoid including blanks.}
-\item{zero_metric}{Express zeros as \code{"count"} or \code{"percent"} of evaluated samples.}
-\item{zero_cutoff}{Maximum zero count or percentage, with a strict less-than rule. For example, count cutoff 1 allows no zeros; percent cutoff 50 rejects features with exactly 50\% zeros.}
+\item{zero_metric}{How to express zero intensities: \code{"count"} (default) counts samples with zero intensity; \code{"percent"} expresses these samples as a percentage of the evaluated samples. Used only when \code{"zeros"} is selected in \code{filters}.}
+\item{zero_cutoff}{Zero-count or zero-percentage threshold. Default: \code{1}. Features pass only when their zero count or percentage is strictly less than this threshold. With \code{zero_metric = "count"}, a cutoff of 1 allows no zeros. With \code{zero_metric = "percent"}, a cutoff of 50 rejects features with exactly 50 percent zeros.}
 \item{mean_cutoff}{Minimum arithmetic mean intensity. Equality passes. Default: 5000.}
 \item{rsd_cutoff}{Maximum RSD in percent. Equality passes. Default: 30.}
 \item{min_cutoff}{Minimum observed intensity. Equality passes. Default: 1000.}

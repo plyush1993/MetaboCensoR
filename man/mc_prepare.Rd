@@ -4,14 +4,14 @@
 \title{Prepare an LC-MS peak table for filtering}
 \description{Read a feature-by-sample peak table, identify intensity columns, and assign sample groups. Feature metadata are retained alongside the intensity values.}
 \usage{
-mc_prepare(data, type = c("mzmine", "default", "xcms", "msdial"), 
-    sample_cols = NULL, sample_keywords = NULL, id_col = NULL, 
-    mz_col = NULL, rt_col = NULL, labels = NULL, token_sep = "_", 
+mc_prepare(data, type = c("mzmine", "generic", "xcms", "msdial"),
+    sample_cols = NULL, sample_keywords = NULL, id_col = NULL,
+    mz_col = NULL, rt_col = NULL, labels = NULL, token_sep = "_",
     token_index = 2)
 }
 \arguments{
 \item{data}{A local CSV filename or a data frame with one feature per row. Bundled files can be located with \code{system.file()}. For a web-hosted CSV, first read it with \code{vroom::vroom(url, delim = ",")} and pass the resulting table.}
-\item{type}{Input format: \code{"mzmine"}, \code{"default"}, \code{"xcms"}, or \code{"msdial"}. XCMS retention times are converted from seconds to minutes. Other formats require retention times in minutes.}
+\item{type}{Input format: \code{"mzmine"} (default), \code{"generic"}, \code{"xcms"}, or \code{"msdial"}. XCMS retention times are converted from seconds to minutes. Other formats require retention times in minutes. See \href{https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples}{compatible peak-table examples} for the supported input layouts.}
 \item{sample_cols}{Intensity-column names or integer column positions after format conversion and column cleanup. Explicit selections take precedence over \code{sample_keywords}.}
 \item{sample_keywords}{Case-sensitive literal substrings used to identify intensity columns. A column is selected if its name contains at least one substring. If neither selector is supplied, columns with at least 70\% finite numeric entries are considered, excluding identified feature columns and names beginning with row.}
 \item{id_col}{Feature-ID column name. If omitted, searches for row ID, Feature ID, or Alignment ID, then uses the first column. Original names recognized during format conversion may also be supplied.}
