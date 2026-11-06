@@ -675,7 +675,7 @@ mc_filter_qc <- function(x,filters=character(),mode=c("group_any","group_every",
 #' @param mgf_file Optional output MGF filename. Requires \code{mgf}.
 #' @param id_field Spectrum metadata field containing feature IDs. Default: \code{"acquisitionNum"}.
 #' @param match_col Optional ID column in the exported table. \code{NULL} uses the ID column selected at import, regardless of output layout.
-#' @param format Output layout: \code{"input"} restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.
+#' @param format Output layout: \code{"input"} (default) restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.
 #' @details All previously applied filters are already reflected in the current table. Export does not rerun filtering or restore removed rows. Matching retains all spectra associated with each retained feature, including duplicate spectra. No additional MS-level restriction is applied. Annotation and metric tables remain in the result object; they are not automatically written into the peak-table CSV.
 #' @return A list with \code{table}, the final data frame, and \code{spectra}, the matching Spectra object or NULL. Requested CSV/MGF files are also written.
 #' @seealso \code{\link{mc_final_table}}, \code{\link{mc_filter_mgf}}, \code{\link{mc_write_table}}
@@ -1307,7 +1307,7 @@ mc_filter_peak <- function(x, filters = NULL, parameters = mc_peak_parameters(),
 #' @noMd
 #' @description Return retained features as a data frame in the original, standardized, or internal layout.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
-#' @param format Output layout: \code{"input"} restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.
+#' @param format Output layout: \code{"input"} (default) restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.
 #' @details Uses the current result without rerunning filters. Removed features are not restored. Summed intensities from mispicked-feature merging are included. In input format, retained metadata columns accompany the intensities. An MS-DIAL preamble is written by \code{mc_write_table()} rather than included as rows in this data frame.
 #' @return A data frame with one row per retained feature.
 #' @seealso \code{\link{mc_write_table}}, \code{\link{mc_export}}
@@ -1355,7 +1355,7 @@ mc_final_table <- function(x, format = c("input", "standard", "internal")) {
 #' @description Export retained features to a CSV file with a chosen column layout.
 #' @param x A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.
 #' @param path Output CSV filename, including the desired directory. Existing output is overwritten.
-#' @param format Output layout: \code{"input"} restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.
+#' @param format Output layout: \code{"input"} (default) restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.
 #' @details Input-format export restores retained metadata, column names and order, and XCMS retention-time units. For MS-DIAL input, the saved preamble is written before the feature table. Use \code{mc_final_table()} to obtain a data frame without writing a file.
 #' @return The output filename, returned invisibly.
 #' @seealso \code{\link{mc_final_table}}, \code{\link{mc_export}}
