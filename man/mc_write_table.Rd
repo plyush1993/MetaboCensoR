@@ -9,7 +9,7 @@ mc_write_table(x, path, format = c("input", "standard", "internal"))
 \arguments{
 \item{x}{A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.}
 \item{path}{Output CSV filename, including the desired directory. Existing output is overwritten.}
-\item{format}{Output layout: \code{"input"} restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.}
+\item{format}{Output layout: \code{"input"} (default) restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.}
 }
 \details{Input-format export restores retained metadata, column names and order, and XCMS retention-time units. For MS-DIAL input, the saved preamble is written before the feature table. Use \code{mc_final_table()} to obtain a data frame without writing a file.}
 \value{The output filename, returned invisibly.}

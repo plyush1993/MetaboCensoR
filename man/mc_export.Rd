@@ -4,7 +4,7 @@
 \title{Export the filtered peak table and matching spectra}
 \description{Collect the current filtered peak table and optionally retain matching MGF spectra. Write either or both outputs when filenames are supplied.}
 \usage{
-mc_export(x, csv = NULL, mgf = NULL, mgf_file = NULL, id_field = "acquisitionNum", 
+mc_export(x, csv = NULL, mgf = NULL, mgf_file = NULL, id_field = "acquisitionNum",
     match_col = NULL, format = c("input", "standard", "internal"))
 }
 \arguments{
@@ -14,7 +14,7 @@ mc_export(x, csv = NULL, mgf = NULL, mgf_file = NULL, id_field = "acquisitionNum
 \item{mgf_file}{Optional output MGF filename. Requires \code{mgf}.}
 \item{id_field}{Spectrum metadata field containing feature IDs. Default: \code{"acquisitionNum"}.}
 \item{match_col}{Optional ID column in the exported table. \code{NULL} uses the ID column selected at import, regardless of output layout.}
-\item{format}{Output layout: \code{"input"} restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.}
+\item{format}{Output layout: \code{"input"} (default) restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.}
 }
 \details{All previously applied filters are already reflected in the current table. Export does not rerun filtering or restore removed rows. Matching retains all spectra associated with each retained feature, including duplicate spectra. No additional MS-level restriction is applied. Annotation and metric tables remain in the result object; they are not automatically written into the peak-table CSV.}
 \value{A list with \code{table}, the final data frame, and \code{spectra}, the matching Spectra object or NULL. Requested CSV/MGF files are also written.}

@@ -8,7 +8,7 @@ mc_final_table(x, format = c("input", "standard", "internal"))
 }
 \arguments{
 \item{x}{A \code{metabocensor_result} returned by \code{mc_prepare()} or a filtering function.}
-\item{format}{Output layout: \code{"input"} restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.}
+\item{format}{Output layout: \code{"input"} (default) restores original column names and order, metadata columns, and XCMS retention times in seconds; \code{"standard"} returns Feature ID, mz, rt in minutes, and sample intensities; \code{"internal"} returns the current table including \code{.FID}.}
 }
 \details{Uses the current result without rerunning filters. Removed features are not restored. Summed intensities from mispicked-feature merging are included. In input format, retained metadata columns accompany the intensities. An MS-DIAL preamble is written by \code{mc_write_table()} rather than included as rows in this data frame.}
 \value{A data frame with one row per retained feature.}
