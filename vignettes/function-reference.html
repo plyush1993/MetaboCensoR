@@ -154,6 +154,8 @@ options</h1>
 <div id="TOC" class="toc">
 <div class="toc-box">
 <ul>
+<li><a href="#processing-logic" id="toc-processing-logic">Processing
+logic</a></li>
 <li><a href="#prepare-bundled-data" id="toc-prepare-bundled-data">Prepare bundled data</a></li>
 <li><a href="#download-optional-spectra-and-adducts" id="toc-download-optional-spectra-and-adducts">Download optional spectra
 and adducts</a></li>
@@ -174,8 +176,43 @@ and plots</a></li>
 <p>This reference displays code without running it. Examples are
 independent recipes, not one script to execute from top to bottom.
 Argument templates include required placeholders; replace them with your
-objects. See the Orbi vignette for a complete analysis. Retention times
-are in minutes.</p>
+objects. See the Orbi vignette for a complete analysis.</p>
+<div id="processing-logic" class="section level2">
+<h2>Processing logic</h2>
+<p>Each filtering function takes a prepared dataset and returns an
+updated object containing the retained features, removed feature IDs,
+and filter-specific results.</p>
+<ul>
+<li><strong>Individual filtering calls follow your chosen
+order.</strong> Pass the result of one step to the next. Each step
+operates on the features retained by the preceding steps, so changing
+the order can change the results.</li>
+<li><strong>Each filtering stage can be applied once per
+object:</strong> blank, MS, QC and peak filtering. To change settings or
+repeat a stage, start again from the saved object immediately before
+that stage.</li>
+<li><strong><code>mc_run()</code> uses a fixed stage order:</strong>
+blank → MS → QC → peak. Stages set to <code>NULL</code> are
+skipped.</li>
+<li><strong>MS subfilters run sequentially in a fixed order:</strong>
+isotopes → adducts → neutral losses → in-source fragments → mispicked
+ions → ringing/saturated ions. Only selected subfilters run. Their order
+in the <code>filters</code> vector does not change the processing
+order.</li>
+<li><strong>QC and peak criteria are combined within their respective
+stages.</strong> A feature must satisfy every selected criterion. For
+QC, <code>mode</code> determines how results from the evaluated groups
+are combined.</li>
+<li><strong>Plotting uses the stored filtering results.</strong> It does
+not rerun filtering. A stage-specific plot requires that stage to have
+been applied.</li>
+<li><strong>Final tables and exports use the current retained
+features.</strong> <code>mc_final_table()</code>,
+<code>mc_write_table()</code> and <code>mc_export()</code> default to
+<code>format = &quot;input&quot;</code>, restoring the original input-table
+layout.</li>
+</ul>
+</div>
 <div id="prepare-bundled-data" class="section level2">
 <h2>Prepare bundled data</h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(MetaboCensoR)</span>
@@ -534,7 +571,7 @@ listed above.</p>
 <p>Read a feature-by-sample peak table, identify intensity columns, and
 assign sample groups. Feature metadata are retained alongside the
 intensity values.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># mc_prepare(data, type = c(&quot;mzmine&quot;, &quot;default&quot;, &quot;xcms&quot;, &quot;msdial&quot;), </span></span>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># mc_prepare(data, type = c(&quot;mzmine&quot;, &quot;generic&quot;, &quot;xcms&quot;, &quot;msdial&quot;), </span></span>
 <span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#     sample_cols = NULL, sample_keywords = NULL, id_col = NULL, </span></span>
 <span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#     mz_col = NULL, rt_col = NULL, labels = NULL, token_sep = &quot;_&quot;, </span></span>
 <span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#     token_index = 2)</span></span></code></pre></div>
@@ -544,10 +581,11 @@ feature per row. Bundled files can be located with
 <code>system.file()</code>. For a web-hosted CSV, first read it with
 <code>vroom::vroom(url, delim = &quot;,&quot;)</code> and pass the resulting
 table.</li>
-<li><code>type</code>: Input format: <code>&quot;mzmine&quot;</code>,
-<code>&quot;default&quot;</code>, <code>&quot;xcms&quot;</code>, or <code>&quot;msdial&quot;</code>.
+<li><code>type</code>: Input format: <code>&quot;mzmine&quot;</code> (default),
+<code>&quot;generic&quot;</code>, <code>&quot;xcms&quot;</code>, or <code>&quot;msdial&quot;</code>.
 XCMS retention times are converted from seconds to minutes. Other
-formats require retention times in minutes.</li>
+formats require retention times in minutes. See <a href="https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples">compatible
+peak-table examples</a> for the supported input layouts.</li>
 <li><code>sample_cols</code>: Intensity-column names or integer column
 positions after format conversion and column cleanup. Explicit
 selections take precedence over <code>sample_keywords</code>.</li>
@@ -639,9 +677,9 @@ decisions for inspection and plotting.</p>
 <li><code>groups</code>: One or more existing group labels identifying
 blanks, for example <code>&quot;Blank&quot;</code>. All remaining groups are
 treated as experimental groups in ratio mode.</li>
-<li><code>mode</code>: <code>&quot;mean_cutoff&quot;</code> compares blank and
-experimental group means. <code>&quot;drop_detected&quot;</code> removes any
-feature with intensity greater than zero in any selected blank
+<li><code>mode</code>: <code>&quot;mean_cutoff&quot;</code> (default) compares
+blank and experimental group means. <code>&quot;drop_detected&quot;</code> removes
+any feature with intensity greater than zero in any selected blank
 sample.</li>
 <li><code>cutoff</code>: Nonnegative blank-to-sample ratio threshold,
 default 0.10. Used only in <code>&quot;mean_cutoff&quot;</code> mode. A ratio
@@ -667,19 +705,22 @@ then retain features that pass every selected metric.</p>
 <code>&quot;zeros&quot;</code>, <code>&quot;mean&quot;</code>, <code>&quot;rsd&quot;</code>,
 <code>&quot;dratio&quot;</code>, and <code>&quot;min&quot;</code>. The default empty vector
 removes nothing.</li>
-<li><code>mode</code>: <code>&quot;group_any&quot;</code>: each metric must pass
-in at least one selected group. <code>&quot;group_every&quot;</code>: each metric
-must pass in every selected group. <code>&quot;pooled&quot;</code>: combine
-selected samples before calculating each metric.</li>
+<li><code>mode</code>: <code>&quot;group_any&quot;</code> (default): each metric
+must pass in at least one selected group. <code>&quot;group_every&quot;</code>:
+each metric must pass in every selected group. <code>&quot;pooled&quot;</code>:
+combine selected samples before calculating each metric.</li>
 <li><code>groups</code>: Group labels to evaluate. <code>NULL</code> or
 an empty vector selects all groups. For D-ratio, the group specified by
 <code>qc_group</code> is excluded from the biological denominator.
 Select biological groups explicitly to avoid including blanks.</li>
 <li><code>zero_metric</code>: Express zeros as <code>&quot;count&quot;</code> or
 <code>&quot;percent&quot;</code> of evaluated samples.</li>
-<li><code>zero_cutoff</code>: Maximum zero count or percentage, with a
-strict less-than rule. For example, count cutoff 1 allows no zeros;
-percent cutoff 50 rejects features with exactly 50% zeros.</li>
+<li><code>zero_cutoff</code>: Zero-count or zero-percentage threshold.
+Default: 1. Features pass only when their zero count or percentage is
+strictly less than this threshold. With <code>&quot;zero_metric&quot;</code> =
+<code>&quot;count&quot;</code>, a cutoff of 1 allows no zeros. With
+<code>&quot;zero_metric&quot;</code> = <code>&quot;percent&quot;</code>, a cutoff of 50
+rejects features with exactly 50 percent zeros.</li>
 <li><code>mean_cutoff</code>: Minimum arithmetic mean intensity.
 Equality passes. Default: 5000.</li>
 <li><code>rsd_cutoff</code>: Maximum RSD in percent. Equality passes.

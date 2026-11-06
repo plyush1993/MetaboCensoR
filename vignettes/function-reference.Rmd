@@ -25,6 +25,34 @@ not one script to execute from top to bottom. Argument templates include require
 placeholders; replace them with your objects. See the Orbi vignette for a complete
 analysis.
 
+## Processing logic
+
+Each filtering function takes a prepared dataset and returns an updated
+object containing the retained features, removed feature IDs, and
+filter-specific results.
+
+- **Individual filtering calls follow your chosen order.** Pass the result
+  of one step to the next. Each step operates on the features retained by
+  the preceding steps, so changing the order can change the results.
+- **Each filtering stage can be applied once per object:** blank, MS, QC
+  and peak filtering. To change settings or repeat a stage, start again
+  from the saved object immediately before that stage.
+- **`mc_run()` uses a fixed stage order:** blank → MS → QC → peak.
+  Stages set to `NULL` are skipped.
+- **MS subfilters run sequentially in a fixed order:** isotopes → adducts
+  → neutral losses → in-source fragments → mispicked ions →
+  ringing/saturated ions. Only selected subfilters run. Their order in
+  the `filters` vector does not change the processing order.
+- **QC and peak criteria are combined within their respective stages.**
+  A feature must satisfy every selected criterion. For QC, `mode`
+  determines how results from the evaluated groups are combined.
+- **Plotting uses the stored filtering results.** It does not rerun
+  filtering. A stage-specific plot requires that stage to have been applied.
+- **Final tables and exports use the current retained features.**
+  `mc_final_table()`, `mc_write_table()` and `mc_export()` default to
+  `format = "input"`, restoring the original input-table layout.
+
+
 ## Prepare bundled data
 
 ```{r prepare-example}
