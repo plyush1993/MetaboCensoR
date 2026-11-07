@@ -7,19 +7,19 @@
 # ***MetaboCensoR*** <img src="inst/www/metabocensor_logo.png" align="right" height="200" width="180">
 
 ### Description :bookmark_tabs:
-The [`R`](https://www.r-project.org/) [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and .mgf file. 
+The [`R`](https://www.r-project.org/) package and [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and associated .mgf file, available through an interactive GUI or standalone R functions. 
 - Read the output peak table from [`mzMine`](https://mzio.io/mzmine-news/), [`xcms`](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [`MS-DIAL`](https://systemsomicslab.github.io/compms/msdial/main.html), and `Generic format`.<br>
 Check compatibility with [`input examples`](https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples).
   - Filter features detected in blank sample group(s) with a widget.
   - Filter Isotopes/Dimers, Adducts, Neutral Loses, In-Source Fragments, Mispicked Ions & Saturated (Ringing) Ions, and generate annotation tables.
-  - Filter features by Zero, RSD, Mean, and Min values using selectable logical rules with a widget.
+  - Filter features by Zero, RSD, D-ratio, Mean, and Min values using selectable logical rules with a widget.
   - Filter peaks by *m/z*, *RT*, RMD, AMD bounds and a target peak list to remove/keep with a widget.
 - Compile the final filtered peak table, and filter [`MGF file`](https://fiehnlab.ucdavis.edu/projects/lipidblast/mgf-files) according to the final peak table.
-- Instructions, references, and details.
 
 :bulb:<ins>**Learn More**</ins>: Check out the [`Tutorial`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf) for a full GUI walkthrough.<br>
 :book:<ins>**Manuscript**</ins>: Read our [`Publication`](https://doi.org/10.64898/2026.07.02.735197) for the detailed methodology and benchmarking reports.<br>
-:test_tube:<ins>**Case Studies**</ins>: Visit the [`Examples`](https://github.com/plyush1993/MetaboCensoR_Examples) repository for application and evaluation examples.
+:test_tube:<ins>**Case Studies**</ins>: Visit the [`Examples repository`](https://github.com/plyush1993/MetaboCensoR_Examples) for application and evaluation examples.<br>
+:computer:<ins>**R Functions**</ins>: Use standalone functions to run filtering workflows directly in R. See the [`Function Reference`]() for available functions and parameters, and the [`Workflow Vignette`](https://github.com/plyush1993/MetaboCensoR/blob/main/vignettes/orbi-workflow.Rmd) for a complete analysis example.
 
 <details>
   <summary><b>Server GUI Map&nbsp;&nbsp;</b></summary>
