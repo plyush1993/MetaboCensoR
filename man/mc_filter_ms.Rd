@@ -4,7 +4,7 @@
 \title{Reduce redundant ion features and annotate their relationships}
 \description{Apply isotope, adduct, neutral-loss, in-source-fragment, mispicked-ion, and ringing-artifact filters. Retain representative features and expose the annotation tables for inspection.}
 \usage{
-mc_filter_ms(x, filters = NULL, parameters = mc_ms_parameters(), 
+mc_filter_ms(x, filters = NULL, parameters = mc_ms_parameters(),
     adducts = NULL, neutral_losses = NULL, spectra = NULL)
 }
 \arguments{
@@ -18,7 +18,7 @@ mc_filter_ms(x, filters = NULL, parameters = mc_ms_parameters(),
 \details{Filters run in this order, irrespective of their order in \code{filters}:
 \describe{
 \item{isotopes}{Find candidate isotope/dimer-pattern mass shifts within retention-time and Pearson-correlation thresholds. Connected families retain their highest-mean-intensity feature.}
-\item{adducts}{Convert candidate ion forms to neutral-mass intervals and connect compatible features within retention-time and correlation tolerances. Optional strict retention-time control limits family-wide RT spread. Each family retains its highest-mean-intensity feature.}
+\item{adducts}{Convert candidate ion forms to neutral-mass intervals and connect compatible features within retention-time and correlation tolerances. Optional strict retention-time control limits family-wide RT spread. By default, each family retains its highest mean intensity feature. Optionally prefer selected ion forms within a specified percentage of the family's highest mean intensity. Retain the most intense qualifying preferred feature, or the most intense feature overall if none qualify.}
 \item{neutral_losses}{Find correlated, coeluting pairs separated by a listed neutral-loss mass. Remove the lower-m/z member of accepted pairs.}
 \item{isf}{Find correlated, coeluting lower-m/z candidate fragments, optionally constrained by fragment-to-precursor intensity ratio. With MS2 checking enabled, require the candidate fragment mass in a matching precursor spectrum above the relative-intensity threshold. A match in any eligible spectrum for that precursor is sufficient. Remove accepted lower-m/z fragments.}
 \item{mispicked}{Group nearly coincident, correlated features. Keep the highest-mean-intensity representative and sum family intensities into it for each sample.}

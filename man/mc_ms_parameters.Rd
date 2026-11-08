@@ -30,6 +30,9 @@ mc_ms_parameters(...)
 \item{\code{add_ppm2}}{Relative mass tolerance in ppm for adduct matching. Used only when add_tol_type2 = "ppm". Default: \code{10}.}
 \item{\code{add_min_nm2}}{Minimum candidate neutral mass in Da for adduct annotation. Candidate neutral masses must be strictly greater than this threshold. Default: \code{50}.}
 \item{\code{add_strict_rt2}}{If TRUE, restrict the total retention-time spread of an adduct family to add_rt2 minutes, in addition to pairwise matching. Default: \code{TRUE}.}
+\item{\code{add_prefer2}}{Prefer selected ion forms when choosing adduct-family representatives. Retain the most intense qualifying preferred feature, or the most intense feature overall if none qualify. Default: \code{FALSE}.}
+\item{\code{add_preferred2}}{Character vector of preferred ion names, matching the adduct definitions exactly. Default: \code{NULL}, using \code{"M+H"} for positive polarity or \code{"M-H"} for negative polarity. For example, \code{c("M+H", "M+Na")} prefers features with at least one assignment matching either ion form, without priority ordering.}
+\item{\code{add_prefer_pct2}}{Maximum intensity decrease (\%) from the family's highest mean intensity for a preferred representative. Default: 10; range: 0--100.}
 \item{\code{enable_nl2}}{Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "neutral_losses" to select neutral-loss filtering explicitly. Default: \code{FALSE}.}
 \item{\code{nl_pol2}}{Ionization polarity used to select neutral-loss definitions: "positive" or "negative". Set add_pol2 separately if adduct filtering is also used. Default: \code{positive}.}
 \item{\code{nl_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to differ by a listed neutral loss. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.95}.}
