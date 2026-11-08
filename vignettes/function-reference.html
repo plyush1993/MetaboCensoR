@@ -314,119 +314,129 @@ call override the enable flags. Use <code>&quot;positive&quot;</code> or
 <span id="cb3-59"><a href="#cb3-59" tabindex="-1"></a>  <span class="co"># If TRUE, restrict the total retention-time spread of an adduct family to</span></span>
 <span id="cb3-60"><a href="#cb3-60" tabindex="-1"></a>  <span class="co"># add_rt2 minutes, in addition to pairwise matching.</span></span>
 <span id="cb3-61"><a href="#cb3-61" tabindex="-1"></a>  <span class="at">add_strict_rt2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-62"><a href="#cb3-62" tabindex="-1"></a>  <span class="co"># NEUTRAL-LOSS FILTERING</span></span>
-<span id="cb3-63"><a href="#cb3-63" tabindex="-1"></a>  <span class="co"># Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
-<span id="cb3-64"><a href="#cb3-64" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;neutral_losses&quot; to select neutral-</span></span>
-<span id="cb3-65"><a href="#cb3-65" tabindex="-1"></a>  <span class="co"># loss filtering explicitly.</span></span>
-<span id="cb3-66"><a href="#cb3-66" tabindex="-1"></a>  <span class="at">enable_nl2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-67"><a href="#cb3-67" tabindex="-1"></a>  <span class="co"># Ionization polarity used to select neutral-loss definitions: &quot;positive&quot; or</span></span>
-<span id="cb3-68"><a href="#cb3-68" tabindex="-1"></a>  <span class="co"># &quot;negative&quot;. Set add_pol2 separately if adduct filtering is also used.</span></span>
-<span id="cb3-69"><a href="#cb3-69" tabindex="-1"></a>  <span class="at">nl_pol2 =</span> <span class="st">&quot;positive&quot;</span>,</span>
-<span id="cb3-70"><a href="#cb3-70" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of features</span></span>
-<span id="cb3-71"><a href="#cb3-71" tabindex="-1"></a>  <span class="co"># proposed to differ by a listed neutral loss. Values range from 0 to 1; higher</span></span>
-<span id="cb3-72"><a href="#cb3-72" tabindex="-1"></a>  <span class="co"># cutoffs require more similar profiles.</span></span>
-<span id="cb3-73"><a href="#cb3-73" tabindex="-1"></a>  <span class="at">nl_cor2 =</span> <span class="fl">0.95</span>,</span>
-<span id="cb3-74"><a href="#cb3-74" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between features proposed to</span></span>
-<span id="cb3-75"><a href="#cb3-75" tabindex="-1"></a>  <span class="co"># differ by a listed neutral loss.</span></span>
-<span id="cb3-76"><a href="#cb3-76" tabindex="-1"></a>  <span class="at">nl_rt2 =</span> <span class="fl">0.002</span>,</span>
-<span id="cb3-77"><a href="#cb3-77" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for neutral-loss matching: &quot;da&quot; uses nl_mz_tol2; &quot;ppm&quot;</span></span>
-<span id="cb3-78"><a href="#cb3-78" tabindex="-1"></a>  <span class="co"># uses nl_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-79"><a href="#cb3-79" tabindex="-1"></a>  <span class="at">nl_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
-<span id="cb3-80"><a href="#cb3-80" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for neutral-loss matching. Used only when</span></span>
-<span id="cb3-81"><a href="#cb3-81" tabindex="-1"></a>  <span class="co"># nl_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-82"><a href="#cb3-82" tabindex="-1"></a>  <span class="at">nl_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
-<span id="cb3-83"><a href="#cb3-83" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for neutral-loss matching. Used only when</span></span>
-<span id="cb3-84"><a href="#cb3-84" tabindex="-1"></a>  <span class="co"># nl_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-85"><a href="#cb3-85" tabindex="-1"></a>  <span class="at">nl_ppm2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-86"><a href="#cb3-86" tabindex="-1"></a>  <span class="co"># IN-SOURCE FRAGMENT FILTERING</span></span>
-<span id="cb3-87"><a href="#cb3-87" tabindex="-1"></a>  <span class="co"># Enable in-source fragment filtering when mc_filter_ms(filters = NULL). An</span></span>
-<span id="cb3-88"><a href="#cb3-88" tabindex="-1"></a>  <span class="co"># explicit filters vector overrides this flag; use &quot;isf&quot; to select in-source</span></span>
-<span id="cb3-89"><a href="#cb3-89" tabindex="-1"></a>  <span class="co"># fragment filtering explicitly.</span></span>
-<span id="cb3-90"><a href="#cb3-90" tabindex="-1"></a>  <span class="at">enable_isf2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-91"><a href="#cb3-91" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of a</span></span>
-<span id="cb3-92"><a href="#cb3-92" tabindex="-1"></a>  <span class="co"># candidate in-source fragment and its precursor feature. Values range from 0</span></span>
-<span id="cb3-93"><a href="#cb3-93" tabindex="-1"></a>  <span class="co"># to 1; higher cutoffs require more similar profiles.</span></span>
-<span id="cb3-94"><a href="#cb3-94" tabindex="-1"></a>  <span class="at">isf_cor2 =</span> <span class="fl">0.95</span>,</span>
-<span id="cb3-95"><a href="#cb3-95" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between a candidate in-source</span></span>
-<span id="cb3-96"><a href="#cb3-96" tabindex="-1"></a>  <span class="co"># fragment and its precursor feature.</span></span>
-<span id="cb3-97"><a href="#cb3-97" tabindex="-1"></a>  <span class="at">isf_rt2 =</span> <span class="fl">0.01</span>,</span>
-<span id="cb3-98"><a href="#cb3-98" tabindex="-1"></a>  <span class="co"># If TRUE, require the mean fragment/precursor intensity ratio to fall between</span></span>
-<span id="cb3-99"><a href="#cb3-99" tabindex="-1"></a>  <span class="co"># isf_ratio_min2 and isf_ratio_max2. If FALSE, omit this intensity-ratio</span></span>
-<span id="cb3-100"><a href="#cb3-100" tabindex="-1"></a>  <span class="co"># condition.</span></span>
-<span id="cb3-101"><a href="#cb3-101" tabindex="-1"></a>  <span class="at">isf_control_int2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-102"><a href="#cb3-102" tabindex="-1"></a>  <span class="co"># Lower allowed ratio of mean candidate fragment intensity to mean precursor</span></span>
-<span id="cb3-103"><a href="#cb3-103" tabindex="-1"></a>  <span class="co"># intensity. Used when isf_control_int2 = TRUE.</span></span>
-<span id="cb3-104"><a href="#cb3-104" tabindex="-1"></a>  <span class="at">isf_ratio_min2 =</span> <span class="fl">0.001</span>,</span>
-<span id="cb3-105"><a href="#cb3-105" tabindex="-1"></a>  <span class="co"># Upper allowed ratio of mean candidate fragment intensity to mean precursor</span></span>
-<span id="cb3-106"><a href="#cb3-106" tabindex="-1"></a>  <span class="co"># intensity. Used when isf_control_int2 = TRUE.</span></span>
-<span id="cb3-107"><a href="#cb3-107" tabindex="-1"></a>  <span class="at">isf_ratio_max2 =</span> <span class="fl">2.5</span>,</span>
-<span id="cb3-108"><a href="#cb3-108" tabindex="-1"></a>  <span class="co"># If TRUE, require the candidate fragment m/z in an eligible MS2 spectrum of</span></span>
-<span id="cb3-109"><a href="#cb3-109" tabindex="-1"></a>  <span class="co"># the precursor; supply spectra to mc_filter_ms(). Support in any eligible</span></span>
-<span id="cb3-110"><a href="#cb3-110" tabindex="-1"></a>  <span class="co"># spectrum is sufficient. FALSE uses MS1 evidence only.</span></span>
-<span id="cb3-111"><a href="#cb3-111" tabindex="-1"></a>  <span class="at">isf_ms2_check2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-112"><a href="#cb3-112" tabindex="-1"></a>  <span class="co"># Minimum intensity of a supporting MS2 peak, expressed as a percentage of that</span></span>
-<span id="cb3-113"><a href="#cb3-113" tabindex="-1"></a>  <span class="co"># spectrum&#39;s base peak. For example, 1 means 1 percent. Used when</span></span>
-<span id="cb3-114"><a href="#cb3-114" tabindex="-1"></a>  <span class="co"># isf_ms2_check2 = TRUE.</span></span>
-<span id="cb3-115"><a href="#cb3-115" tabindex="-1"></a>  <span class="at">isf_ms2_rel2 =</span> <span class="dv">1</span>,</span>
-<span id="cb3-116"><a href="#cb3-116" tabindex="-1"></a>  <span class="co"># Absolute tolerance in Da between the candidate in-source fragment m/z and a</span></span>
-<span id="cb3-117"><a href="#cb3-117" tabindex="-1"></a>  <span class="co"># supporting MS2 peak. Used when isf_ms2_check2 = TRUE.</span></span>
-<span id="cb3-118"><a href="#cb3-118" tabindex="-1"></a>  <span class="at">isf_ms2_mz_tol2 =</span> <span class="fl">0.01</span>,</span>
-<span id="cb3-119"><a href="#cb3-119" tabindex="-1"></a>  <span class="co"># Spectrum metadata field used to match MGF spectra to precursor feature IDs</span></span>
-<span id="cb3-120"><a href="#cb3-120" tabindex="-1"></a>  <span class="co"># for in-source fragment checking; typically &quot;acquisitionNum&quot;.</span></span>
-<span id="cb3-121"><a href="#cb3-121" tabindex="-1"></a>  <span class="at">isf_mgf_id_field =</span> <span class="st">&quot;acquisitionNum&quot;</span>,</span>
-<span id="cb3-122"><a href="#cb3-122" tabindex="-1"></a>  <span class="co"># MISPICKED-ION FILTERING</span></span>
-<span id="cb3-123"><a href="#cb3-123" tabindex="-1"></a>  <span class="co"># Enable mispicked-ion filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
-<span id="cb3-124"><a href="#cb3-124" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;mispicked&quot; to select mispicked-ion</span></span>
-<span id="cb3-125"><a href="#cb3-125" tabindex="-1"></a>  <span class="co"># filtering explicitly.</span></span>
-<span id="cb3-126"><a href="#cb3-126" tabindex="-1"></a>  <span class="at">enable_mis2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-127"><a href="#cb3-127" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of features</span></span>
-<span id="cb3-128"><a href="#cb3-128" tabindex="-1"></a>  <span class="co"># proposed to be duplicate peak detections. Values range from 0 to 1; higher</span></span>
-<span id="cb3-129"><a href="#cb3-129" tabindex="-1"></a>  <span class="co"># cutoffs require more similar profiles.</span></span>
-<span id="cb3-130"><a href="#cb3-130" tabindex="-1"></a>  <span class="at">mis_cor2 =</span> <span class="fl">0.8</span>,</span>
-<span id="cb3-131"><a href="#cb3-131" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between features proposed to</span></span>
-<span id="cb3-132"><a href="#cb3-132" tabindex="-1"></a>  <span class="co"># be duplicate peak detections.</span></span>
-<span id="cb3-133"><a href="#cb3-133" tabindex="-1"></a>  <span class="at">mis_rt2 =</span> <span class="fl">0.002</span>,</span>
-<span id="cb3-134"><a href="#cb3-134" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for mispicked-ion matching: &quot;da&quot; uses mis_mz_tol2; &quot;ppm&quot;</span></span>
-<span id="cb3-135"><a href="#cb3-135" tabindex="-1"></a>  <span class="co"># uses mis_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-136"><a href="#cb3-136" tabindex="-1"></a>  <span class="at">mis_tol_type2 =</span> <span class="st">&quot;ppm&quot;</span>,</span>
-<span id="cb3-137"><a href="#cb3-137" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for mispicked-ion matching. Used only when</span></span>
-<span id="cb3-138"><a href="#cb3-138" tabindex="-1"></a>  <span class="co"># mis_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-139"><a href="#cb3-139" tabindex="-1"></a>  <span class="at">mis_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
-<span id="cb3-140"><a href="#cb3-140" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for mispicked-ion matching. Used only when</span></span>
-<span id="cb3-141"><a href="#cb3-141" tabindex="-1"></a>  <span class="co"># mis_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-142"><a href="#cb3-142" tabindex="-1"></a>  <span class="at">mis_ppm2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-143"><a href="#cb3-143" tabindex="-1"></a>  <span class="co"># RINGING/SATURATED-ION FILTERING</span></span>
-<span id="cb3-144"><a href="#cb3-144" tabindex="-1"></a>  <span class="co"># Enable ringing/saturated-ion filtering when mc_filter_ms(filters = NULL). An</span></span>
-<span id="cb3-145"><a href="#cb3-145" tabindex="-1"></a>  <span class="co"># explicit filters vector overrides this flag; use &quot;ringing&quot; to select</span></span>
-<span id="cb3-146"><a href="#cb3-146" tabindex="-1"></a>  <span class="co"># ringing/saturated-ion filtering explicitly.</span></span>
-<span id="cb3-147"><a href="#cb3-147" tabindex="-1"></a>  <span class="at">enable_ring2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-148"><a href="#cb3-148" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of a</span></span>
-<span id="cb3-149"><a href="#cb3-149" tabindex="-1"></a>  <span class="co"># candidate ringing artifact and its high-intensity anchor. Values range from 0</span></span>
-<span id="cb3-150"><a href="#cb3-150" tabindex="-1"></a>  <span class="co"># to 1; higher cutoffs require more similar profiles.</span></span>
-<span id="cb3-151"><a href="#cb3-151" tabindex="-1"></a>  <span class="at">ring_cor2 =</span> <span class="fl">0.8</span>,</span>
-<span id="cb3-152"><a href="#cb3-152" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between a candidate ringing</span></span>
-<span id="cb3-153"><a href="#cb3-153" tabindex="-1"></a>  <span class="co"># artifact and its high-intensity anchor.</span></span>
-<span id="cb3-154"><a href="#cb3-154" tabindex="-1"></a>  <span class="at">ring_rt2 =</span> <span class="fl">0.05</span>,</span>
-<span id="cb3-155"><a href="#cb3-155" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for ringing/saturated-ion matching: &quot;da&quot; uses</span></span>
-<span id="cb3-156"><a href="#cb3-156" tabindex="-1"></a>  <span class="co"># ring_mz_tol2; &quot;ppm&quot; uses ring_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-157"><a href="#cb3-157" tabindex="-1"></a>  <span class="at">ring_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
-<span id="cb3-158"><a href="#cb3-158" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for ringing/saturated-ion matching. Used only</span></span>
-<span id="cb3-159"><a href="#cb3-159" tabindex="-1"></a>  <span class="co"># when ring_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-160"><a href="#cb3-160" tabindex="-1"></a>  <span class="at">ring_mz_tol2 =</span> <span class="fl">0.95</span>,</span>
-<span id="cb3-161"><a href="#cb3-161" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for ringing/saturated-ion matching. Used only</span></span>
-<span id="cb3-162"><a href="#cb3-162" tabindex="-1"></a>  <span class="co"># when ring_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-163"><a href="#cb3-163" tabindex="-1"></a>  <span class="at">ring_ppm2 =</span> <span class="dv">500</span>,</span>
-<span id="cb3-164"><a href="#cb3-164" tabindex="-1"></a>  <span class="co"># Minimum mean sample intensity for a feature to act as the high-intensity</span></span>
-<span id="cb3-165"><a href="#cb3-165" tabindex="-1"></a>  <span class="co"># anchor in ringing/saturated-ion filtering.</span></span>
-<span id="cb3-166"><a href="#cb3-166" tabindex="-1"></a>  <span class="at">ring_min_anch2 =</span> <span class="fl">1e+05</span>,</span>
-<span id="cb3-167"><a href="#cb3-167" tabindex="-1"></a>  <span class="co"># Minimum ratio of anchor mean intensity to candidate artifact mean intensity</span></span>
-<span id="cb3-168"><a href="#cb3-168" tabindex="-1"></a>  <span class="co"># in ringing/saturated-ion filtering. For example, 10 requires the anchor to be</span></span>
-<span id="cb3-169"><a href="#cb3-169" tabindex="-1"></a>  <span class="co"># at least ten times as intense; must be at least 1.</span></span>
-<span id="cb3-170"><a href="#cb3-170" tabindex="-1"></a>  <span class="at">ring_ratio2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-171"><a href="#cb3-171" tabindex="-1"></a>  <span class="co"># If TRUE, search for ringing artifacts below and above the anchor m/z. If</span></span>
-<span id="cb3-172"><a href="#cb3-172" tabindex="-1"></a>  <span class="co"># FALSE, search only above the anchor m/z.</span></span>
-<span id="cb3-173"><a href="#cb3-173" tabindex="-1"></a>  <span class="at">ring_bidirectional2 =</span> <span class="cn">FALSE</span></span>
-<span id="cb3-174"><a href="#cb3-174" tabindex="-1"></a>)</span></code></pre></div>
+<span id="cb3-62"><a href="#cb3-62" tabindex="-1"></a>  <span class="co"># Prefer selected ion forms when choosing adduct-family representatives.</span></span>
+<span id="cb3-63"><a href="#cb3-63" tabindex="-1"></a>  <span class="co"># Retain the most intense qualifying preferred feature, or the most intense feature overall</span></span>
+<span id="cb3-64"><a href="#cb3-64" tabindex="-1"></a>  <span class="co"># if none qualify.</span></span>
+<span id="cb3-65"><a href="#cb3-65" tabindex="-1"></a>  <span class="at">add_prefer2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb3-66"><a href="#cb3-66" tabindex="-1"></a>  <span class="co"># Character vector of preferred ion names, matching the adduct definitions.</span></span>
+<span id="cb3-67"><a href="#cb3-67" tabindex="-1"></a>  <span class="co"># For example, c(&quot;M+H&quot;, &quot;M+Na&quot;).</span></span>
+<span id="cb3-68"><a href="#cb3-68" tabindex="-1"></a>  <span class="at">add_preferred2 =</span> <span class="cn">NULL</span>,</span>
+<span id="cb3-69"><a href="#cb3-69" tabindex="-1"></a>  <span class="co"># Maximum intensity decrease (%) from the family&#39;s highest mean intensity </span></span>
+<span id="cb3-70"><a href="#cb3-70" tabindex="-1"></a>  <span class="co"># for a preferred representative.</span></span>
+<span id="cb3-71"><a href="#cb3-71" tabindex="-1"></a>  <span class="at">add_prefer_pct2 =</span> <span class="dv">10</span>,</span>
+<span id="cb3-72"><a href="#cb3-72" tabindex="-1"></a>  <span class="co"># NEUTRAL-LOSS FILTERING</span></span>
+<span id="cb3-73"><a href="#cb3-73" tabindex="-1"></a>  <span class="co"># Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
+<span id="cb3-74"><a href="#cb3-74" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;neutral_losses&quot; to select neutral-</span></span>
+<span id="cb3-75"><a href="#cb3-75" tabindex="-1"></a>  <span class="co"># loss filtering explicitly.</span></span>
+<span id="cb3-76"><a href="#cb3-76" tabindex="-1"></a>  <span class="at">enable_nl2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb3-77"><a href="#cb3-77" tabindex="-1"></a>  <span class="co"># Ionization polarity used to select neutral-loss definitions: &quot;positive&quot; or</span></span>
+<span id="cb3-78"><a href="#cb3-78" tabindex="-1"></a>  <span class="co"># &quot;negative&quot;. Set add_pol2 separately if adduct filtering is also used.</span></span>
+<span id="cb3-79"><a href="#cb3-79" tabindex="-1"></a>  <span class="at">nl_pol2 =</span> <span class="st">&quot;positive&quot;</span>,</span>
+<span id="cb3-80"><a href="#cb3-80" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of features</span></span>
+<span id="cb3-81"><a href="#cb3-81" tabindex="-1"></a>  <span class="co"># proposed to differ by a listed neutral loss. Values range from 0 to 1; higher</span></span>
+<span id="cb3-82"><a href="#cb3-82" tabindex="-1"></a>  <span class="co"># cutoffs require more similar profiles.</span></span>
+<span id="cb3-83"><a href="#cb3-83" tabindex="-1"></a>  <span class="at">nl_cor2 =</span> <span class="fl">0.95</span>,</span>
+<span id="cb3-84"><a href="#cb3-84" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between features proposed to</span></span>
+<span id="cb3-85"><a href="#cb3-85" tabindex="-1"></a>  <span class="co"># differ by a listed neutral loss.</span></span>
+<span id="cb3-86"><a href="#cb3-86" tabindex="-1"></a>  <span class="at">nl_rt2 =</span> <span class="fl">0.002</span>,</span>
+<span id="cb3-87"><a href="#cb3-87" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for neutral-loss matching: &quot;da&quot; uses nl_mz_tol2; &quot;ppm&quot;</span></span>
+<span id="cb3-88"><a href="#cb3-88" tabindex="-1"></a>  <span class="co"># uses nl_ppm2. Only the selected tolerance is used.</span></span>
+<span id="cb3-89"><a href="#cb3-89" tabindex="-1"></a>  <span class="at">nl_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
+<span id="cb3-90"><a href="#cb3-90" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for neutral-loss matching. Used only when</span></span>
+<span id="cb3-91"><a href="#cb3-91" tabindex="-1"></a>  <span class="co"># nl_tol_type2 = &quot;da&quot;.</span></span>
+<span id="cb3-92"><a href="#cb3-92" tabindex="-1"></a>  <span class="at">nl_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
+<span id="cb3-93"><a href="#cb3-93" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for neutral-loss matching. Used only when</span></span>
+<span id="cb3-94"><a href="#cb3-94" tabindex="-1"></a>  <span class="co"># nl_tol_type2 = &quot;ppm&quot;.</span></span>
+<span id="cb3-95"><a href="#cb3-95" tabindex="-1"></a>  <span class="at">nl_ppm2 =</span> <span class="dv">10</span>,</span>
+<span id="cb3-96"><a href="#cb3-96" tabindex="-1"></a>  <span class="co"># IN-SOURCE FRAGMENT FILTERING</span></span>
+<span id="cb3-97"><a href="#cb3-97" tabindex="-1"></a>  <span class="co"># Enable in-source fragment filtering when mc_filter_ms(filters = NULL). An</span></span>
+<span id="cb3-98"><a href="#cb3-98" tabindex="-1"></a>  <span class="co"># explicit filters vector overrides this flag; use &quot;isf&quot; to select in-source</span></span>
+<span id="cb3-99"><a href="#cb3-99" tabindex="-1"></a>  <span class="co"># fragment filtering explicitly.</span></span>
+<span id="cb3-100"><a href="#cb3-100" tabindex="-1"></a>  <span class="at">enable_isf2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb3-101"><a href="#cb3-101" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of a</span></span>
+<span id="cb3-102"><a href="#cb3-102" tabindex="-1"></a>  <span class="co"># candidate in-source fragment and its precursor feature. Values range from 0</span></span>
+<span id="cb3-103"><a href="#cb3-103" tabindex="-1"></a>  <span class="co"># to 1; higher cutoffs require more similar profiles.</span></span>
+<span id="cb3-104"><a href="#cb3-104" tabindex="-1"></a>  <span class="at">isf_cor2 =</span> <span class="fl">0.95</span>,</span>
+<span id="cb3-105"><a href="#cb3-105" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between a candidate in-source</span></span>
+<span id="cb3-106"><a href="#cb3-106" tabindex="-1"></a>  <span class="co"># fragment and its precursor feature.</span></span>
+<span id="cb3-107"><a href="#cb3-107" tabindex="-1"></a>  <span class="at">isf_rt2 =</span> <span class="fl">0.01</span>,</span>
+<span id="cb3-108"><a href="#cb3-108" tabindex="-1"></a>  <span class="co"># If TRUE, require the mean fragment/precursor intensity ratio to fall between</span></span>
+<span id="cb3-109"><a href="#cb3-109" tabindex="-1"></a>  <span class="co"># isf_ratio_min2 and isf_ratio_max2. If FALSE, omit this intensity-ratio</span></span>
+<span id="cb3-110"><a href="#cb3-110" tabindex="-1"></a>  <span class="co"># condition.</span></span>
+<span id="cb3-111"><a href="#cb3-111" tabindex="-1"></a>  <span class="at">isf_control_int2 =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb3-112"><a href="#cb3-112" tabindex="-1"></a>  <span class="co"># Lower allowed ratio of mean candidate fragment intensity to mean precursor</span></span>
+<span id="cb3-113"><a href="#cb3-113" tabindex="-1"></a>  <span class="co"># intensity. Used when isf_control_int2 = TRUE.</span></span>
+<span id="cb3-114"><a href="#cb3-114" tabindex="-1"></a>  <span class="at">isf_ratio_min2 =</span> <span class="fl">0.001</span>,</span>
+<span id="cb3-115"><a href="#cb3-115" tabindex="-1"></a>  <span class="co"># Upper allowed ratio of mean candidate fragment intensity to mean precursor</span></span>
+<span id="cb3-116"><a href="#cb3-116" tabindex="-1"></a>  <span class="co"># intensity. Used when isf_control_int2 = TRUE.</span></span>
+<span id="cb3-117"><a href="#cb3-117" tabindex="-1"></a>  <span class="at">isf_ratio_max2 =</span> <span class="fl">2.5</span>,</span>
+<span id="cb3-118"><a href="#cb3-118" tabindex="-1"></a>  <span class="co"># If TRUE, require the candidate fragment m/z in an eligible MS2 spectrum of</span></span>
+<span id="cb3-119"><a href="#cb3-119" tabindex="-1"></a>  <span class="co"># the precursor; supply spectra to mc_filter_ms(). Support in any eligible</span></span>
+<span id="cb3-120"><a href="#cb3-120" tabindex="-1"></a>  <span class="co"># spectrum is sufficient. FALSE uses MS1 evidence only.</span></span>
+<span id="cb3-121"><a href="#cb3-121" tabindex="-1"></a>  <span class="at">isf_ms2_check2 =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb3-122"><a href="#cb3-122" tabindex="-1"></a>  <span class="co"># Minimum intensity of a supporting MS2 peak, expressed as a percentage of that</span></span>
+<span id="cb3-123"><a href="#cb3-123" tabindex="-1"></a>  <span class="co"># spectrum&#39;s base peak. For example, 1 means 1 percent. Used when</span></span>
+<span id="cb3-124"><a href="#cb3-124" tabindex="-1"></a>  <span class="co"># isf_ms2_check2 = TRUE.</span></span>
+<span id="cb3-125"><a href="#cb3-125" tabindex="-1"></a>  <span class="at">isf_ms2_rel2 =</span> <span class="dv">1</span>,</span>
+<span id="cb3-126"><a href="#cb3-126" tabindex="-1"></a>  <span class="co"># Absolute tolerance in Da between the candidate in-source fragment m/z and a</span></span>
+<span id="cb3-127"><a href="#cb3-127" tabindex="-1"></a>  <span class="co"># supporting MS2 peak. Used when isf_ms2_check2 = TRUE.</span></span>
+<span id="cb3-128"><a href="#cb3-128" tabindex="-1"></a>  <span class="at">isf_ms2_mz_tol2 =</span> <span class="fl">0.01</span>,</span>
+<span id="cb3-129"><a href="#cb3-129" tabindex="-1"></a>  <span class="co"># Spectrum metadata field used to match MGF spectra to precursor feature IDs</span></span>
+<span id="cb3-130"><a href="#cb3-130" tabindex="-1"></a>  <span class="co"># for in-source fragment checking; typically &quot;acquisitionNum&quot;.</span></span>
+<span id="cb3-131"><a href="#cb3-131" tabindex="-1"></a>  <span class="at">isf_mgf_id_field =</span> <span class="st">&quot;acquisitionNum&quot;</span>,</span>
+<span id="cb3-132"><a href="#cb3-132" tabindex="-1"></a>  <span class="co"># MISPICKED-ION FILTERING</span></span>
+<span id="cb3-133"><a href="#cb3-133" tabindex="-1"></a>  <span class="co"># Enable mispicked-ion filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
+<span id="cb3-134"><a href="#cb3-134" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;mispicked&quot; to select mispicked-ion</span></span>
+<span id="cb3-135"><a href="#cb3-135" tabindex="-1"></a>  <span class="co"># filtering explicitly.</span></span>
+<span id="cb3-136"><a href="#cb3-136" tabindex="-1"></a>  <span class="at">enable_mis2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb3-137"><a href="#cb3-137" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of features</span></span>
+<span id="cb3-138"><a href="#cb3-138" tabindex="-1"></a>  <span class="co"># proposed to be duplicate peak detections. Values range from 0 to 1; higher</span></span>
+<span id="cb3-139"><a href="#cb3-139" tabindex="-1"></a>  <span class="co"># cutoffs require more similar profiles.</span></span>
+<span id="cb3-140"><a href="#cb3-140" tabindex="-1"></a>  <span class="at">mis_cor2 =</span> <span class="fl">0.8</span>,</span>
+<span id="cb3-141"><a href="#cb3-141" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between features proposed to</span></span>
+<span id="cb3-142"><a href="#cb3-142" tabindex="-1"></a>  <span class="co"># be duplicate peak detections.</span></span>
+<span id="cb3-143"><a href="#cb3-143" tabindex="-1"></a>  <span class="at">mis_rt2 =</span> <span class="fl">0.002</span>,</span>
+<span id="cb3-144"><a href="#cb3-144" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for mispicked-ion matching: &quot;da&quot; uses mis_mz_tol2; &quot;ppm&quot;</span></span>
+<span id="cb3-145"><a href="#cb3-145" tabindex="-1"></a>  <span class="co"># uses mis_ppm2. Only the selected tolerance is used.</span></span>
+<span id="cb3-146"><a href="#cb3-146" tabindex="-1"></a>  <span class="at">mis_tol_type2 =</span> <span class="st">&quot;ppm&quot;</span>,</span>
+<span id="cb3-147"><a href="#cb3-147" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for mispicked-ion matching. Used only when</span></span>
+<span id="cb3-148"><a href="#cb3-148" tabindex="-1"></a>  <span class="co"># mis_tol_type2 = &quot;da&quot;.</span></span>
+<span id="cb3-149"><a href="#cb3-149" tabindex="-1"></a>  <span class="at">mis_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
+<span id="cb3-150"><a href="#cb3-150" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for mispicked-ion matching. Used only when</span></span>
+<span id="cb3-151"><a href="#cb3-151" tabindex="-1"></a>  <span class="co"># mis_tol_type2 = &quot;ppm&quot;.</span></span>
+<span id="cb3-152"><a href="#cb3-152" tabindex="-1"></a>  <span class="at">mis_ppm2 =</span> <span class="dv">10</span>,</span>
+<span id="cb3-153"><a href="#cb3-153" tabindex="-1"></a>  <span class="co"># RINGING/SATURATED-ION FILTERING</span></span>
+<span id="cb3-154"><a href="#cb3-154" tabindex="-1"></a>  <span class="co"># Enable ringing/saturated-ion filtering when mc_filter_ms(filters = NULL). An</span></span>
+<span id="cb3-155"><a href="#cb3-155" tabindex="-1"></a>  <span class="co"># explicit filters vector overrides this flag; use &quot;ringing&quot; to select</span></span>
+<span id="cb3-156"><a href="#cb3-156" tabindex="-1"></a>  <span class="co"># ringing/saturated-ion filtering explicitly.</span></span>
+<span id="cb3-157"><a href="#cb3-157" tabindex="-1"></a>  <span class="at">enable_ring2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb3-158"><a href="#cb3-158" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of a</span></span>
+<span id="cb3-159"><a href="#cb3-159" tabindex="-1"></a>  <span class="co"># candidate ringing artifact and its high-intensity anchor. Values range from 0</span></span>
+<span id="cb3-160"><a href="#cb3-160" tabindex="-1"></a>  <span class="co"># to 1; higher cutoffs require more similar profiles.</span></span>
+<span id="cb3-161"><a href="#cb3-161" tabindex="-1"></a>  <span class="at">ring_cor2 =</span> <span class="fl">0.8</span>,</span>
+<span id="cb3-162"><a href="#cb3-162" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between a candidate ringing</span></span>
+<span id="cb3-163"><a href="#cb3-163" tabindex="-1"></a>  <span class="co"># artifact and its high-intensity anchor.</span></span>
+<span id="cb3-164"><a href="#cb3-164" tabindex="-1"></a>  <span class="at">ring_rt2 =</span> <span class="fl">0.05</span>,</span>
+<span id="cb3-165"><a href="#cb3-165" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for ringing/saturated-ion matching: &quot;da&quot; uses</span></span>
+<span id="cb3-166"><a href="#cb3-166" tabindex="-1"></a>  <span class="co"># ring_mz_tol2; &quot;ppm&quot; uses ring_ppm2. Only the selected tolerance is used.</span></span>
+<span id="cb3-167"><a href="#cb3-167" tabindex="-1"></a>  <span class="at">ring_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
+<span id="cb3-168"><a href="#cb3-168" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for ringing/saturated-ion matching. Used only</span></span>
+<span id="cb3-169"><a href="#cb3-169" tabindex="-1"></a>  <span class="co"># when ring_tol_type2 = &quot;da&quot;.</span></span>
+<span id="cb3-170"><a href="#cb3-170" tabindex="-1"></a>  <span class="at">ring_mz_tol2 =</span> <span class="fl">0.95</span>,</span>
+<span id="cb3-171"><a href="#cb3-171" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for ringing/saturated-ion matching. Used only</span></span>
+<span id="cb3-172"><a href="#cb3-172" tabindex="-1"></a>  <span class="co"># when ring_tol_type2 = &quot;ppm&quot;.</span></span>
+<span id="cb3-173"><a href="#cb3-173" tabindex="-1"></a>  <span class="at">ring_ppm2 =</span> <span class="dv">500</span>,</span>
+<span id="cb3-174"><a href="#cb3-174" tabindex="-1"></a>  <span class="co"># Minimum mean sample intensity for a feature to act as the high-intensity</span></span>
+<span id="cb3-175"><a href="#cb3-175" tabindex="-1"></a>  <span class="co"># anchor in ringing/saturated-ion filtering.</span></span>
+<span id="cb3-176"><a href="#cb3-176" tabindex="-1"></a>  <span class="at">ring_min_anch2 =</span> <span class="fl">1e+05</span>,</span>
+<span id="cb3-177"><a href="#cb3-177" tabindex="-1"></a>  <span class="co"># Minimum ratio of anchor mean intensity to candidate artifact mean intensity</span></span>
+<span id="cb3-178"><a href="#cb3-178" tabindex="-1"></a>  <span class="co"># in ringing/saturated-ion filtering. For example, 10 requires the anchor to be</span></span>
+<span id="cb3-179"><a href="#cb3-179" tabindex="-1"></a>  <span class="co"># at least ten times as intense; must be at least 1.</span></span>
+<span id="cb3-180"><a href="#cb3-180" tabindex="-1"></a>  <span class="at">ring_ratio2 =</span> <span class="dv">10</span>,</span>
+<span id="cb3-181"><a href="#cb3-181" tabindex="-1"></a>  <span class="co"># If TRUE, search for ringing artifacts below and above the anchor m/z. If</span></span>
+<span id="cb3-182"><a href="#cb3-182" tabindex="-1"></a>  <span class="co"># FALSE, search only above the anchor m/z.</span></span>
+<span id="cb3-183"><a href="#cb3-183" tabindex="-1"></a>  <span class="at">ring_bidirectional2 =</span> <span class="cn">FALSE</span></span>
+<span id="cb3-184"><a href="#cb3-184" tabindex="-1"></a>)</span></code></pre></div>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>peak_options <span class="ot">&lt;-</span> <span class="fu">mc_peak_parameters</span>(</span>
 <span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="co"># RMD = 1e6 * (mz - floor(mz + 0.5)) / mz.</span></span>
 <span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="co"># AMD = abs(mz - floor(mz + 0.5)).</span></span>

@@ -159,6 +159,16 @@ ms_options <- mc_ms_parameters(
   # If TRUE, restrict the total retention-time spread of an adduct family to
   # add_rt2 minutes, in addition to pairwise matching.
   add_strict_rt2 = TRUE,
+  # Prefer selected ion forms when choosing adduct-family representatives.
+  # Retain the most intense qualifying preferred feature, or the most intense feature overall
+  # if none qualify.
+  add_prefer2 = FALSE,
+  # Character vector of preferred ion names, matching the adduct definitions.
+  # For example, c("M+H", "M+Na").
+  add_preferred2 = NULL,
+  # Maximum intensity decrease (%) from the family's highest mean intensity 
+  # for a preferred representative.
+  add_prefer_pct2 = 10,
   # NEUTRAL-LOSS FILTERING
   # Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit
   # filters vector overrides this flag; use "neutral_losses" to select neutral-
