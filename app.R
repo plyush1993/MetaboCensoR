@@ -33,6 +33,7 @@ suppressPackageStartupMessages({
   library(shinycssloaders)
   library(waiter)
   library(shinyBS)
+  library(jsonlite)
 })
 
 options(shiny.maxRequestSize = 1024 * 1024^2)
@@ -1224,6 +1225,105 @@ apply_merge_map_to_raw <- function(raw_df_fid, merge_map, sample_cols) {
   raw_df_fid
 }
 
+.mc_preferred_adduct_reps <- function(
+    peaks, fam_map, edges, preferred, max_drop = 10) {
+
+  if (!is.numeric(max_drop) ||
+      length(max_drop) != 1L ||
+      !is.finite(max_drop) ||
+      max_drop < 0 || max_drop > 100) {
+    stop("Preferred-ion intensity difference must be between 0 and 100%.")
+  }
+
+  if (!nrow(fam_map)) {
+    return(data.frame(
+      peak_id = character(),
+      keep_rep = logical()
+    ))
+  }
+
+  preferred <- trimws(as.character(preferred))
+  preferred <- unique(
+    preferred[!is.na(preferred) & nzchar(preferred)]
+  )
+
+  # Preserve the original peak order, including tie-breaking.
+  nodes <- peaks[
+    as.character(peaks$peak_id) %in% as.character(fam_map$peak_id),
+    ,
+    drop = FALSE
+  ]
+
+  nodes$family_id <- as.character(
+    fam_map$family_id[
+      match(as.character(nodes$peak_id),
+            as.character(fam_map$peak_id))
+    ]
+  )
+
+  if (anyNA(nodes$family_id) ||
+      any(!is.finite(nodes$int)) ||
+      any(nodes$int < 0)) {
+    stop(
+      "Preferred-ion selection requires finite, ",
+      "nonnegative mean intensities."
+    )
+  }
+
+  family <- setNames(
+    nodes$family_id,
+    as.character(nodes$peak_id)
+  )
+
+  # Use only accepted edges within the same final family.
+  from_family <- family[as.character(edges$from)]
+  to_family <- family[as.character(edges$to)]
+
+  valid <- !is.na(from_family) &
+    !is.na(to_family) &
+    from_family == to_family
+
+  edges <- edges[which(valid), , drop = FALSE]
+
+  # Match the assignment belonging to each endpoint.
+  # Exact matching avoids treating M+H+Na as M+H.
+  preferred_ids <- unique(c(
+    as.character(edges$from[
+      trimws(as.character(edges$from_adduct)) %in% preferred
+    ]),
+    as.character(edges$to[
+      trimws(as.character(edges$to_adduct)) %in% preferred
+    ])
+  ))
+
+  groups <- split(seq_len(nrow(nodes)), nodes$family_id)
+
+  chosen <- vapply(groups, function(ii) {
+
+    maximum <- max(nodes$int[ii])
+
+    eligible <- ii[
+      nodes$int[ii] >= maximum * (1 - max_drop / 100) &
+        as.character(nodes$peak_id[ii]) %in% preferred_ids
+    ]
+
+    # No qualifying preferred candidate: retain the original maximum.
+    if (!length(eligible)) eligible <- ii
+
+    as.character(
+      nodes$peak_id[
+        eligible[which.max(nodes$int[eligible])]
+      ]
+    )
+  }, character(1))
+
+  data.frame(
+    peak_id = unname(chosen),
+    keep_rep = TRUE,
+    stringsAsFactors = FALSE
+  )
+}
+
 built_in_adducts_full <- function() {
   tibble::tibble(
     Name = c("M+H", "M+NH4", "M+Na", "M+K", "M+", "M-H", "M-2H", "M-3H", "M+FA-H", "M+Hac-H", "M-", "M+3H", "M+2H+Na", "M+H+2Na", "M+3Na", "M+2H", "M+H+NH4", "M+H+Na", "M+H+K", "M+ACN+2H", "M+2Na", "M+2ACN+2H", "M+3ACN+2H", "M+CH3OH+H", "M+ACN+H", "M+2Na-H", "M+IsoProp+H", "M+ACN+Na", "M+2K-H", "M+DMSO+H", "M+2ACN+H", "M+IsoProp+Na+H", "2M+H", "2M+NH4", "2M+Na", "2M+3H2O+2H", "2M+K", "2M+ACN+H", "2M+ACN+Na", "M-H2O-H", "M+Na-2H", "M+Cl", "M+K-2H", "M+Br", "M+TFA-H", "2M-H", "2M+FA-H", "2M+Hac-H", "3M-H"),
@@ -1389,12 +1489,139 @@ keep_by_min <- function(ds, feats, mode, labs, min_cutoff) {
   keep_true_cols(keep_df)
 }
 
+# Validate D-ratio settings.
+# Returns NULL when valid, otherwise an explanatory message.
+dratio_problem <- function(ds, value_groups, qc_group, cutoff) {
+  if (!"Label" %in% names(ds)) {
+    return("D-ratio requires sample group labels.")
+  }
+
+  available <- unique(as.character(ds$Label))
+  available <- available[!is.na(available) & nzchar(available)]
+
+  if (length(qc_group) != 1L ||
+      is.na(qc_group) ||
+      !nzchar(qc_group) ||
+      !qc_group %in% available) {
+    return("D-ratio: select a QC group.")
+  }
+
+  if (sum(ds$Label %in% qc_group) < 2L) {
+    return("D-ratio requires at least two samples in the selected QC group.")
+  }
+
+  biological_groups <- setdiff(
+    resolve_labs(ds, value_groups),
+    qc_group
+  )
+  biological_groups <- biological_groups[
+    !is.na(biological_groups) & nzchar(biological_groups)
+  ]
+
+  if (!length(biological_groups)) {
+    return(
+      paste(
+        "D-ratio: select at least one biological group",
+        "different from the QC group, or leave Group(s) to evaluate empty."
+      )
+    )
+  }
+
+  cutoff <- suppressWarnings(as.numeric(cutoff))
+  if (length(cutoff) != 1L || !is.finite(cutoff) || cutoff < 0) {
+    return("D-ratio: enter a finite, non-negative threshold in percent.")
+  }
+
+  NULL
+}
+
+
+# Shared calculation for filtering and plotting.
+dratio_values <- function(ds, feats, mode, value_groups, qc_group) {
+  biological_groups <- setdiff(
+    resolve_labs(ds, value_groups),
+    qc_group
+  )
+  biological_groups <- biological_groups[
+    !is.na(biological_groups) & nzchar(biological_groups)
+  ]
+
+  safe_sd <- function(x) {
+    x <- x[is.finite(x)]
+    if (length(x) < 2L) return(NA_real_)
+    stats::sd(x)
+  }
+
+  qc_sd <- vapply(
+    ds[ds$Label %in% qc_group, feats, drop = FALSE],
+    safe_sd,
+    numeric(1)
+  )
+
+  make_values <- function(groups, label) {
+    biological_sd <- vapply(
+      ds[ds$Label %in% groups, feats, drop = FALSE],
+      safe_sd,
+      numeric(1)
+    )
+
+    value <- rep(NA_real_, length(feats))
+    valid <- is.finite(qc_sd) &
+      is.finite(biological_sd) &
+      biological_sd > 0
+
+    value[valid] <- 100 * qc_sd[valid] / biological_sd[valid]
+
+    tibble::tibble(
+      Label = label,
+      Feature = feats,
+      value = value
+    )
+  }
+
+  if (identical(mode, "pooled")) {
+    return(make_values(biological_groups, "Pooled"))
+  }
+
+  dplyr::bind_rows(lapply(biological_groups, function(group) {
+    make_values(group, group)
+  }))
+}
+
+
+keep_by_dratio <- function(ds, feats, mode, value_groups,
+                           qc_group, dratio_cutoff) {
+  problem <- dratio_problem(
+    ds, value_groups, qc_group, dratio_cutoff
+  )
+  if (!is.null(problem)) stop(problem, call. = FALSE)
+
+  if (!length(feats)) return(character(0))
+
+  values <- dratio_values(
+    ds, feats, mode, value_groups, qc_group
+  )
+
+  pred <- if (identical(mode, "group_every")) all else any
+
+  evaluated <- values %>%
+    dplyr::group_by(Feature) %>%
+    dplyr::summarise(
+      pass = pred(is.finite(value) & value <= dratio_cutoff),
+      .groups = "drop"
+    )
+
+  evaluated$Feature[evaluated$pass]
+}
+
 run_qc_value_filters <- function(ds_with_label, feats_base,
                                 filters, mode, value_groups,
-                                zero_metric, zero_cutoff, mean_cutoff, rsd_cutoff, min_cutoff) {
+                                zero_metric, zero_cutoff, mean_cutoff, rsd_cutoff, min_cutoff,
+                                dratio_qc_group = NULL,
+                                dratio_cutoff = 50) {
 
   filters <- (filters %||% character(0))
-  filters <- filters[filters %in% c("zeros", "mean", "rsd", "min")]
+  filters <- filters[filters %in% c("zeros", "mean", "rsd", "dratio", "min")]
 
   stats <- list(
     before        = length(feats_base),
@@ -1402,6 +1629,7 @@ run_qc_value_filters <- function(ds_with_label, feats_base,
     removed_zeros = 0L,
     removed_mean  = 0L,
     removed_rsd   = 0L,
+    removed_dratio = 0L,
     removed_min   = 0L,
     removed_total = 0L
   )
@@ -1431,6 +1659,20 @@ run_qc_value_filters <- function(ds_with_label, feats_base,
     k <- intersect(feats_base, k)
     stats$removed_rsd <- length(setdiff(feats_base, k))
     kept_lists[["rsd"]] <- k
+  }
+  if ("dratio" %in% filters) {
+    k <- keep_by_dratio(
+      ds = ds_with_label,
+      feats = feats_base,
+      mode = mode,
+      value_groups = value_groups,
+      qc_group = dratio_qc_group,
+      dratio_cutoff = dratio_cutoff
+    )
+
+    k <- intersect(feats_base, k)
+    stats$removed_dratio <- length(setdiff(feats_base, k))
+    kept_lists[["dratio"]] <- k
   }
   if ("min" %in% filters) {
     k <- keep_by_min(ds_with_label, feats_base, mode, labs, min_cutoff)
@@ -1588,7 +1830,7 @@ read_metadata_csv <- function(upload, context = "metadata") {
   req(upload)
 
   ext <- tolower(tools::file_ext(upload$name))
-  validate(need(ext == "csv", paste0("Upload a .csv file for ", context, ".")))
+  shiny::validate(need(ext == "csv", paste0("Upload a .csv file for ", context, ".")))
 
   as.data.frame(
     vroom::vroom(
@@ -1611,7 +1853,7 @@ metadata_labels_by_sample <- function(upload,
                                       context = "metadata labels") {
   meta <- read_metadata_csv(upload, context = context)
 
-  validate(
+  shiny::validate(
     need(sample_col %in% names(meta), "Selected metadata sample-name column was not found."),
     need(label_col %in% names(meta), "Selected metadata label column was not found.")
   )
@@ -1628,7 +1870,7 @@ metadata_labels_by_sample <- function(upload,
     remove_suffixes = remove_suffixes
   )
 
-  validate(
+  shiny::validate(
     need(!anyDuplicated(app_key),
          "Detected sample names are duplicated after optional cleaning."),
     need(!anyDuplicated(meta_key),
@@ -1640,7 +1882,7 @@ metadata_labels_by_sample <- function(upload,
   if (any(is.na(idx))) {
     missing_samples <- app_key[is.na(idx)]
 
-    validate(
+    shiny::validate(
       need(
         FALSE,
         paste0(
@@ -1654,12 +1896,362 @@ metadata_labels_by_sample <- function(upload,
 
   labs <- trimws(as.character(meta[[label_col]][idx]))
 
-  validate(
+  shiny::validate(
     need(!any(is.na(labs) | labs == ""),
          "Selected metadata label column contains empty values.")
   )
 
   labs
+}
+
+# -------------------------------------------------------------------------
+# Analysis settings: supported inputs
+# -------------------------------------------------------------------------
+
+settings_spec <- function(type, stage, multiple = FALSE,
+                          min = NULL, max = NULL) {
+  out <- list(type = type, stage = stage, multiple = multiple)
+  if (!is.null(min)) out$min <- min
+  if (!is.null(max)) out$max <- max
+  out
+}
+
+settings_registry <- list(
+  # Upload and parsing
+  data_type0 = settings_spec("selectInput", "upload"),
+  row_id_col0 = settings_spec("selectInput", "upload"),
+  mz_col0 = settings_spec("selectInput", "upload"),
+  rt_col0 = settings_spec("selectInput", "upload"),
+  sample_mode0 = settings_spec("radioButtons", "upload"),
+  sample_keyword0 = settings_spec("selectizeInput", "upload", TRUE),
+  sample_cols0 = settings_spec("selectizeInput", "upload", TRUE),
+
+  # Blank filters and labels
+  label_source = settings_spec("radioButtons", "blank"),
+  label_index = settings_spec("numericInput", "blank", min = 1),
+  token_sep = settings_spec("textInput", "blank"),
+  blank_clean_metadata_names = settings_spec("prettyCheckbox", "blank"),
+  blank_metadata_remove_suffixes = settings_spec("selectizeInput", "blank", TRUE),
+  blank_metadata_sample_col = settings_spec("selectInput", "blank"),
+  blank_metadata_label_col = settings_spec("selectizeInput", "blank"),
+  enable_blank = settings_spec("materialSwitch", "blank"),
+  groups_to_remove = settings_spec("selectizeInput", "blank", TRUE),
+  blank_mode = settings_spec("radioButtons", "blank"),
+  blank_cutoff = settings_spec("numericInput", "blank", min = 0),
+
+  # Isotopes
+  enable_iso2 = settings_spec("materialSwitch", "ms"),
+  iso_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  iso_rt2 = settings_spec("numericInput", "ms", min = 0),
+  iso_tol_type2 = settings_spec("radioButtons", "ms"),
+  iso_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  iso_ppm2 = settings_spec("numericInput", "ms", min = 0),
+  iso_zmax2 = settings_spec("numericInput", "ms", min = 1),
+  iso_n2 = settings_spec("numericInput", "ms", min = 1),
+  iso_nd2 = settings_spec("numericInput", "ms", min = 1),
+
+  # Adducts
+  enable_add2 = settings_spec("materialSwitch", "ms"),
+  add_pol2 = settings_spec("radioButtons", "ms"),
+  add_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  add_rt2 = settings_spec("numericInput", "ms", min = 0),
+  add_tol_type2 = settings_spec("radioButtons", "ms"),
+  add_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  add_ppm2 = settings_spec("numericInput", "ms", min = 0),
+  add_min_nm2 = settings_spec("numericInput", "ms", min = 0),
+  add_strict_rt2 = settings_spec("prettyCheckbox", "ms"),
+  add_prefer2 = settings_spec("prettyCheckbox", "ms"),
+  add_preferred2 = settings_spec("selectizeInput", "ms", multiple = TRUE),
+  add_prefer_pct2 = settings_spec("numericInput", "ms", min = 0, max = 100),
+
+  # Neutral losses
+  enable_nl2 = settings_spec("materialSwitch", "ms"),
+  nl_pol2 = settings_spec("radioButtons", "ms"),
+  nl_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  nl_rt2 = settings_spec("numericInput", "ms", min = 0),
+  nl_tol_type2 = settings_spec("radioButtons", "ms"),
+  nl_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  nl_ppm2 = settings_spec("numericInput", "ms", min = 0),
+
+  # In-source fragments
+  enable_isf2 = settings_spec("materialSwitch", "ms"),
+  isf_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  isf_rt2 = settings_spec("numericInput", "ms", min = 0),
+  isf_control_int2 = settings_spec("prettyCheckbox", "ms"),
+  isf_ratio_min2 = settings_spec("numericInput", "ms", min = 0),
+  isf_ratio_max2 = settings_spec("numericInput", "ms", min = 0),
+  isf_ms2_check2 = settings_spec("prettyCheckbox", "ms"),
+  isf_ms2_rel2 = settings_spec("numericInput", "ms", min = 0, max = 100),
+  isf_ms2_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  isf_mgf_id_field = settings_spec("selectInput", "ms"),
+
+  # Mispicked ions
+  enable_mis2 = settings_spec("materialSwitch", "ms"),
+  mis_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  mis_rt2 = settings_spec("numericInput", "ms", min = 0),
+  mis_tol_type2 = settings_spec("radioButtons", "ms"),
+  mis_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  mis_ppm2 = settings_spec("numericInput", "ms", min = 0),
+
+  # Saturated ions
+  enable_ring2 = settings_spec("materialSwitch", "ms"),
+  ring_cor2 = settings_spec("numericInput", "ms", min = 0, max = 1),
+  ring_rt2 = settings_spec("numericInput", "ms", min = 0),
+  ring_tol_type2 = settings_spec("radioButtons", "ms"),
+  ring_mz_tol2 = settings_spec("numericInput", "ms", min = 0),
+  ring_ppm2 = settings_spec("numericInput", "ms", min = 0),
+  ring_min_anch2 = settings_spec("numericInput", "ms", min = 0),
+  ring_ratio2 = settings_spec("numericInput", "ms", min = 1),
+  ring_bidirectional2 = settings_spec("prettyCheckbox", "ms"),
+
+  # QC labels and filtering
+  qc_label_source = settings_spec("radioButtons", "qc"),
+  qc_label_index = settings_spec("numericInput", "qc", min = 1),
+  qc_token_sep = settings_spec("textInput", "qc"),
+  qc_clean_metadata_names = settings_spec("prettyCheckbox", "qc"),
+  qc_metadata_remove_suffixes = settings_spec("selectizeInput", "qc", TRUE),
+  qc_metadata_sample_col = settings_spec("selectInput", "qc"),
+  qc_metadata_label_col = settings_spec("selectizeInput", "qc"),
+  value_filters = settings_spec("checkboxGroupButtons", "qc", TRUE),
+  value_mode = settings_spec("radioButtons", "qc"),
+  value_groups = settings_spec("selectizeInput", "qc", TRUE),
+  zero_metric = settings_spec("radioButtons", "qc"),
+  zero_cutoff = settings_spec("numericInput", "qc", min = 0),
+  mean_cutoff = settings_spec("numericInput", "qc", min = 0),
+  rsd_cutoff = settings_spec("numericInput", "qc", min = 0),
+  dratio_cutoff = settings_spec("numericInput", "qc", min = 0),
+  dratio_qc_group = settings_spec("selectizeInput", "qc"),
+  min_cutoff = settings_spec("numericInput", "qc", min = 0),
+
+  # Peak filters
+  peak_filters = settings_spec("checkboxGroupButtons", "peak", TRUE),
+  mz_min_enable = settings_spec("prettyCheckbox", "peak"),
+  mz_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_mz_min = settings_spec("numericInput", "peak", min = 0),
+  peak_mz_max = settings_spec("numericInput", "peak", min = 0),
+  rt_min_enable = settings_spec("prettyCheckbox", "peak"),
+  rt_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_rt_min = settings_spec("numericInput", "peak", min = 0),
+  peak_rt_max = settings_spec("numericInput", "peak", min = 0),
+  rmd_min_enable = settings_spec("prettyCheckbox", "peak"),
+  rmd_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_rmd_min = settings_spec("numericInput", "peak", min = -1000000, max = 1000000),
+  peak_rmd_max = settings_spec("numericInput", "peak", min = -1000000, max = 1000000),
+  amd_min_enable = settings_spec("prettyCheckbox", "peak"),
+  amd_max_enable = settings_spec("prettyCheckbox", "peak"),
+  peak_amd_min = settings_spec("numericInput", "peak", min = -1, max = 1),
+  peak_amd_max = settings_spec("numericInput", "peak", min = -1, max = 1),
+
+  # Target peaks
+  target_peak_action = settings_spec("radioButtons", "peak"),
+  target_mz_tol_type = settings_spec("radioButtons", "peak"),
+  target_mz_tol_da = settings_spec("numericInput", "peak", min = 0),
+  target_mz_tol_ppm = settings_spec("numericInput", "peak", min = 0),
+  target_rt_tol = settings_spec("numericInput", "peak", min = 0),
+  target_peak_text = settings_spec("textAreaInput", "peak"),
+
+  # Final MGF filtering
+  enable_mgf_filter = settings_spec("materialSwitch", "final"),
+  mgf_match_col = settings_spec("selectInput", "final"),
+  mgf_id_field = settings_spec("selectInput", "final")
+)
+
+# -------------------------------------------------------------------------
+# Analysis settings: helpers
+# -------------------------------------------------------------------------
+
+settings_aux_ids <- c(
+  "meta_csv", "blank_metadata_csv",
+  "qc_meta_csv", "qc_metadata_csv",
+  "adduct_file2", "nl_file2", "target_peak_csv"
+)
+
+settings_file_ids <- c(
+  "file0", settings_aux_ids, "isf_mgf_input", "mgf_input"
+)
+
+settings_utc <- function() {
+  format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+}
+
+settings_version <- function() {
+  tryCatch(
+    as.character(utils::packageVersion("MetaboCensoR")),
+    error = function(e) "standalone app; package version unavailable"
+  )
+}
+
+settings_file_record <- function(upload, embed = FALSE) {
+  if (is.null(upload) || !nrow(upload)) return(NULL)
+
+  path <- upload$datapath[[1]]
+  if (!file.exists(path)) return(NULL)
+
+  size <- unname(file.info(path)$size)
+
+  out <- list(
+    name = basename(upload$name[[1]]),
+    size_bytes = size,
+    md5 = unname(tools::md5sum(path))
+  )
+
+  # Embed auxiliary CSVs up to 20 MB.
+  if (embed && size <= 20 * 1024^2) {
+    out$content_base64 <- jsonlite::base64_enc(
+      readBin(path, "raw", n = size)
+    )
+  }
+
+  out
+}
+
+settings_validate_values <- function(values, registry) {
+  if (!is.list(values) ||
+      is.null(names(values)) ||
+      anyDuplicated(names(values))) {
+    stop(
+      "Settings must be a JSON object with unique input names.",
+      call. = FALSE
+    )
+  }
+
+  unknown <- setdiff(names(values), names(registry))
+
+  if (length(unknown)) {
+    stop(
+      "Unknown settings: ",
+      paste(unknown, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  for (id in names(values)) {
+    v <- values[[id]]
+    spec <- registry[[id]]
+
+    if (is.list(v)) {
+      if (length(v) &&
+          !all(vapply(
+            v,
+            function(z) is.atomic(z) && length(z) == 1L,
+            logical(1)
+          ))) {
+        stop("Invalid setting: ", id)
+      }
+
+      v <- unlist(v, use.names = FALSE)
+    }
+
+    if (spec$type == "numericInput") {
+      if (!is.numeric(v) || length(v) != 1L || !is.finite(v)) {
+        stop("Invalid number: ", id)
+      }
+
+      if (!is.null(spec$min) && v < spec$min) {
+        stop("Below minimum: ", id)
+      }
+
+      if (!is.null(spec$max) && v > spec$max) {
+        stop("Above maximum: ", id)
+      }
+
+    } else if (spec$type %in% c("prettyCheckbox", "materialSwitch")) {
+      if (!is.logical(v) || length(v) != 1L || is.na(v)) {
+        stop("Invalid switch: ", id)
+      }
+
+    } else {
+      if (!length(v)) v <- character(0)
+
+      if (!is.character(v) ||
+          anyNA(v) ||
+          (!isTRUE(spec$multiple) && length(v) > 1L)) {
+        stop("Invalid selection/text: ", id)
+      }
+
+      if (spec$type %in% c("textInput", "textAreaInput") &&
+          length(v) != 1L) {
+        stop("Invalid text: ", id)
+      }
+    }
+
+    values[id] <- list(v)
+  }
+
+  values
+}
+
+settings_update_input <- function(session, id, value, type) {
+  switch(
+    type,
+    numericInput =
+      shiny::updateNumericInput(session, id, value = value),
+
+    textInput =
+      shiny::updateTextInput(session, id, value = value),
+
+    textAreaInput =
+      shiny::updateTextAreaInput(session, id, value = value),
+
+    selectInput =
+      shiny::updateSelectInput(session, id, selected = value),
+
+    selectizeInput =
+      shiny::updateSelectizeInput(session, id, selected = value),
+
+    radioButtons =
+      shiny::updateRadioButtons(session, id, selected = value),
+
+    checkboxGroupButtons =
+      shinyWidgets::updateCheckboxGroupButtons(
+        session, id, selected = value
+      ),
+
+    prettyCheckbox =
+      shinyWidgets::updatePrettyCheckbox(
+        session, id, value = value
+      ),
+
+    materialSwitch =
+      shinyWidgets::updateMaterialSwitch(
+        session, id, value = value
+      )
+  )
+}
+
+settings_choice_problem <- function(id, wanted, available) {
+  # These selectors intentionally allow user-created values.
+  if (id %in% c(
+  "sample_keyword0",
+  "blank_metadata_remove_suffixes",
+  "qc_metadata_remove_suffixes",
+  "add_preferred2"
+)) {
+  return(NULL)
+}
+
+  missing <- setdiff(
+    as.character(wanted),
+    as.character(available)
+  )
+
+  if (length(missing)) {
+    paste("Unavailable:", paste(missing, collapse = ", "))
+  } else {
+    NULL
+  }
+}
+
+settings_record_metadata <- function(record) {
+  if (is.null(record)) return(NULL)
+
+  # Avoid repeating embedded CSV contents in every log entry.
+  record$files <- lapply(record$files, function(f) {
+    if (!is.null(f)) f$content_base64 <- NULL
+    f
+  })
+
+  record
 }
 
 # ==============================
@@ -1671,6 +2263,136 @@ ui <- fluidPage(
   theme = shinytheme("flatly"),
   setBackgroundColor(color = c("#43cea2", "#185a9d"), gradient = "linear", direction = "bottom"),
   useShinyjs(),
+  
+      tags$script(HTML("
+(function() {
+  var token = null;
+  var ids = [];
+  var gestures = {};
+  var sequence = 0;
+
+  function register() {
+    if (!window.Shiny || !window.jQuery) {
+      setTimeout(register, 100);
+      return;
+    }
+
+    // Distinguish real user interaction from programmatic updates.
+    ['pointerdown', 'keydown', 'input'].forEach(function(type) {
+      document.addEventListener(type, function(event) {
+        if (!event.isTrusted) return;
+
+        ids.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (!el) return;
+
+          var box = el.closest('.shiny-input-container');
+          var dropdown = el.selectize && el.selectize.$dropdown[0];
+
+          if (
+            el === event.target ||
+            el.contains(event.target) ||
+            (box && box.contains(event.target)) ||
+            (dropdown && dropdown.contains(event.target))
+          ) {
+            gestures[id] = Date.now();
+          }
+        });
+      }, true);
+    });
+
+    window.jQuery(document).on(
+      'shiny:inputchanged.settingsAuto',
+      function(event) {
+        var id = event.name;
+
+        if (!gestures[id] || Date.now() - gestures[id] > 2000) return;
+
+        delete gestures[id];
+        var thisToken = token;
+
+        setTimeout(function() {
+          Shiny.setInputValue(
+            'settings_user_override',
+            {
+              token: thisToken,
+              id: id,
+              sequence: ++sequence
+            },
+            {priority: 'event'}
+          );
+        }, 0);
+      }
+    );
+
+    Shiny.addCustomMessageHandler('settings-probe', function(message) {
+      if (token !== message.token) {
+        token = message.token;
+        gestures = {};
+      }
+
+      ids = Array.isArray(message.ids) ? message.ids : [message.ids];
+      var thisIds = ids.slice();
+
+      setTimeout(function() {
+        if (token !== message.token) return;
+
+        var controls = {};
+
+        thisIds.forEach(function(id) {
+          var el = document.getElementById(id);
+
+          if (
+            !el ||
+            !window.jQuery(el).data('shiny-input-binding')
+          ) return;
+
+          var choices = [];
+
+          if (el.tagName === 'SELECT') {
+            choices = Array.from(el.options).map(function(o) {
+              return o.value;
+            });
+
+            if (el.selectize) {
+              var field = el.selectize.settings.valueField || 'value';
+
+              choices = choices.concat(
+                Object.keys(el.selectize.options).map(function(key) {
+                  var value = el.selectize.options[key][field];
+                  return value == null ? String(key) : String(value);
+                })
+              );
+            }
+
+            choices = Array.from(new Set(choices));
+
+          } else {
+            choices = Array.from(
+              el.querySelectorAll('input[type=radio],input[type=checkbox]')
+            ).map(function(o) {
+              return o.value;
+            });
+          }
+
+          controls[id] = {choices: choices};
+        });
+
+        Shiny.setInputValue(
+          'settings_probe_result',
+          {
+            token: message.token,
+            controls: controls
+          },
+          {priority: 'event'}
+        );
+      }, message.delay || 200);
+    });
+  }
+
+  register();
+})();
+  ")),
   
   tags$head(
   tags$script(HTML("
@@ -2053,7 +2775,68 @@ ui <- fluidPage(
                 trigger = "click", 
                 options = list(container = "body", html = TRUE)
               )
+            ),
+          tags$hr(),
+                    h3(class = "highlight", "Analysis settings"),
+
+          div(
+            style = "position: relative; margin-bottom: 15px;",
+
+            fileInput(
+              "settings_json",
+              "Import analysis settings (.json):",
+              accept = ".json"
+            ),
+
+            actionButton(
+              inputId = "btn_settings_help",
+              label = "?",
+              class = "btn-primary btn-xs",
+              style = paste0(
+                "position: absolute; top: 0px; left: 215px;",
+                "border-radius: 50%; width: 22px; height: 22px;",
+                "padding: 0; line-height: 1; font-size: 12px;"
+              )
+            ),
+
+            bsTooltip(
+              id = "btn_settings_help",
+              title = paste0(
+                "<b>Import analysis settings</b><br><br>",
+
+                "Upload your peak table, import the JSON file, ",
+                "then check the import report.<br><br>",
+
+                "<b>Restored settings:</b><br>",
+                "Filter switches, thresholds, evaluation modes, ",
+                "compatible column/group selections, manual labels, ",
+                "and embedded auxiliary CSV files.<br><br>",
+
+                "<b>Peak tables and MGF files:</b><br>",
+                "These must be uploaded separately.<br><br>",
+
+                "<b>Automatic restoration:</b><br>",
+                "Available settings are restored immediately. ",
+                "Selections requiring an MGF, metadata file, or final table ",
+                "are restored automatically when those inputs become available.<br><br>",
+
+                "<b>Different groups or columns:</b><br>",
+                "Choose replacements manually if saved names do not match ",
+                "the new dataset. Your manual choices are preserved.<br><br>",
+
+                "<b>Filters are not run automatically.</b><br>",
+                "Review the settings and apply the required steps."
+              ),
+              placement = "right",
+              trigger = "click",
+              options = list(
+                container = "body",
+                html = TRUE
+              )
             )
+          ),
+
+          uiOutput("settings_import_report")
         ),
         
 mainPanel(
@@ -2474,7 +3257,7 @@ mainPanel(
               ")),
               bsTooltip(
                 id = "btnla", 
-                title = "<b>Enable adduct filtering</b><br><br>Define polarity and minimal neutral mass<br><br>Uses m/z and RT shifts + correlation threshold to detect adduct features by graph and retains the most intense adduct in each family<br><br>Note: By default employs built-in Adducts list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph", 
+                title = "<b>Enable adduct filtering</b><br><br>Define polarity and minimal neutral mass<br><br>Uses m/z and RT shifts + correlation threshold to detect adduct features by graph and retains the most intense adduct in each family by default. When Preferred ions is enabled, a preferred ion within the allowed intensity difference can be retained instead<br><br>Note: By default employs built-in Adducts list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph<br><br>Note: we recommend to enable `Preferred ions` option only if you have a specific reason to prioritize certain ion forms", 
                 placement = "right", 
                 trigger = "click", 
                 options = list(container = "body", html = TRUE)
@@ -2500,9 +3283,65 @@ mainPanel(
               numericInput("add_ppm2", "m/z tolerance (ppm)", value = 10, min = 0, step = 0.5)
             ),
             numericInput("add_min_nm2", "Minimum neutral mass", value = 50, min = 0, step = 1),
-            prettyCheckbox("add_strict_rt2", "Strict RT split inside clusters", T, icon = icon("check"), status = "primary", animation = "jelly")
+            prettyCheckbox("add_strict_rt2", "Strict RT split inside clusters", T, icon = icon("check"), status = "primary", animation = "jelly"),
+            div(style = "display: flex; align-items: center; margin-bottom: 12px;",
+            div(
+              style = "margin-bottom: -15px;",
+              prettyCheckbox(
+                "add_prefer2",
+                "Preferred ions",
+                value = FALSE,
+                icon = icon("check"),
+                status = "primary",
+                animation = "jelly"
+              )
+            ),
+          
+            actionButton(
+              "btn_add_prefer",
+              label = "?",
+              class = "btn-primary btn-xs", 
+              style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"),
+          
+            bsTooltip(
+              id = "btn_add_prefer",
+              title = paste0(
+                "<b>Preferred ions</b><br><br>",
+                "Optionally prefer selected ion forms when choosing the ",
+                "representative feature of each adduct family.<br><br>",
+                "Only features within the allowed intensity decrease from ",
+                "the family's maximum mean intensity qualify. ",
+                "For example, 10% requires at least 90% of the maximum.<br><br>",
+                "At least one assignment from an accepted family edge must ",
+                "match a selected ion form.<br><br>",
+                "If several preferred features qualify, retain the most intense. ",
+                "If none qualify, retain the most intense feature overall.<br><br>",
+                "When unchecked, retain the most intense feature overall.<br><br>",
+                "Ion names must match the adduct definitions exactly."
+              ),
+              placement = "right",
+              trigger = "click",
+              options = list(container = "body", html = TRUE)
+            )
           ),
-         
+
+          conditionalPanel(
+            condition = "input.add_prefer2",
+            selectizeInput(
+              "add_preferred2",
+              "Preferred ion forms",
+              choices = sort(unique(built_in_adducts_full()$Name)),
+              selected = "M+H",
+              multiple = TRUE,
+              options = list(
+                plugins = list("remove_button"),
+                create = TRUE,
+                persist = FALSE,
+                placeholder = "Select or enter ion forms"
+              )
+            ),
+            numericInput("add_prefer_pct2", "Maximum intensity decrease from family maximum (%)", value = 10, min = 0, max = 100, step = 1))),
+                   
           tags$hr(),
     
           # -------------------------
@@ -2591,7 +3430,7 @@ mainPanel(
           conditionalPanel(
             condition = "input.enable_isf2",
             numericInput("isf_cor2", HTML("Correlation &ge;"), value = 0.95, min = 0, max = 1, step = 0.01),
-            numericInput("isf_rt2",  "rt tolerance (min)", value = 0.002, min = 0, step = 0.001),
+            numericInput("isf_rt2",  "rt tolerance (min)", value = 0.01, min = 0, step = 0.001),
             prettyCheckbox("isf_control_int2", "Control intensity ratio", TRUE,icon = icon("check"), status = "primary", animation = "jelly"),
             conditionalPanel(
               condition = "input.isf_control_int2",
@@ -2602,7 +3441,7 @@ mainPanel(
                 style = "display:flex; align-items:center; margin-bottom:5px;",
                 div(style = "margin-bottom:-15px;",
                   prettyCheckbox(
-                    "isf_ms2_check2", "Require MS2 fragment match", FALSE,
+                    "isf_ms2_check2", "Require MS2 fragment match", TRUE,
                     icon = icon("check"), status = "primary", animation = "jelly")),
                 actionButton(
                   "btnisfms2", "?",
@@ -2989,6 +3828,7 @@ mainPanel(
               choices = c("Zeros" = "zeros", 
                           "Mean" = "mean", 
                           "RSD" = "rsd",
+                          "D-ratio" = "dratio",
                           "Min" = "min"),
               justified = F, individual = T,
               size = "norm",
@@ -3010,7 +3850,17 @@ mainPanel(
               ")),
               bsTooltip(
                 id = "btnqcv", 
-                title = "<b>Enable statistical value filtering</b><br><br>Select values for filtering<br><br>Zero values could be by Count or Percentage<br><br>RSD calculation requires at least 2 samples per group; all-zero or all-missing features produce NA RSD and fail the RSD filter", 
+                title = paste0(
+  "<b>Enable statistical value filtering</b><br><br>",
+  "Select values for filtering.<br><br>",
+  "Zero values can be evaluated by Count or Percentage.<br><br>",
+  "RSD requires at least 2 samples per evaluated group; ",
+  "all-zero or all-missing features produce NA RSD and fail.<br><br>",
+  "D-ratio (%) = SD(QC) / SD(biological samples) × 100. ",
+  "A QC group is required and is excluded from the biological groups. ",
+  "At least 2 finite values are required in each SD calculation. ",
+  "Zero biological SD or undefined ratios fail."
+),
                 placement = "right", 
                 trigger = "click", 
                 options = list(container = "body", html = TRUE)
@@ -3065,6 +3915,10 @@ mainPanel(
           ),
           conditionalPanel(condition = "input.value_filters.indexOf('rsd') >= 0",
                            numericInput("rsd_cutoff",  label = HTML("RSD &le; threshold"),  value = 30, min = 0, step = 1)
+          ),
+          conditionalPanel(condition = "input.value_filters.indexOf('dratio') >= 0",
+            uiOutput("dratio_qc_group_ui"),
+            numericInput("dratio_cutoff", label = HTML("D-ratio &le; threshold (%)"), value = 50, min = 0, step = 1)
           ),
           conditionalPanel(condition = "input.value_filters.indexOf('min') >= 0",
                            numericInput("min_cutoff",  label = HTML("Min &ge; threshold"),  value = 1000, min = 0, step = 100)
@@ -3382,6 +4236,59 @@ mainPanel(
           ),
             br(), 
             shinyjs::disabled(downloadButton("dl_mgf", "Download Filtered MGF", class = "btn btn-success"))
+          ),
+          br(), br(),
+                    h3(class = "highlight", "Analysis settings"),
+
+          div(
+            style = "display: flex; align-items: center; gap: 8px;",
+
+            shinyjs::disabled(
+              downloadButton(
+                "download_analysis_settings",
+                "Download settings (.json)",
+                class = "btn btn-success"
+              )
+            ),
+
+            actionButton(
+              inputId = "btn_settings_download_help",
+              label = "?",
+              class = "btn-primary btn-xs",
+              style = paste0(
+                "border-radius: 50%; width: 22px; height: 22px;",
+                "padding: 0; line-height: 1; font-size: 12px;",
+                "flex-shrink: 0;"
+              )
+            )
+          ),
+
+          bsTooltip(
+            id = "btn_settings_download_help",
+            title = paste0(
+              "<b>Export analysis settings</b><br><br>",
+
+              "<b>Included:</b><br>",
+              "Filter settings, group and column selections, ",
+              "sample labels, file information, and filtering counts.<br><br>",
+
+              "<b>Auxiliary CSV files:</b><br>",
+              "Files up to 20 MB each are embedded and can be ",
+              "restored when importing the JSON.<br><br>",
+
+              "<b>Peak tables and MGF files:</b><br>",
+              "Only their file information is recorded; ",
+              "they must be uploaded separately.<br><br>",
+
+              "Import this JSON in the Upload Data tab ",
+              "to reuse the settings in another analysis."
+            ),
+            placement = "bottom",
+            trigger = "click",
+            options = list(
+              container = "body",
+              html = TRUE
+            )
           )
         ),
         mainPanel(
@@ -3460,6 +4367,1099 @@ mainPanel(
 # Server ----
 # ==============================
 server <- function(input, output, session) {
+  
+  # -----------------------------------------------------------------------
+  # Analysis settings: state and export
+  # -----------------------------------------------------------------------
+
+  settings_records <- reactiveValues(
+    blank = NULL,
+    ms = NULL,
+    qc = NULL,
+    peak = NULL,
+    final = NULL,
+    mgf = NULL
+  )
+
+  settings_embedded <- reactiveVal(list())
+
+  settings_import <- reactiveValues(
+    values = NULL,
+    token = 0L,
+    round = 0L,
+    stable = 0L,
+    busy = FALSE,
+    issues = list(),
+    notes = character(0),
+    manual = NULL,
+    manual_done = FALSE,
+    files = NULL,
+    final_only = FALSE,
+    pending = character(0)
+  )
+
+  settings_file <- function(id) {
+    embedded <- settings_embedded()
+
+    if (!is.null(embedded[[id]])) {
+      embedded[[id]]
+    } else {
+      input[[id]]
+    }
+  }
+
+  # A newly uploaded CSV replaces the corresponding embedded CSV.
+  for (id in settings_aux_ids) local({
+    key <- id
+
+    observeEvent(input[[key]], {
+      x <- settings_embedded()
+      x[[key]] <- NULL
+      settings_embedded(x)
+    }, ignoreInit = TRUE, ignoreNULL = TRUE, priority = 100)
+  })
+
+  settings_safe <- function(expr) {
+    tryCatch(expr, error = function(e) NULL)
+  }
+
+  settings_inputs <- function() {
+    ids <- names(settings_registry)
+
+    values <- lapply(ids, function(id) input[[id]])
+    names(values) <- ids
+
+    for (id in ids) {
+      if (is.null(values[[id]]) &&
+          isTRUE(settings_registry[[id]]$multiple)) {
+        values[id] <- list(character(0))
+      }
+    }
+
+    values[!vapply(values, is.null, logical(1))]
+  }
+
+  settings_files <- function() {
+    ans <- lapply(settings_file_ids, function(id) {
+      settings_file_record(
+        settings_file(id),
+        embed = id %in% settings_aux_ids
+      )
+    })
+
+    names(ans) <- settings_file_ids
+
+    # Both MGF uploaders share one active spectra object.
+    if (!is.null(current_mgf()) && file.exists(current_mgf())) {
+      ans$active_mgf <- settings_file_record(
+        data.frame(
+          name = current_mgf_name(),
+          datapath = current_mgf(),
+          stringsAsFactors = FALSE
+        )
+      )
+    }
+
+    ans
+  }
+
+  settings_snapshot <- function(stats = NULL) {
+    list(
+      at_utc = settings_utc(),
+      parameters = settings_inputs(),
+      files = settings_files(),
+      stats = stats,
+
+      context = list(
+        dataset_name = shared$name,
+
+        sample_columns = settings_safe(sample_cols0()),
+
+        blank_labels = settings_safe(
+          make_label_table(
+            sample_names(),
+            label_vector_blank()
+          )
+        ),
+
+        qc_labels = settings_safe(
+          make_label_table(
+            sample_names(),
+            qc_label_vector()
+          )
+        )
+      )
+    )
+  }
+
+  settings_capture <- function(stage, stats = NULL) {
+    settings_records[[stage]] <- settings_snapshot(stats)
+  }
+
+  settings_active <- function() {
+    list(
+      blank = isTRUE(blank_state$applied),
+      ms = isTRUE(ms_state$applied),
+      qc = isTRUE(qc_state$applied),
+      peak = isTRUE(peak_state$applied)
+    )
+  }
+
+  observe({
+  shinyjs::toggleState(
+    "download_analysis_settings",
+    condition = !is.null(shared$raw)
+  )
+})
+  
+  output$download_analysis_settings <- downloadHandler(
+    filename = function() {
+      paste0(
+        "MetaboCensoR_settings_",
+        format(Sys.time(), "%Y%m%d_%H%M%S"),
+        ".json"
+      )
+    },
+
+    content = function(file) {
+      req(shared$raw)
+
+      current <- settings_snapshot()
+      active <- settings_active()
+
+      stages <- lapply(names(active), function(stage) {
+        list(
+          applied = active[[stage]],
+
+          snapshot = if (active[[stage]]) {
+            settings_record_metadata(settings_records[[stage]])
+          } else {
+            NULL
+          }
+        )
+      })
+
+      names(stages) <- names(active)
+
+      # Applied settings override later, unapplied edits.
+      recipe <- current$parameters
+      files <- current$files
+
+      manual <- list(
+        blank_labels = current$context$blank_labels,
+        qc_labels = current$context$qc_labels
+      )
+
+      first <- TRUE
+
+      for (stage in names(active)) {
+        if (!active[[stage]]) next
+
+        record <- settings_records[[stage]]
+
+        if (is.null(record)) {
+          stop(
+            "Applied step has no settings record; reapply ",
+            stage,
+            "."
+          )
+        }
+
+        ids <- names(settings_registry)[
+          vapply(
+            settings_registry,
+            function(z) z$stage == stage,
+            logical(1)
+          )
+        ]
+
+        if (first) {
+          upload_ids <- names(settings_registry)[
+            vapply(
+              settings_registry,
+              function(z) z$stage == "upload",
+              logical(1)
+            )
+          ]
+
+          ids <- union(ids, upload_ids)
+          files$file0 <- record$files$file0
+          first <- FALSE
+        }
+
+        ids <- intersect(ids, names(record$parameters))
+        recipe[ids] <- record$parameters[ids]
+
+        asset_ids <- switch(
+          stage,
+          blank = c("meta_csv", "blank_metadata_csv"),
+          ms = c("adduct_file2", "nl_file2", "active_mgf"),
+          qc = c("qc_meta_csv", "qc_metadata_csv"),
+          peak = "target_peak_csv"
+        )
+
+        files[asset_ids] <- record$files[asset_ids]
+
+        if (stage == "blank") {
+          manual$blank_labels <- record$context$blank_labels
+        }
+
+        if (stage == "qc") {
+          manual$qc_labels <- record$context$qc_labels
+        }
+      }
+
+      payload <- list(
+        format = "MetaboCensoR-analysis-settings",
+        schema_version = 1L,
+        exported_at_utc = settings_utc(),
+        app_version = settings_version(),
+        r_version = R.version.string,
+
+        note = paste(
+          "Applied-step snapshots are authoritative.",
+          "Current controls may differ.",
+          "Import restores settings only;",
+          "it does not run filters or restore results.",
+          "Unapplied steps in the transfer recipe use current controls."
+        ),
+
+        pipeline_order = c("blank", "ms", "qc", "peak"),
+        steps = stages,
+
+        compiled_output = if (!is.null(final_table())) {
+          settings_record_metadata(settings_records$final)
+        } else {
+          NULL
+        },
+
+        filtered_mgf = if (!is.null(filtered_mgf_sps())) {
+          settings_record_metadata(settings_records$mgf)
+        } else {
+          NULL
+        },
+
+        current_controls = settings_record_metadata(current),
+
+        transfer = list(
+          parameters = recipe,
+          files = files,
+          labels = manual,
+          originally_applied = active
+        )
+      )
+
+      jsonlite::write_json(
+        payload,
+        file,
+        auto_unbox = TRUE,
+        pretty = TRUE,
+        null = "null",
+        na = "null",
+        digits = NA,
+        dataframe = "rows"
+      )
+    }
+  )
+  
+  # -----------------------------------------------------------------------
+  # Automatic restoration of pending settings
+  # -----------------------------------------------------------------------
+
+  settings_finish_items <- function(ids) {
+    settings_import$pending <- setdiff(
+      settings_import$pending,
+      ids
+    )
+
+    x <- settings_import$issues
+    x[intersect(names(x), ids)] <- NULL
+    settings_import$issues <- x
+  }
+
+  settings_probe <- function() isolate({
+    if (!length(settings_import$pending)) {
+      return(invisible(NULL))
+    }
+
+    ids <- intersect(
+      settings_import$pending,
+      names(settings_registry)
+    )
+
+    # Watch label-source changes while manual labels remain unresolved.
+    if ("blank_manual_labels" %in% settings_import$pending) {
+      ids <- union(ids, "label_source")
+    }
+
+    if ("qc_manual_labels" %in% settings_import$pending) {
+      ids <- union(ids, "qc_label_source")
+    }
+
+    session$sendCustomMessage(
+      "settings-probe",
+      list(
+        ids = unname(as.list(ids)),
+        token = settings_import$token,
+        delay = if (isTRUE(settings_import$busy)) 200 else 1000
+      )
+    )
+  })
+
+  settings_begin_restore <- function() {
+    if (is.null(settings_import$values)) {
+      return(invisible(NULL))
+    }
+
+    # Invalidate results once, when a new JSON is imported.
+    invalidate_all_pipeline()
+
+    settings_import$token <- settings_import$token + 1L
+    settings_import$pending <- names(settings_import$values)
+
+    for (stage in c("blank", "qc")) {
+      source_id <- if (stage == "blank") {
+        "label_source"
+      } else {
+        "qc_label_source"
+      }
+
+      if (identical(
+        settings_import$values[[source_id]],
+        "manual"
+      )) {
+        settings_import$pending <- c(
+          settings_import$pending,
+          paste0(stage, "_manual_labels")
+        )
+      }
+    }
+
+    settings_import$issues <- list()
+    settings_import$stable <- 0L
+    settings_import$busy <- TRUE
+
+    session$onFlushed(settings_probe, once = TRUE)
+  }
+
+  # A manual change takes precedence over the imported value.
+  observeEvent(input$settings_user_override, {
+    event <- input$settings_user_override
+
+    if (!identical(
+      as.integer(event$token),
+      settings_import$token
+    )) {
+      return()
+    }
+
+    id <- event$id
+
+    if (!is.character(id) ||
+        length(id) != 1L ||
+        !id %in% names(settings_registry)) {
+      return()
+    }
+
+    settings_finish_items(id)
+
+    if (id == "label_source") {
+      settings_finish_items("blank_manual_labels")
+    }
+
+    if (id == "qc_label_source") {
+      settings_finish_items("qc_manual_labels")
+    }
+  }, ignoreInit = TRUE, priority = 100)
+
+  # Keep your existing label-edit observers as well.
+  observeEvent(input$labels_table_cell_edit, {
+    settings_finish_items("blank_manual_labels")
+  }, ignoreInit = TRUE, priority = 100)
+
+  observeEvent(input$qc_labels_table_cell_edit, {
+    settings_finish_items("qc_manual_labels")
+  }, ignoreInit = TRUE, priority = 100)
+
+  observeEvent(input$settings_probe_result, {
+    msg <- input$settings_probe_result
+
+    if (!identical(
+      as.integer(msg$token),
+      settings_import$token
+    ) || !length(settings_import$pending)) {
+      return()
+    }
+
+    ids <- intersect(
+      settings_import$pending,
+      names(settings_registry)
+    )
+
+    values <- settings_import$values[ids]
+    issues <- list()
+    changed <- FALSE
+
+    for (id in ids) {
+      spec <- settings_registry[[id]]
+      wanted <- values[[id]]
+      control <- msg$controls[[id]]
+
+      if (is.null(control)) {
+        issues[[id]] <- paste(
+          "Waiting for the required data/control;",
+          "restoration is automatic."
+        )
+        next
+      }
+
+      if (spec$type %in% c(
+        "selectInput",
+        "selectizeInput",
+        "radioButtons",
+        "checkboxGroupButtons"
+      )) {
+        problem <- settings_choice_problem(
+          id,
+          wanted,
+          unlist(control$choices, use.names = FALSE)
+        )
+
+        if (!is.null(problem)) {
+          issues[[id]] <- paste(
+            problem,
+            "Choose a replacement manually or load matching data."
+          )
+          next
+        }
+      }
+
+      actual <- input[[id]]
+
+      equal <- if (is.numeric(wanted)) {
+        identical(
+          as.numeric(actual),
+          as.numeric(wanted)
+        )
+      } else {
+        identical(
+          unname(actual %||% character(0)),
+          unname(wanted)
+        )
+      }
+
+      if (!equal) {
+        if (id == "sample_cols0") {
+          manual_range_state$updating <- TRUE
+        }
+
+        if (id %in% c(
+          "sample_keyword0",
+          "blank_metadata_remove_suffixes",
+          "qc_metadata_remove_suffixes",
+          "add_preferred2"
+        )) {
+          updateSelectizeInput(
+            session,
+            id,
+            choices = unique(c(
+              unlist(control$choices),
+              wanted
+            )),
+            selected = wanted
+          )
+        } else {
+          settings_update_input(
+            session,
+            id,
+            wanted,
+            spec$type
+          )
+        }
+
+        changed <- TRUE
+      }
+    }
+
+    # Restore manual labels after column and label controls settle.
+    if (!changed) {
+      for (stage in c("blank", "qc")) {
+        key <- paste0(stage, "_manual_labels")
+
+        if (!key %in% settings_import$pending) next
+
+        source_id <- if (stage == "blank") {
+          "label_source"
+        } else {
+          "qc_label_source"
+        }
+
+        samples <- settings_safe(sample_names())
+
+        if (!identical(input[[source_id]], "manual") ||
+            !length(samples)) {
+          issues[[key]] <- paste(
+            "Waiting for sample names and manual label mode."
+          )
+          next
+        }
+
+        rows <- settings_import$manual[[paste0(stage, "_labels")]]
+
+        tbl <- if (length(rows)) {
+          dplyr::bind_rows(rows)
+        } else {
+          NULL
+        }
+
+        if (is.null(tbl) ||
+            !all(samples %in% tbl$Sample)) {
+          issues[[key]] <- paste(
+            "Saved labels do not cover current samples;",
+            "edit the label table or choose another label source."
+          )
+          next
+        }
+
+        tbl <- as.data.frame(
+          tbl[
+            match(samples, tbl$Sample),
+            c("Sample", "Label")
+          ]
+        )
+
+        if (stage == "blank") {
+          manual_labels_blank(tbl)
+        } else {
+          manual_labels_qc(tbl)
+        }
+
+        settings_finish_items(key)
+        changed <- TRUE
+      }
+    }
+
+    settings_import$stable <- if (changed) {
+      0L
+    } else {
+      settings_import$stable + 1L
+    }
+
+    settings_import$issues <- issues
+
+    # Confirm updates before retiring successfully restored settings.
+    if (!changed && settings_import$stable >= 3L) {
+      settings_finish_items(
+        setdiff(
+          settings_import$pending,
+          names(issues)
+        )
+      )
+
+      settings_import$busy <- FALSE
+    } else {
+      settings_import$busy <- changed
+    }
+
+    # Check only unresolved items. Completed items are never reapplied.
+    if (length(settings_import$pending)) {
+      session$onFlushed(settings_probe, once = TRUE)
+    }
+  }, ignoreInit = TRUE)
+  
+  # -----------------------------------------------------------------------
+  # Analysis settings: import and restoration
+  # -----------------------------------------------------------------------
+
+  observeEvent(input$settings_json, {
+    req(input$settings_json)
+
+    tryCatch({
+      if (input$settings_json$size > 256 * 1024^2) {
+        stop("Settings JSON exceeds 256 MB.")
+      }
+
+      obj <- jsonlite::fromJSON(
+        input$settings_json$datapath,
+        simplifyVector = FALSE
+      )
+
+      if (!identical(obj$format, "MetaboCensoR-analysis-settings") ||
+          !identical(as.integer(obj$schema_version), 1L)) {
+        stop("Unsupported settings format/version.")
+      }
+
+      values <- settings_validate_values(
+        obj$transfer$parameters,
+        settings_registry
+      )
+
+      labels <- obj$transfer$labels
+
+      if (!is.null(labels) && !is.list(labels)) {
+        stop("Invalid saved labels.")
+      }
+
+      for (rows in labels) {
+        if (!length(rows)) next
+
+        tbl <- dplyr::bind_rows(rows)
+
+        if (!all(c("Sample", "Label") %in% names(tbl)) ||
+            !is.character(tbl$Sample) ||
+            !is.character(tbl$Label) ||
+            anyNA(tbl$Sample) ||
+            anyNA(tbl$Label) ||
+            anyDuplicated(tbl$Sample)) {
+          stop("Invalid sample-label mapping.")
+        }
+      }
+
+      files <- obj$transfer$files
+      if (!is.list(files)) stop("Invalid file records.")
+
+      embedded <- list()
+
+      for (id in intersect(names(files), settings_aux_ids)) {
+        rec <- files[[id]]
+
+        if (is.null(rec$content_base64)) next
+
+        if (!is.character(rec$content_base64) ||
+            length(rec$content_base64) != 1L ||
+            nchar(rec$content_base64) > 30 * 1024^2) {
+          stop("Invalid embedded CSV: ", id)
+        }
+
+        bytes <- jsonlite::base64_dec(rec$content_base64)
+
+        if (length(bytes) > 20 * 1024^2) {
+          stop("Embedded CSV exceeds 20 MB: ", id)
+        }
+
+        path <- tempfile(
+          pattern = "metabocensor_settings_",
+          fileext = ".csv"
+        )
+
+        writeBin(bytes, path)
+
+        if (!identical(
+          unname(tools::md5sum(path)),
+          rec$md5
+        )) {
+          stop("CSV checksum mismatch: ", id)
+        }
+
+        embedded[[id]] <- data.frame(
+          name = basename(rec$name),
+          size = length(bytes),
+          type = "text/csv",
+          datapath = path,
+          stringsAsFactors = FALSE
+        )
+      }
+
+      # Only change the analysis state after validation succeeds.
+      target_peak_csv_cache(empty_peak_targets())
+      target_peak_cleared(FALSE)
+
+      for (id in settings_aux_ids) {
+        shinyjs::reset(id)
+      }
+
+      settings_embedded(embedded)
+
+      settings_import$values <- values
+      settings_import$files <- files
+      settings_import$manual <- obj$transfer$labels
+      settings_import$manual_done <- FALSE
+
+      settings_import$notes <- c(
+        paste("Source app:", obj$app_version),
+
+        paste(
+          "Previously applied steps:",
+          paste(
+            names(Filter(isTRUE, obj$transfer$originally_applied)),
+            collapse = ", "
+          )
+        ),
+
+        paste(
+          "No filters have been run.",
+          "Review the report and then apply the required steps."
+        ),
+
+        paste(
+          "Selections requiring additional files are restored automatically",
+          "when those files are uploaded.",
+          "Final MGF selections are restored after compiling the output."
+        ),
+
+        if (length(embedded)) {
+          paste(
+            "Embedded CSVs restored:",
+            paste(names(embedded), collapse = ", ")
+          )
+        }
+      )
+
+      settings_begin_restore()
+
+    }, error = function(e) {
+      showNotification(
+        conditionMessage(e),
+        type = "error",
+        duration = 10
+      )
+    })
+  }, ignoreInit = TRUE)
+
+  # -----------------------------------------------------------------------
+  # Analysis settings: report, processing guard, and resets
+  # -----------------------------------------------------------------------
+
+  output$settings_import_report <- renderUI({
+    if (is.null(settings_import$values)) return(NULL)
+
+    files <- settings_import$files
+
+    file_notes <- vapply(
+      intersect(
+        names(files),
+        c("file0", "active_mgf", settings_aux_ids)
+      ),
+      function(id) {
+        rec <- files[[id]]
+        if (is.null(rec)) return("")
+
+        if (!is.null(settings_embedded()[[id]])) {
+          return(
+            paste(id, ": restored embedded", rec$name)
+          )
+        }
+
+        current <- if (id == "active_mgf") {
+          if (is.null(current_mgf())) {
+            NULL
+          } else {
+            data.frame(
+              name = current_mgf_name(),
+              datapath = current_mgf()
+            )
+          }
+        } else {
+          settings_file(id)
+        }
+
+        actual <- settings_file_record(current)
+
+        if (is.null(actual)) {
+          paste(id, ": upload", rec$name)
+        } else if (identical(actual$md5, rec$md5)) {
+          paste(id, ": matches original", rec$name)
+        } else {
+          paste(
+            id,
+            ": different file loaded (allowed for a new analysis);",
+            "original:",
+            rec$name
+          )
+        }
+      },
+      character(1)
+    )
+
+    issue_notes <- vapply(
+      names(settings_import$issues),
+      function(id) {
+        paste(
+          id,
+          ":",
+          settings_import$issues[[id]]
+        )
+      },
+      character(1)
+    )
+
+    div(
+      class = "well",
+      style = "color:#2c3e50;",
+
+      tags$b(
+        if (isTRUE(settings_import$busy)) {
+          "Restoring settings..."
+        } else {
+          "Settings import report"
+        }
+      ),
+
+      tags$ul(
+        lapply(
+          c(
+            settings_import$notes,
+            file_notes[nzchar(file_notes)],
+            issue_notes
+          ),
+          tags$li
+        )
+      ),
+
+      helpText(
+        paste(
+          "Missing inputs are checked automatically.",
+          "If saved group or column names do not match your dataset,",
+          "choose replacements manually; your choices are preserved."
+        )
+      )
+    )
+  })
+
+    settings_ready <- function(include_final = FALSE, stage = NULL) {
+    pending <- settings_import$pending %||% character(0)
+
+    if (!length(pending)) return(TRUE)
+
+    order <- c(
+      "upload", "blank", "ms", "qc", "peak", "final"
+    )
+
+    last <- if (include_final) {
+      "final"
+    } else {
+      stage %||% "peak"
+    }
+
+    stages <- order[seq_len(match(last, order))]
+
+    ids <- names(settings_registry)[
+      vapply(
+        settings_registry,
+        function(x) x$stage %in% stages,
+        logical(1)
+      )
+    ]
+
+    if ("blank" %in% stages) {
+      ids <- c(ids, "blank_manual_labels")
+    }
+
+    if ("qc" %in% stages) {
+      ids <- c(ids, "qc_manual_labels")
+    }
+
+    # Unused optional selections do not block processing.
+    if (!isTRUE(input$enable_blank)) {
+      ids <- setdiff(ids, "groups_to_remove")
+    }
+
+    if (!isTRUE(input$enable_isf2) ||
+        !isTRUE(input$isf_ms2_check2)) {
+      ids <- setdiff(ids, "isf_mgf_id_field")
+    }
+
+    if (!length(input$value_filters)) {
+      ids <- setdiff(ids, "value_groups")
+    }
+
+    if (!"dratio" %in% (input$value_filters %||% character(0))) {
+      ids <- setdiff(ids, "dratio_qc_group")
+    }
+
+    if (!identical(input$sample_mode0, "manual")) {
+      ids <- setdiff(ids, "sample_cols0")
+    }
+
+    for (prefix in c("blank", "qc")) {
+      src <- if (prefix == "blank") {
+        input$label_source
+      } else {
+        input$qc_label_source
+      }
+
+      if (!identical(src, "from_metadata")) {
+        ids <- setdiff(
+          ids,
+          paste0(
+            prefix,
+            c("_metadata_sample_col", "_metadata_label_col")
+          )
+        )
+      }
+
+      if (!identical(src, "manual")) {
+        ids <- setdiff(
+          ids,
+          paste0(prefix, "_manual_labels")
+        )
+      }
+    }
+
+    blocked <- intersect(pending, ids)
+
+    if (length(blocked)) {
+      showNotification(
+        paste(
+          "Settings still waiting:",
+          paste(blocked, collapse = ", "),
+          "— wait briefly, upload the required file,",
+          "or choose replacements manually."
+        ),
+        type = "warning",
+        duration = 8
+      )
+
+      return(FALSE)
+    }
+
+    TRUE
+  }
+
+  observeEvent(input$clear_shared, {
+    settings_embedded(list())
+    settings_import$values <- NULL
+    settings_import$pending <- character(0)
+    settings_import$busy <- FALSE
+    settings_import$issues <- list()
+    settings_import$token <- settings_import$token + 1L
+
+    for (stage in c("blank", "ms", "qc", "peak", "final", "mgf")) {
+      settings_records[[stage]] <- NULL
+    }
+
+    shinyjs::reset("settings_json")
+  }, ignoreInit = TRUE, priority = 100)
+
+  for (stage in c("blank", "ms", "qc", "peak")) local({
+    key <- stage
+
+    observeEvent(input[[paste0("reset_", key)]], {
+      assets <- switch(
+        key,
+        blank = c("meta_csv", "blank_metadata_csv"),
+        ms = c("adduct_file2", "nl_file2"),
+        qc = c("qc_meta_csv", "qc_metadata_csv"),
+        peak = "target_peak_csv"
+      )
+
+      x <- settings_embedded()
+      x[assets] <- NULL
+      settings_embedded(x)
+
+      settings_records[[key]] <- NULL
+            reset_ids <- names(settings_registry)[
+        vapply(
+          settings_registry,
+          function(x) x$stage == key,
+          logical(1)
+        )
+      ]
+
+      settings_finish_items(
+        c(
+          reset_ids,
+          paste0(key, "_manual_labels")
+        )
+      )
+    }, ignoreInit = TRUE, priority = 100)
+  })
+  
+  add_previous_polarity <- reactiveVal(NULL)
+
+observeEvent(
+  list(input$add_pol2, settings_file("adduct_file2")),
+  {
+    pol <- input$add_pol2 %||% "positive"
+
+    definitions <- safe_read_csv_any(settings_file("adduct_file2"))
+
+    if (is.null(definitions) ||
+        !all(c("Name", "Charge", "Mult", "Mass") %in%
+             names(definitions))) {
+      definitions <- built_in_adducts_full()
+    }
+
+    if ("Ion_mode" %in% names(definitions)) {
+      definitions <- definitions[
+        tolower(as.character(definitions$Ion_mode)) == tolower(pol),
+        ,
+        drop = FALSE
+      ]
+    }
+
+    available <- trimws(as.character(definitions$Name))
+    available <- sort(unique(
+      available[!is.na(available) & nzchar(available)]
+    ))
+
+    default_ion <- if (pol == "negative") "M-H" else "M+H"
+
+    previous <- isolate(add_previous_polarity())
+    selected <- isolate(input$add_preferred2)
+    restoring <- isTRUE(isolate(settings_import$busy))
+
+    if (is.null(previous) ||
+        (!identical(previous, pol) && !restoring)) {
+      selected <- default_ion
+    }
+
+    # Preserve custom selections and an intentionally empty selection.
+    selected <- as.character(selected)
+
+    updateSelectizeInput(
+      session,
+      "add_preferred2",
+      choices = unique(c(available, selected)),
+      selected = selected
+    )
+
+    add_previous_polarity(pol)
+  },
+  ignoreInit = FALSE
+)
+
+observeEvent(
+  list(input$reset_ms, input$clear_shared),
+  {
+    shinyWidgets::updatePrettyCheckbox(
+      session,
+      "add_prefer2",
+      value = FALSE
+    )
+
+    shiny::updateNumericInput(
+      session,
+      "add_prefer_pct2",
+      value = 10
+    )
+
+    pol <- input$add_pol2 %||% "positive"
+    default_ion <- if (pol == "negative") "M-H" else "M+H"
+
+    definitions <- built_in_adducts_full()
+
+    available <- as.character(
+      definitions$Name[
+        tolower(as.character(definitions$Ion_mode)) ==
+          tolower(pol)
+      ]
+    )
+
+    available <- available[
+      !is.na(available) & nzchar(available)
+    ]
+
+    shiny::updateSelectizeInput(
+      session,
+      "add_preferred2",
+      choices = sort(unique(c(available, default_ion))),
+      selected = default_ion
+    )
+  },
+  ignoreInit = TRUE,
+  priority = -100
+)
   
 options(shiny.maxRequestSize = 1024 * 1024^2)
   # --------------------------
@@ -3622,7 +5622,7 @@ options(shiny.maxRequestSize = 1024 * 1024^2)
     tryCatch({
 
     ext <- tools::file_ext(input$file0$name)
-    validate(need(ext == "csv", "Error: Please upload a .csv file."))
+    shiny::validate(need(ext == "csv", "Error: Please upload a .csv file."))
 
     type <- input$data_type0 %||% "mzmine"
 
@@ -3718,6 +5718,11 @@ observeEvent(input$clear_shared, {
     updateRadioButtons(session, "label_source", selected = "from_rows")
     updateRadioButtons(session, "qc_label_source", selected = "inherit")
     
+    updateSelectizeInput(session, "dratio_qc_group", selected = "")
+    updateNumericInput(session, "dratio_cutoff", value = 50)
+    shinyWidgets::updateCheckboxGroupButtons(
+      session, "value_filters", selected = setdiff(input$value_filters %||% character(0), "dratio"))
+    
     updatePrettyCheckbox(session, "blank_clean_metadata_names", value = FALSE)
     updatePrettyCheckbox(session, "qc_clean_metadata_names", value = FALSE)
     
@@ -3755,7 +5760,7 @@ observeEvent(input$clear_shared, {
     qc_state$show_summary <- FALSE
     qc_state$kept <- NULL
     qc_state$stats <- list(before = 0L, after_final = 0L,
-                           removed_zeros = 0L, removed_mean = 0L, removed_rsd = 0L, removed_min = 0L, removed_total = 0L)
+                           removed_zeros = 0L, removed_mean = 0L, removed_rsd = 0L, removed_dratio = 0L, removed_min = 0L, removed_total = 0L)
     
     # 7. Reset Step 4 (Peak)
     peak_state$applied <- FALSE
@@ -4177,10 +6182,10 @@ observeEvent(input$sample_cols0, {
     meta <- meta[!is.na(meta) & nzchar(meta)]
    
     if (mode == "manual") {
-      validate(need(!is.null(input$sample_cols0) && length(input$sample_cols0) > 0,
+      shiny::validate(need(!is.null(input$sample_cols0) && length(input$sample_cols0) > 0,
                     "Pick sample columns (Upload tab)."))
       sc <- intersect(input$sample_cols0, cols)
-      validate(need(length(sc) > 0, "Manual sample columns not found in table."))
+      shiny::validate(need(length(sc) > 0, "Manual sample columns not found in table."))
       return(sc)
     }
    
@@ -4199,13 +6204,13 @@ observeEvent(input$sample_cols0, {
         upload_error(msg)
         
         # C) Stop processing
-        validate(need(FALSE, msg))
+        shiny::validate(need(FALSE, msg))
       }
       # ---------------------------
       
       sc <- cols[idx]
       sc <- setdiff(sc, meta)
-      validate(need(length(sc) > 0, "Keyword hits were only meta columns. Use Manual/Auto."))
+      shiny::validate(need(length(sc) > 0, "Keyword hits were only meta columns. Use Manual/Auto."))
       return(sc)
     }
    
@@ -4220,7 +6225,7 @@ observeEvent(input$sample_cols0, {
    
     sc <- cand[prop_num >= 0.7] 
    
-    validate(need(length(sc) > 0,
+    shiny::validate(need(length(sc) > 0,
                   "Auto-detect found no numeric sample columns. Switch to Manual or Keywords."))
     sc
   })
@@ -4272,11 +6277,11 @@ observeEvent(input$sample_cols0, {
 
   need_file <- FALSE
 
-  if (identical(src, "from_custom") && is.null(input$meta_csv)) {
+  if (identical(src, "from_custom") && is.null(settings_file("meta_csv"))) {
     need_file <- TRUE
   }
 
-  if (identical(src, "from_metadata") && is.null(input$blank_metadata_csv)) {
+  if (identical(src, "from_metadata") && is.null(settings_file("blank_metadata_csv"))) {
     need_file <- TRUE
   }
 
@@ -4288,14 +6293,14 @@ observeEvent(input$sample_cols0, {
 })
   
   custom_labels_blank <- reactive({
-  req(input$meta_csv, sample_names())
+  req(settings_file("meta_csv"), sample_names())
 
-  ext <- tools::file_ext(input$meta_csv$name)
-  validate(need(ext == "csv", "Upload a .csv for labels (one column, no header)."))
+  ext <- tools::file_ext(settings_file("meta_csv")$name)
+  shiny::validate(need(ext == "csv", "Upload a .csv for labels (one column, no header)."))
 
-  vec <- vroom::vroom(input$meta_csv$datapath, col_names = FALSE, delim = ",") |> pull(1)
+  vec <- vroom::vroom(settings_file("meta_csv")$datapath, col_names = FALSE, delim = ",") |> pull(1)
 
-  validate(
+  shiny::validate(
     need(
       length(vec) == length(sample_names()),
       sprintf("Label count (%d) must match #samples (%d).", length(vec), length(sample_names()))
@@ -4351,7 +6356,7 @@ observeEvent(input$labels_table_cell_edit, {
 
   row_i <- as.integer(info$row)
 
-  validate(
+  shiny::validate(
     need(row_i >= 1 && row_i <= nrow(tbl), "Edited row is outside label table.")
   )
 
@@ -4369,8 +6374,8 @@ observeEvent(input$labels_table_cell_edit, {
 }, ignoreInit = TRUE)
 
 blank_metadata_raw <- reactive({
-  req(input$blank_metadata_csv)
-  read_metadata_csv(input$blank_metadata_csv, context = "Blank metadata labels")
+  req(settings_file("blank_metadata_csv"))
+  read_metadata_csv(settings_file("blank_metadata_csv"), context = "Blank metadata labels")
 })
 
 
@@ -4395,7 +6400,7 @@ output$blank_metadata_label_col_ui <- renderUI({
   sample_col <- input$blank_metadata_sample_col %||% guess_metadata_sample_col(cols)
   choices <- setdiff(cols, sample_col)
 
-  validate(
+  shiny::validate(
     need(length(choices) > 0, "Metadata file has no column available for labels.")
   )
 
@@ -4411,14 +6416,14 @@ output$blank_metadata_label_col_ui <- renderUI({
 
 blank_metadata_labels <- reactive({
   req(
-    input$blank_metadata_csv,
+    settings_file("blank_metadata_csv"),
     input$blank_metadata_sample_col,
     input$blank_metadata_label_col,
     sample_names()
   )
 
   metadata_labels_by_sample(
-    upload = input$blank_metadata_csv,
+    upload = settings_file("blank_metadata_csv"),
     sample_names = sample_names(),
     sample_col = input$blank_metadata_sample_col,
     label_col = input$blank_metadata_label_col,
@@ -4446,7 +6451,7 @@ label_vector_blank <- reactive({
     tbl <- manual_labels_blank()
     req(tbl)
 
-    validate(
+    shiny::validate(
       need(nrow(tbl) == length(sample_names()),
            "Manual label table must match the number of samples."),
       need(!any(is.na(tbl$Label) | tbl$Label == ""),
@@ -4525,8 +6530,15 @@ output$labels_table <- renderDT({
       selectizeInput(
         "groups_to_remove",
         "Choose blank/media group(s):",
-        choices = labs, multiple = TRUE,
-        options = list(placeholder = "Pick one or more (e.g., Media, Blank)")
+        choices = labs,
+        multiple = TRUE,
+        selected = intersect(
+          isolate(input$groups_to_remove) %||% character(0),
+          labs
+        ),
+        options = list(
+          placeholder = "Pick one or more (e.g., Media, Blank)"
+        )
       ),
       radioButtons(
         "blank_mode", "Filtering mode:",
@@ -4534,13 +6546,17 @@ output$labels_table <- renderDT({
           "Blank < Cutoff * Sample Max" = "mean_cutoff",
           "Drop any feature detected in Blank" = "drop_detected"
         ),
-        selected = "mean_cutoff"
+        selected = isolate(input$blank_mode) %||% "mean_cutoff"
       ),
       conditionalPanel(
         condition = "input.blank_mode == 'mean_cutoff'",
-        numericInput("blank_cutoff",
-                     "Cutoff (fraction of max experimental mean):",
-                     value = 0.10, min = 0, step = 0.01)
+        numericInput(
+            "blank_cutoff",
+            "Cutoff (fraction of max experimental mean):",
+            value = isolate(input$blank_cutoff) %||% 0.10,
+            min = 0,
+            step = 0.01
+          )
       )
     )
   })
@@ -4550,7 +6566,8 @@ output$labels_table <- renderDT({
     ds <- ds0_with_label()
     groups <- input$groups_to_remove
     feats <- numeric_feature_names(ds)
-    validate(need(length(feats) > 0, "No numeric features to plot."))
+    
+    shiny::validate(need(length(feats) > 0, "No numeric features to plot."))
 
     mode <- input$blank_mode
 
@@ -4563,28 +6580,47 @@ output$labels_table <- renderDT({
 
       # Get Blank means
       blanks <- mean_table %>% filter(Label %in% groups) %>% select(-Label)
-      validate(need(nrow(blanks) > 0, "Selected Blank groups not found in data."))
+      shiny::validate(need(nrow(blanks) > 0, "Selected Blank groups not found in data."))
       blank_means <- blanks %>% summarise(across(everything(), ~ mean(.x, na.rm = TRUE)))
       blank_vec <- as.numeric(blank_means[1, ])
 
       # Get Experimental maximum means
       exps <- mean_table %>% filter(!Label %in% groups) %>% select(-Label)
-      validate(need(nrow(exps) > 0, "No experimental groups remaining to compare against."))
+      shiny::validate(need(nrow(exps) > 0, "No experimental groups remaining to compare against."))
       max_exp <- vapply(exps, function(x) max(x, na.rm = TRUE), numeric(1))
 
       # Calculate Ratio
-      max_exp_safe <- ifelse(max_exp == 0, 1e-9, max_exp)
-      ratio <- blank_vec / max_exp_safe
+      ratio <- blank_vec / max_exp
 
-      df <- tibble::tibble(Feature = feats, Ratio = ratio)
-      df <- df[is.finite(df$Ratio), , drop = FALSE]
-      
+      valid <- is.finite(blank_vec) &
+        is.finite(max_exp) &
+        blank_vec >= 0 &
+        max_exp >= 0
+
+      status <- rep("Other / undefined", length(feats))
+
+      status[valid & blank_vec > 0 & max_exp > 0 & is.finite(ratio)] <- "Positive finite ratio"
+
+      status[valid & blank_vec == 0 & max_exp > 0] <- "Zero blank / positive sample"
+
+      status[valid & blank_vec > 0 & max_exp == 0] <- "Positive blank / zero sample"
+
+      status[valid & blank_vec == 0 & max_exp == 0] <- "Both zero"
+
+      df <- tibble::tibble(
+        Feature = feats,
+        Blank = blank_vec,
+        Sample = as.numeric(max_exp),
+        Ratio = ratio,
+        Status = status
+      )
+
       return(list(mode = "mean_cutoff", data = df))
 
     } else if (mode == "drop_detected") {
       # --- MODE 2: Drop Detected ---
       blanks <- ds %>% filter(Label %in% groups)
-      validate(need(nrow(blanks) > 0, "Selected Blank groups not found in data."))
+      shiny::validate(need(nrow(blanks) > 0, "Selected Blank groups not found in data."))
 
       # Check if feature has ANY signal > 0 in the blank groups
       detected <- vapply(feats, function(f) any(blanks[[f]] > 0, na.rm = TRUE), logical(1))
@@ -4614,35 +6650,214 @@ output$labels_table <- renderDT({
     
     total_feats <- nrow(df)
 
-    if (mode == "mean_cutoff") {
-      # --- PLOT 1: Histogram for Ratio ---
+        if (mode == "mean_cutoff") {
       current_cutoff <- input$blank_cutoff %||% 0.10
-      removed_count <- sum(df$Ratio >= current_cutoff, na.rm = TRUE)
-      perc_removed <- round((removed_count / total_feats) * 100, 1)
 
-      gg <- ggplot(df, aes(x = Ratio)) +
-        geom_histogram(alpha = 0.8, color = "black", fill = "royalblue3", bins = 50) +
-        geom_vline(xintercept = current_cutoff, color = "red", linetype = "dashed", size = 1) +
-        theme_minimal() +
-        labs(x = "Ratio: Mean(Blank) / Max(Mean(Sample)) (log10 scale)", 
-             y = "Count",
-             title = "Blank to Sample Ratio Distribution") + 
-        scale_x_continuous(trans = log10_plus_one_trans(), breaks = function(limits) {
-                                                                                      max_val <- max(limits, na.rm = TRUE)
-                                                                                      if (!is.finite(max_val) || max_val <= 0) return(0)
-                                                                                      c(0, 10^seq(1, ceiling(log10(max_val))))
-                                                                                    })
-
-      p <- ggplotly(gg) %>% 
-        layout(
-          annotations = list(
-            x = 0.95, y = 0.95, 
-            text = paste0("<b>Filtered: ", perc_removed, "%</b>"),
-            showarrow = FALSE, xref = 'paper', yref = 'paper',
-            font = list(color = "red", size = 16)
-          ),
-          margin = list(t = 50)
+      shiny::validate(
+        need(
+          length(current_cutoff) == 1L &&
+            is.finite(current_cutoff) &&
+            current_cutoff >= 0,
+          "Enter a finite, non-negative blank cutoff."
         )
+      )
+
+      # Match the actual filtering rule, including zero cases.
+      keep <- df$Blank < current_cutoff * pmax(df$Sample, 0)
+      keep[is.na(keep)] <- FALSE
+
+      removed_count <- sum(!keep)
+      perc_removed <- round(100 * removed_count / total_feats, 1)
+
+      # Only positive finite ratios can appear on a log axis.
+      positive <- df$Ratio[df$Status == "Positive finite ratio"]
+
+      fmt <- function(x) {
+        trimws(formatC(x, format = "g", digits = 4))
+      }
+
+      bins <- data.frame(
+        x = numeric(0),
+        count = integer(0),
+        hover = character(0)
+      )
+
+      # Default display range when all ratios are zero/undefined.
+      axis_range <- c(-2, 1)
+      bin_width <- 0.1
+
+      if (length(positive)) {
+        log_values <- log10(positive)
+
+        lower <- floor(min(log_values))
+        upper <- ceiling(max(log_values))
+
+        # Also handle datasets with one unique ratio.
+        if (upper <= lower) upper <- lower + 1
+
+        edges <- seq(lower, upper, length.out = 51)
+
+        h <- hist(
+          log_values,
+          breaks = edges,
+          plot = FALSE,
+          include.lowest = TRUE,
+          right = FALSE
+        )
+
+        left <- head(h$breaks, -1)
+        right <- tail(h$breaks, -1)
+
+        bins <- data.frame(
+          x = h$mids,
+          count = h$counts,
+          hover = paste0(
+            "Blank/sample ratio: ",
+            fmt(10^left),
+            " – ",
+            fmt(10^right),
+            "<br>Features: ",
+            h$counts
+          )
+        )
+
+        axis_range <- range(h$breaks)
+        bin_width <- diff(h$breaks)[1]
+      }
+
+      # Include the cutoff in the visible range.
+      shapes <- list()
+
+      if (current_cutoff > 0) {
+        cutoff_position <- log10(current_cutoff)
+        axis_range <- range(c(axis_range, cutoff_position))
+
+        shapes <- list(
+          list(
+            type = "line",
+            xref = "x",
+            yref = "paper",
+            x0 = cutoff_position,
+            x1 = cutoff_position,
+            y0 = 0,
+            y1 = 1,
+            line = list(
+              color = "red",
+              dash = "dash",
+              linewidth = 1
+            )
+          )
+        )
+      }
+
+      # Positions are logarithmic; tick labels show original ratios.
+      tick_positions <- seq(
+        floor(axis_range[1]),
+        ceiling(axis_range[2]),
+        by = 1
+      )
+
+      # Avoid overcrowding for unusually wide distributions.
+      if (length(tick_positions) > 12L) {
+        tick_positions <- tick_positions[unique(round(seq(1, length(tick_positions), length.out = 12)))]
+      }
+
+      count_status <- function(label) {
+        sum(df$Status == label)
+      }
+
+     other_count <- count_status("Other / undefined")
+
+      summary_text <- paste0(
+        "<b>Filtered: ", removed_count, " of ", total_feats,
+        " (", perc_removed, "%)</b>",
+        " | Cutoff: ", fmt(current_cutoff),
+
+        "<br><b>Not shown on log axis:</b> ",
+        "blank = 0, sample &gt; 0: ",
+        count_status("Zero blank / positive sample"),
+
+        "; blank &gt; 0, sample = 0: ",
+        count_status("Positive blank / zero sample"),
+
+        "; both = 0: ",
+        count_status("Both zero"),
+
+        if (other_count > 0) {
+          paste0("; other/undefined: ", other_count)
+        } else {
+          ""
+        }
+      )
+
+      annotations <- list(
+        list(
+          x = 0,
+          y = 1.02,
+          xref = "paper",
+          yref = "paper",
+          xanchor = "left",
+          yanchor = "bottom",
+          text = summary_text,
+          align = "left",
+          showarrow = FALSE,
+          font = list(size = 12, color = "#2c3e50")
+        )
+      )
+
+      if (!length(positive)) {
+        annotations[[length(annotations) + 1L]] <- list(
+          x = 0.5,
+          y = 0.5,
+          xref = "paper",
+          yref = "paper",
+          text = "No positive finite ratios to display.",
+          showarrow = FALSE
+        )
+      }
+
+      p <- plotly::plot_ly(
+        data = bins,
+        x = ~x,
+        y = ~count,
+        type = "bar",
+        text = ~hover,
+        textposition = "none",
+        hoverinfo = "text",
+        marker = list(
+          color = "royalblue",
+          line = list(color = "black", width = 0.5)
+        ),
+        showlegend = FALSE
+      ) %>%
+        plotly::layout(
+          title = list(
+            text = "Blank to Sample Ratio Distribution",
+            y = 0.99
+          ),
+          xaxis = list(
+            title = paste0(
+              "Ratio: Mean(Blank) / Max(Mean(Sample))",
+              " (log10)"
+            ),
+            tickmode = "array",
+            tickvals = tick_positions,
+            ticktext = fmt(10^tick_positions),
+            range = axis_range + c(-0.03, 0.03),
+            zeroline = FALSE
+          ),
+          yaxis = list(
+            title = "Feature count",
+            rangemode = "tozero"
+          ),
+          shapes = shapes,
+          annotations = annotations,
+          margin = list(t = 75, b = 65, l = 65, r = 20),
+          plot_bgcolor = "white",
+          paper_bgcolor = "white",
+          bargap = 0
+        )
+
       return(p)
 
     } else if (mode == "drop_detected") {
@@ -4659,7 +6874,7 @@ output$labels_table <- renderDT({
         scale_fill_manual(values = c("Filtered" = "indianred", "Kept" = "mediumseagreen")) +
         theme_minimal() +
         labs(x = "", y = "Feature Count", title = "Blank Detection Status") +
-        theme(legend.position = "none")
+        theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
 
       p <- ggplotly(gg, tooltip = c("y", "x")) %>% 
         layout(
@@ -4698,6 +6913,7 @@ output$labels_table <- renderDT({
     blank_state$kept <- keep
     blank_state$stats$after <- length(keep)
     blank_state$stats$removed_blank <- blank_state$stats$before - blank_state$stats$after
+    settings_capture("blank", blank_state$stats)
 
     if (!isTRUE(input$enable_blank)) {
       showNotification("Blank Filters disabled. Step 1 frozen as pass-through.", type="message", duration=4)
@@ -4709,7 +6925,7 @@ output$labels_table <- renderDT({
   }
 
   observeEvent(input$apply_blank, {
-    
+    if (!settings_ready(stage = "blank")) return()
     if (isTRUE(input$enable_blank) && length(input$groups_to_remove) == 0) {
       showNotification("Error: Please select at least one Blank/Media group before applying.", type = "error", duration = 5)
       return() # Stop execution immediately
@@ -4981,7 +7197,7 @@ output$labels_table <- renderDT({
       if (isTRUE(input$enable_add2) && ncol(ds) > 0) {
         pol <- input$add_pol2 %||% "positive"
     
-        adducts_df <- safe_read_csv_any(input$adduct_file2)
+        adducts_df <- safe_read_csv_any(settings_file("adduct_file2"))
         if (is.null(adducts_df)) adducts_df <- built_in_adducts_full()
     
         # Expect columns like: Ion_mode, Name, Charge, Mult, Mass (your file)
@@ -5171,6 +7387,16 @@ output$labels_table <- renderDT({
               dplyr::ungroup() %>%
               dplyr::transmute(peak_id, keep_rep = TRUE)
     
+            if (isTRUE(input$add_prefer2)) {
+            reps <- .mc_preferred_adduct_reps(
+              peaks = peaks,
+              fam_map = fam_map,
+              edges = edges_corr_rt,
+              preferred = input$add_preferred2,
+              max_drop = as.numeric(input$add_prefer_pct2 %||% 10)
+            )
+          }
+            
             in_family <- unique(fam_map$peak_id)
     
           fam_map_simple <- fam_map %>%
@@ -5227,7 +7453,7 @@ output$labels_table <- renderDT({
       if (!is.null(hostess)) hostess$set(55)
       if (isTRUE(input$enable_nl2) && ncol(ds) > 0) {
         nl_pol <- input$nl_pol2 %||% "positive"
-        nl_df <- safe_read_csv_any(input$nl_file2)
+        nl_df <- safe_read_csv_any(settings_file("nl_file2"))
         if (is.null(nl_df)) nl_df <- built_in_neutral_losses_full()
     
         if (is.null(nl_df)) {
@@ -5682,6 +7908,7 @@ output$labels_table <- renderDT({
       ms_state$applied <- TRUE
       ms_state$show_summary <- TRUE
       ms_state$stats$after <- ncol(ds)
+      settings_capture("ms", ms_state$stats)
     
       any_ms_enabled <- isTRUE(input$enable_iso2) ||
       isTRUE(input$enable_add2) ||
@@ -5700,8 +7927,30 @@ output$labels_table <- renderDT({
     }
     
     observeEvent(input$apply_ms, {
-      
-      # MS2-supported ISF requires an uploaded MGF
+  if (!settings_ready(stage = "ms")) return()
+
+  # Validate preferred-ion intensity threshold
+  if (isTRUE(input$enable_add2) && isTRUE(input$add_prefer2)) {
+    pct <- input$add_prefer_pct2
+
+    if (!is.numeric(pct) ||
+        length(pct) != 1L ||
+        !is.finite(pct) ||
+        pct < 0 ||
+        pct > 100) {
+      showNotification(
+        paste(
+          "Preferred ions: enter a maximum intensity decrease",
+          "between 0 and 100%."
+        ),
+        type = "error",
+        duration = 6
+      )
+      return()
+    }
+  }
+
+  # MS2-supported ISF requires an uploaded MGF
   if (isTRUE(input$enable_isf2) && isTRUE(input$isf_ms2_check2)) {
 
     sps <- parsed_mgf()
@@ -6339,11 +8588,11 @@ if ("ms2_rel_int" %in% names(tbl_show))
 
   need_file <- FALSE
 
-  if (identical(src, "from_custom") && is.null(input$qc_meta_csv)) {
+  if (identical(src, "from_custom") && is.null(settings_file("qc_meta_csv"))) {
     need_file <- TRUE
   }
 
-  if (identical(src, "from_metadata") && is.null(input$qc_metadata_csv)) {
+  if (identical(src, "from_metadata") && is.null(settings_file("qc_metadata_csv"))) {
     need_file <- TRUE
   }
 
@@ -6355,14 +8604,14 @@ if ("ms2_rel_int" %in% names(tbl_show))
 })
     
   qc_custom_labels <- reactive({
-  req(input$qc_meta_csv, sample_names())
+  req(settings_file("qc_meta_csv"), sample_names())
 
-  ext <- tools::file_ext(input$qc_meta_csv$name)
-  validate(need(ext == "csv", "Upload a .csv for QC labels (one column, no header)."))
+  ext <- tools::file_ext(settings_file("qc_meta_csv")$name)
+  shiny::validate(need(ext == "csv", "Upload a .csv for QC labels (one column, no header)."))
 
-  vec <- vroom::vroom(input$qc_meta_csv$datapath, col_names = FALSE, delim = ",") |> pull(1)
+  vec <- vroom::vroom(settings_file("qc_meta_csv")$datapath, col_names = FALSE, delim = ",") |> pull(1)
 
-  validate(
+  shiny::validate(
     need(
       length(vec) == length(sample_names()),
       sprintf("QC label count (%d) must match #samples (%d).", length(vec), length(sample_names()))
@@ -6418,7 +8667,7 @@ observeEvent(input$qc_labels_table_cell_edit, {
 
   row_i <- as.integer(info$row)
 
-  validate(
+  shiny::validate(
     need(row_i >= 1 && row_i <= nrow(tbl), "Edited row is outside QC label table.")
   )
 
@@ -6434,8 +8683,8 @@ observeEvent(input$qc_labels_table_cell_edit, {
 }, ignoreInit = TRUE)
 
 qc_metadata_raw <- reactive({
-  req(input$qc_metadata_csv)
-  read_metadata_csv(input$qc_metadata_csv, context = "QC metadata labels")
+  req(settings_file("qc_metadata_csv"))
+  read_metadata_csv(settings_file("qc_metadata_csv"), context = "QC metadata labels")
 })
 
 
@@ -6460,7 +8709,7 @@ output$qc_metadata_label_col_ui <- renderUI({
   sample_col <- input$qc_metadata_sample_col %||% guess_metadata_sample_col(cols)
   choices <- setdiff(cols, sample_col)
 
-  validate(
+  shiny::validate(
     need(length(choices) > 0, "Metadata file has no column available for labels.")
   )
 
@@ -6476,14 +8725,14 @@ output$qc_metadata_label_col_ui <- renderUI({
 
 qc_metadata_labels <- reactive({
   req(
-    input$qc_metadata_csv,
+    settings_file("qc_metadata_csv"),
     input$qc_metadata_sample_col,
     input$qc_metadata_label_col,
     sample_names()
   )
 
   metadata_labels_by_sample(
-    upload = input$qc_metadata_csv,
+    upload = settings_file("qc_metadata_csv"),
     sample_names = sample_names(),
     sample_col = input$qc_metadata_sample_col,
     label_col = input$qc_metadata_label_col,
@@ -6516,7 +8765,7 @@ qc_label_vector <- reactive({
     tbl <- manual_labels_qc()
     req(tbl)
 
-    validate(
+    shiny::validate(
       need(nrow(tbl) == length(sample_names()),
            "Manual QC label table must match the number of samples."),
       need(!any(is.na(tbl$Label) | tbl$Label == ""),
@@ -6576,7 +8825,7 @@ output$qc_labels_table <- renderDT({
     show_summary = FALSE,
     kept = NULL,
     stats = list(before = 0L, after_final = 0L, 
-                 removed_zeros = 0L, removed_mean = 0L, removed_rsd = 0L, removed_min = 0L, removed_total = 0L)
+                 removed_zeros = 0L, removed_mean = 0L, removed_rsd = 0L, removed_dratio = 0L, removed_min = 0L, removed_total = 0L)
   )
 
   ds_qc_in <- reactive({
@@ -6590,24 +8839,101 @@ output$qc_labels_table <- renderDT({
     selectizeInput(
       "value_groups",
       "Group(s) to evaluate:",
-      choices = labs, multiple = TRUE,
-      options = list(placeholder = "Empty = all groups")
+      choices = labs,
+      multiple = TRUE,
+      selected = intersect(
+        isolate(input$value_groups) %||% character(0),
+        labs
+      ),
+      options = list(
+        placeholder = "Empty = all groups"
+      )
     )
   })
 
+    output$dratio_qc_group_ui <- renderUI({
+    req(ds_qc_in())
+
+    labs <- sort(unique(as.character(ds_qc_in()$Label)))
+    labs <- labs[!is.na(labs) & nzchar(labs)]
+
+    selected <- isolate(input$dratio_qc_group)
+
+    if (length(selected) != 1L ||
+        is.na(selected) ||
+        !selected %in% labs) {
+      selected <- ""
+    }
+
+    selectizeInput(
+      "dratio_qc_group",
+      "QC group for D-ratio (required):",
+      choices = c(
+        "Choose a QC group..." = "",
+        stats::setNames(labs, labs)
+      ),
+      selected = selected,
+      multiple = FALSE,
+      options = list(
+        placeholder = "Choose a QC group..."
+      )
+    )
+  })
+  
+  qc_plot_visible <- reactiveVal(FALSE)
+
+  observeEvent(input$plot_values_qc, {
+    qc_plot_visible(TRUE)
+  }, ignoreInit = TRUE)
+
+  observeEvent(
+    list(input$reset_qc, input$clear_shared),
+    {
+      qc_plot_visible(FALSE)
+    },
+    ignoreInit = TRUE,
+    priority = 100
+  )
+    
   qc_plot_data <- eventReactive(input$plot_values_qc, {
     req(ds_qc_in())
     ds <- ds_qc_in()
     feats <- numeric_feature_names(ds)
-    validate(need(length(feats) > 0, "No numeric features to plot."))
+    shiny::validate(need(length(feats) > 0, "No numeric features to plot."))
 
     filters <- input$value_filters %||% character(0)
-    validate(need(length(filters) > 0, "Select at least one QC value filter to plot."))
+    shiny::validate(need(length(filters) > 0, "Select at least one QC value filter to plot."))
 
     mode <- input$value_mode %||% "group_any"
     labs_sel <- if (!is.null(input$value_groups) && length(input$value_groups) > 0) input$value_groups else unique(ds$Label)
     res_list <- list()
 
+    if ("dratio" %in% filters) {
+      problem <- dratio_problem(
+        ds,
+        input$value_groups,
+        input$dratio_qc_group,
+        input$dratio_cutoff
+      )
+
+      shiny::validate(need(
+        is.null(problem),
+        if (is.null(problem)) "" else problem
+      ))
+
+      res_list[["dratio"]] <- list(
+        metric = "dratio",
+        mode = mode,
+        data = dratio_values(
+          ds = ds,
+          feats = feats,
+          mode = mode,
+          value_groups = input$value_groups,
+          qc_group = input$dratio_qc_group
+        )
+      )
+    }
+    
     if ("zeros" %in% filters) {
       zm <- input$zero_metric %||% "count"
       if (mode %in% c("group_any","group_every")) {
@@ -6661,18 +8987,22 @@ output$qc_labels_table <- renderDT({
       }
       res_list[["rsd"]] <- list(metric="rsd", mode=mode, data=long)
     }
-    res_list[intersect(c("zeros", "mean", "rsd", "min"), names(res_list))]
-  }, ignoreInit = TRUE)
+    res_list[intersect(c("zeros", "mean", "rsd", "dratio", "min"), names(res_list))]
+  }, ignoreInit = FALSE, ignoreNULL = TRUE)
 
-  output$qcPlotReady <- reactive({ !is.null(qc_plot_data()) })
+  output$qcPlotReady <- reactive({
+  if (!isTRUE(qc_plot_visible())) return(FALSE)
+  !is.null(qc_plot_data())
+})
   outputOptions(output, "qcPlotReady", suspendWhenHidden = FALSE)
 
   output$qc_value_plot <- renderPlotly({
+    req(isTRUE(qc_plot_visible()))
     md_list <- qc_plot_data()
     
-    validate(
+    shiny::validate(
       need(!is.null(md_list) && length(md_list) > 0, 
-           "Please select at least one QC filter (Zeros, Mean, RSD, or Min) in the sidebar and click 'Plot values distribution'.")
+           "Please select at least one QC filter (Zeros, Mean, RSD, D-ratio, or Min) in the sidebar and click 'Plot values distribution'.")
     )
 
     plots_list <- list()
@@ -6685,7 +9015,7 @@ output$qc_labels_table <- renderDT({
       df <- df_all[is.finite(df_all$value), , drop = FALSE]
       
       # Preserve existing behavior for other metrics.
-      if (!nrow(df) && md$metric != "rsd") next
+      if (!nrow(df) && !md$metric %in% c("rsd", "dratio")) next
 
       mode <- md$mode
       mode_txt <- switch(mode, 
@@ -6704,19 +9034,22 @@ output$qc_labels_table <- renderDT({
       } else if (md$metric == "min") {
         xlab_txt <- "Minimum intensity (log10)"
         cutoff <- input$min_cutoff %||% 1000
+      } else if (md$metric == "dratio") {
+        xlab_txt <- "D-ratio (%)"
+        cutoff <- input$dratio_cutoff %||% 50
       } else {
         xlab_txt <- "RSD (%)"
         cutoff <- input$rsd_cutoff %||% 30
       }
 
       # 2. EXACT MATH MATCHING
-      eval_df <- if (md$metric == "rsd") df_all else df
+      eval_df <- if (md$metric %in% c("rsd", "dratio")) df_all else df
 
       feat_eval <- eval_df %>%
         dplyr::group_by(Feature) %>%
         dplyr::summarise(
           pass = {
-            if (md$metric == "rsd") {
+            if (md$metric %in% c("rsd", "dratio")) {
               passes <- is.finite(value) & (value <= cutoff)
             } else if (md$metric == "zeros") {
               passes <- value < cutoff
@@ -6744,16 +9077,23 @@ output$qc_labels_table <- renderDT({
         df <- df_all[1, , drop = FALSE]
         df$value <- NA_real_
       }
-      df$plot_header <- paste0(toupper(md$metric), " [", xlab_txt, "] - ", mode_txt, 
-                               " | Filtered: ", removed_feats, " of ", total_feats, " (", perc_filt, "%)")
+      metric_title <- if (md$metric == "dratio") {"D-Ratio"
+      } else {toupper(md$metric)
+      }
+
+      df$plot_header <- paste0(
+        metric_title, " [", xlab_txt, "] - ", mode_txt,
+        " | Filtered: ", removed_feats, " of ", total_feats,
+        " (", perc_filt, "%)"
+      )
 
       if (mode %in% c("group_any", "group_every")) {
         gg <- ggplot(df, aes(x = value, fill = Label)) +
-          geom_histogram(alpha = 0.8, position = "dodge", color = "black", bins = 40) +
+          geom_histogram(alpha = 0.8, position = "dodge", color = "black", bins = 50, boundary = 0) +
           scale_fill_hue(h = c(180, 300))
       } else {
         gg <- ggplot(df, aes(x = value)) +
-          geom_histogram(alpha = 0.8, color = "black", fill = "springgreen3", bins = 40)
+          geom_histogram(alpha = 0.8, color = "black", fill = "springgreen3", bins = 50, boundary = 0)
       }
 
       gg <- gg +
@@ -6785,7 +9125,7 @@ output$qc_labels_table <- renderDT({
     # 5. Assemble Subplots
     if (length(plots_list) == 0) {
       # Catch the empty list before Plotly crashes
-      validate(
+      shiny::validate(
         need(FALSE, "Not enough valid data points to generate the plot (e.g., groups may have too few samples to calculate RSD).")
       )
     } else if (length(plots_list) == 1) {
@@ -6801,6 +9141,25 @@ output$qc_labels_table <- renderDT({
     ds <- ds_qc_in()
     feats <- numeric_feature_names(ds)
 
+    # Validate D-ratio settings before changing results
+    if ("dratio" %in% (input$value_filters %||% character(0))) {
+      problem <- dratio_problem(
+        ds,
+        input$value_groups,
+        input$dratio_qc_group,
+        input$dratio_cutoff
+      )
+
+      if (!is.null(problem)) {
+        showNotification(
+          problem,
+          type = "error",
+          duration = 6
+        )
+        return(invisible(FALSE))
+      }
+    }
+    
     qc_state$stats$before <- length(feats)
 
     if (!length(input$value_filters %||% character(0))) {
@@ -6808,6 +9167,7 @@ output$qc_labels_table <- renderDT({
       qc_state$stats$removed_zeros <- 0L
       qc_state$stats$removed_mean  <- 0L
       qc_state$stats$removed_rsd   <- 0L
+      qc_state$stats$removed_dratio <- 0L
       qc_state$stats$removed_min   <- 0L
       qc_state$stats$after_final   <- length(keep)
       qc_state$stats$removed_total <- qc_state$stats$before - qc_state$stats$after_final
@@ -6822,12 +9182,15 @@ output$qc_labels_table <- renderDT({
         zero_cutoff = input$zero_cutoff,
         mean_cutoff = input$mean_cutoff,
         rsd_cutoff  = input$rsd_cutoff,
-        min_cutoff  = input$min_cutoff
+        min_cutoff = input$min_cutoff,
+        dratio_qc_group = input$dratio_qc_group,
+        dratio_cutoff = input$dratio_cutoff
       )
       keep <- res$keep
       qc_state$stats$removed_zeros <- res$stats$removed_zeros
       qc_state$stats$removed_mean  <- res$stats$removed_mean
       qc_state$stats$removed_rsd   <- res$stats$removed_rsd
+      qc_state$stats$removed_dratio <- res$stats$removed_dratio
       qc_state$stats$removed_min   <- res$stats$removed_min
       qc_state$stats$after_final   <- res$stats$after_final
       qc_state$stats$removed_total <- res$stats$removed_total
@@ -6836,6 +9199,7 @@ output$qc_labels_table <- renderDT({
     qc_state$applied <- TRUE
     qc_state$show_summary <- TRUE
     qc_state$kept <- keep
+    settings_capture("qc", qc_state$stats)
 
     if (length(input$value_filters %||% character(0)) == 0) {
       showNotification("No QC Filters selected. Step 3 frozen as pass-through.", type="message", duration=4)
@@ -6844,9 +9208,10 @@ output$qc_labels_table <- renderDT({
     } else {
       showNotification(sprintf("Step 3 frozen: kept %d of %d features.", qc_state$stats$after_final, qc_state$stats$before), type="message", duration=4)
     }
-  }
+  invisible(TRUE)}
 
   observeEvent(input$apply_qc, {
+    if (!settings_ready(stage = "qc")) return()
     w <- Waiter$new(
       id = "qc_table_out", 
       html = tagList(spin_6(), h4("Applying QC Filters...", style="color:#ffffff !important; text-shadow:none !important;")),
@@ -6856,14 +9221,25 @@ output$qc_labels_table <- renderDT({
     
     shinyjs::disable("apply_qc")
     
-    shinyjs::delay(50, {
-      tryCatch({
-        run_step3_qc()
-        invalidate_after_qc()
-      }, finally = {
-        w$hide()
-        shinyjs::enable("apply_qc")
-      })
+        shinyjs::delay(50, {
+      tryCatch(
+        {
+          if (isTRUE(run_step3_qc())) {
+            invalidate_after_qc()
+          }
+        },
+        error = function(e) {
+          showNotification(
+            conditionMessage(e),
+            type = "error",
+            duration = 8
+          )
+        },
+        finally = {
+          w$hide()
+          shinyjs::enable("apply_qc")
+        }
+      )
     })
   }, ignoreInit = TRUE)
 
@@ -6872,7 +9248,7 @@ output$qc_labels_table <- renderDT({
     qc_state$show_summary <- FALSE
     qc_state$kept <- NULL
     qc_state$stats <- list(before = 0L, after_final = 0L, 
-                           removed_zeros = 0L, removed_mean = 0L, removed_rsd = 0L, removed_min = 0L, removed_total = 0L)
+                           removed_zeros = 0L, removed_mean = 0L, removed_rsd = 0L, removed_dratio = 0L, removed_min = 0L, removed_total = 0L)
     
     # Clear QC labels uploads
   shinyjs::reset("qc_meta_csv")
@@ -6883,6 +9259,10 @@ output$qc_labels_table <- renderDT({
 
   updateRadioButtons(session, "qc_label_source", selected = "inherit")
   updatePrettyCheckbox(session, "qc_clean_metadata_names", value = FALSE)
+  updateSelectizeInput(session, "dratio_qc_group", selected = "")
+  updateNumericInput(session, "dratio_cutoff", value = 50)
+  shinyWidgets::updateCheckboxGroupButtons(
+      session, "value_filters", selected = setdiff(input$value_filters %||% character(0), "dratio"))
     
   invalidate_after_qc()
     showNotification("Step 3 reset: pass-through.", type = "message", duration = 3)
@@ -6933,6 +9313,7 @@ output$qc_labels_table <- renderDT({
     removed_zeros <- qc_state$stats$removed_zeros %||% 0L
     removed_mean  <- qc_state$stats$removed_mean  %||% 0L
     removed_rsd   <- qc_state$stats$removed_rsd   %||% 0L
+    removed_dratio <- qc_state$stats$removed_dratio %||% 0L
     removed_min   <- qc_state$stats$removed_min   %||% 0L
     removed_total <- qc_state$stats$removed_total %||% (before - after_final)
 
@@ -6945,11 +9326,12 @@ output$qc_labels_table <- renderDT({
           "Removed by Zeros",
           "Removed by Mean",
           "Removed by RSD",
+          "Removed by D-ratio",
           "Removed by Min",
           "Total removed",
           "Features after"
         ),
-        Value  = c(before, removed_zeros, removed_mean, removed_rsd, removed_min, removed_total, after_final)
+        Value  = c(before, removed_zeros, removed_mean, removed_rsd, removed_dratio, removed_min, removed_total, after_final)
       )
     ),
     div(style = "margin-top: -10px; margin-bottom: 15px; margin-left: 5px; font-size: 13px; color: white; font-style: italic;",
@@ -7023,11 +9405,11 @@ output$qc_labels_table <- renderDT({
   peak_plot_data <- eventReactive(input$plot_peak, {
     req(peak_table_in_raw(), input$mz_col0, input$rt_col0)
     sel <- input$peak_filters %||% character(0)
-    validate(need(length(sel) > 0, "Select at least one metric to plot (m/z, rt, RMD, AMD)."))
+    shiny::validate(need(length(sel) > 0, "Select at least one metric to plot (m/z, rt, RMD, AMD)."))
     
     df <- as.data.frame(peak_table_in_raw(), check.names = FALSE)
     
-    validate(
+    shiny::validate(
       need(input$mz_col0 %in% names(df), "m/z column (from Upload tab) not found in aligned peak table."),
       need(input$rt_col0 %in% names(df), "rt column (from Upload tab) not found in aligned peak table.")
     )
@@ -7120,7 +9502,7 @@ output$qc_labels_table <- renderDT({
         annot_text <- paste0("<b>Filtered rt: ", rem_rt, "</b>")
       }
 
-      plots[["mzrt"]] <- ggplotly(p_mzrt) %>% layout(annotations = list(make_annot(annot_text)))
+      plots[["mzrt"]] <- ggplotly(p_mzrt) %>% plotly::toWebGL() %>% layout(annotations = list(make_annot(annot_text)))
     }
 
     # 2. RMD Scatter
@@ -7148,7 +9530,7 @@ output$qc_labels_table <- renderDT({
         rem_rmd <- sum(fail_rmd, na.rm = TRUE)
         annot_text <- paste0("<b>Filtered RMD: ", rem_rmd, "</b>")
 
-        plots[["rmd"]] <- ggplotly(p_rmd) %>% layout(annotations = list(make_annot(annot_text)))
+        plots[["rmd"]] <- ggplotly(p_rmd) %>%  plotly::toWebGL() %>% layout(annotations = list(make_annot(annot_text)))
       }
     }
 
@@ -7177,11 +9559,11 @@ output$qc_labels_table <- renderDT({
         rem_amd <- sum(fail_amd, na.rm = TRUE)
         annot_text <- paste0("<b>Filtered AMD: ", rem_amd, "</b>")
 
-        plots[["amd"]] <- ggplotly(p_amd) %>% layout(annotations = list(make_annot(annot_text)))
+        plots[["amd"]] <- ggplotly(p_amd) %>% plotly::toWebGL() %>% layout(annotations = list(make_annot(annot_text)))
       }
     }
 
-    validate(need(length(plots) > 0, "Nothing to plot for the current selection."))
+    shiny::validate(need(length(plots) > 0, "Nothing to plot for the current selection."))
     
     if (length(plots) == 1) {
       plots[[1]]
@@ -7221,10 +9603,10 @@ output$qc_labels_table <- renderDT({
   }
 }, ignoreInit = TRUE)
 
-observeEvent(input$target_peak_csv, {
-  if (!is.null(input$target_peak_csv) && !is.null(input$target_peak_csv$datapath)) {
+observeEvent(settings_file("target_peak_csv"), {
+  if (!is.null(settings_file("target_peak_csv")) && !is.null(settings_file("target_peak_csv")$datapath)) {
 
-    csv_df <- read_target_csv_smart(input$target_peak_csv$datapath)
+    csv_df <- read_target_csv_smart(settings_file("target_peak_csv")$datapath)
     target_peak_csv_cache(
       extract_peak_targets(csv_df, source = "csv")
     )
@@ -7257,7 +9639,7 @@ output$target_peak_match_table <- renderDT({
 
   mm <- target_peak_matches_live()
 
-  validate(
+  shiny::validate(
     need(nrow(target_peak_list()) > 0, "No target m/z and rt values provided."),
     need(nrow(mm) > 0, "No matching peaks found with current tolerances.")
   )
@@ -7313,7 +9695,7 @@ output$target_peak_match_table <- renderDT({
     # IMPORTANT: use .FID (internal feature ID) so it matches matrix colnames later
     rid <- if (".FID" %in% names(df)) ".FID" else names(df)[1]
   
-    validate(
+    shiny::validate(
       need(input$mz_col0 %in% names(df), "m/z column (from Upload tab) not found in aligned peak table."),
       need(input$rt_col0 %in% names(df), "rt column (from Upload tab) not found in aligned peak table.")
     )
@@ -7348,12 +9730,12 @@ output$target_peak_match_table <- renderDT({
       
       if (isTRUE(input$mz_min_enable)) {
         mzmin <- suppressWarnings(as.numeric(input$peak_mz_min))
-        validate(need(is.finite(mzmin), "m/z min cutoff must be numeric."))
+        shiny::validate(need(is.finite(mzmin), "m/z min cutoff must be numeric."))
         mz_pass_min <- is.finite(mzv) & (mzv >= mzmin)
       }
       if (isTRUE(input$mz_max_enable)) {
         mzmax <- suppressWarnings(as.numeric(input$peak_mz_max))
-        validate(need(is.finite(mzmax), "m/z max cutoff must be numeric."))
+        shiny::validate(need(is.finite(mzmax), "m/z max cutoff must be numeric."))
         mz_pass_max <- is.finite(mzv) & (mzv <= mzmax)
       }
       
@@ -7367,12 +9749,12 @@ output$target_peak_match_table <- renderDT({
       
       if (isTRUE(input$rt_min_enable)) {
         rtmin <- suppressWarnings(as.numeric(input$peak_rt_min))
-        validate(need(is.finite(rtmin), "rt min cutoff must be numeric."))
+        shiny::validate(need(is.finite(rtmin), "rt min cutoff must be numeric."))
         rt_pass_min <- is.finite(rtv) & (rtv >= rtmin)
       }
       if (isTRUE(input$rt_max_enable)) {
         rtmax <- suppressWarnings(as.numeric(input$peak_rt_max))
-        validate(need(is.finite(rtmax), "rt max cutoff must be numeric."))
+        shiny::validate(need(is.finite(rtmax), "rt max cutoff must be numeric."))
         rt_pass_max <- is.finite(rtv) & (rtv <= rtmax)
       }
       
@@ -7387,12 +9769,12 @@ output$target_peak_match_table <- renderDT({
       
       if (isTRUE(input$rmd_min_enable)) {
         rmin <- suppressWarnings(as.numeric(input$peak_rmd_min))
-        validate(need(is.finite(rmin), "RMD min bound must be numeric."))
+        shiny::validate(need(is.finite(rmin), "RMD min bound must be numeric."))
         rmd_pass_min <- is.finite(rmd_vals) & (rmd_vals >= rmin)
       }
       if (isTRUE(input$rmd_max_enable)) {
         rmax <- suppressWarnings(as.numeric(input$peak_rmd_max))
-        validate(need(is.finite(rmax), "RMD max bound must be numeric."))
+        shiny::validate(need(is.finite(rmax), "RMD max bound must be numeric."))
         rmd_pass_max <- is.finite(rmd_vals) & (rmd_vals <= rmax)
       }
       
@@ -7407,12 +9789,12 @@ output$target_peak_match_table <- renderDT({
       
       if (isTRUE(input$amd_min_enable)) {
         amin <- suppressWarnings(as.numeric(input$peak_amd_min))
-        validate(need(is.finite(amin), "AMD min bound must be numeric."))
+        shiny::validate(need(is.finite(amin), "AMD min bound must be numeric."))
         amd_pass_min <- is.finite(amd_vals) & (amd_vals >= amin)
       }
       if (isTRUE(input$amd_max_enable)) {
         amax <- suppressWarnings(as.numeric(input$peak_amd_max))
-        validate(need(is.finite(amax), "AMD max bound must be numeric."))
+        shiny::validate(need(is.finite(amax), "AMD max bound must be numeric."))
         amd_pass_max <- is.finite(amd_vals) & (amd_vals <= amax)
       }
       
@@ -7441,7 +9823,7 @@ if ("target" %in% sel) {
 
     if (identical(target_action, "keep")) {
 
-      validate(
+      shiny::validate(
         need(
           nrow(target_matches) > 0,
           "Target peak keep-only mode selected, but no matching peaks were found with current tolerances."
@@ -7489,6 +9871,7 @@ if ("target" %in% sel) {
     peak_state$applied <- TRUE
     peak_state$show_summary <- TRUE
     peak_state$kept <- ids_kept
+    settings_capture("peak", peak_state$stats)
   
     effective_sel <- sel
       if (isTRUE(target_skipped_empty)) {
@@ -7505,6 +9888,7 @@ if ("target" %in% sel) {
   }
 
   observeEvent(input$apply_peak, {
+    if (!settings_ready(stage = "peak")) return()
       w <- Waiter$new(
         id = "peak_table_out", 
         html = tagList(spin_6(), h4("Applying Peak Filters...", style="color:#ffffff !important; text-shadow:none !important;")),
@@ -7666,7 +10050,7 @@ invalidate_after_ms <- function() {
   qc_state$stats <- list(
     before = 0L, after_final = 0L,
     removed_zeros = 0L, removed_mean = 0L,
-    removed_rsd = 0L, removed_min = 0L,
+    removed_rsd = 0L, removed_dratio = 0L, removed_min = 0L,
     removed_total = 0L
   )
 
@@ -7731,7 +10115,7 @@ invalidate_all_pipeline <- function() {
 })
 
   observeEvent(input$compile_final, {
-    
+    if (!settings_ready(stage = "peak")) return()
     w <- Waiter$new(
     html = tagList(spin_6(), h4("Compiling Final Output...", style="color:#ffffff !important; text-shadow:none !important;")),
     color = "rgba(44, 62, 80, 0.8)"
@@ -7793,6 +10177,7 @@ invalidate_all_pipeline <- function() {
       )
     
       # 3) store
+      settings_capture("final", list(features = nrow(ftbl_export)))
       final_table(ftbl_export)       
     
       showNotification("FINAL compiled and aligned.", type = "message", duration = 3)
@@ -7969,7 +10354,7 @@ invalidate_all_pipeline <- function() {
   # TRIGGER 1: The Button Click
   # This ONLY starts the animation and resets data
   observeEvent(input$run_mgf_filter, {
-
+  if (!settings_ready(TRUE)) return()
   sps <- parsed_mgf()
 
   if (is.null(sps) || length(sps) == 0) {
@@ -8044,6 +10429,7 @@ invalidate_all_pipeline <- function() {
         
         if(length(idx) > 0) {
           res <- sps[idx]
+          settings_capture("mgf", list(spectra = length(res)))
           filtered_mgf_sps(res) # This will stop the spinner
           showNotification(sprintf("Success! %d spectra matched.", length(idx)), type = "message")
         } else {
@@ -8146,7 +10532,7 @@ output$help_body <- renderUI({
         tags$li(tags$b("Upload Data:"), " Upload your CSV, choose correct sample column names keywords (identifiers) + mz & rt columns."),
         tags$li(tags$b("Blank Filters:"), " Define Blank group, set Blank filter -> Apply."),
         tags$li(tags$b("MS Filters:"), " Enable Deleting Isotopes/Adducts/Neutral Loses/Fragments/Mispicked/Saturated -> Apply."),
-        tags$li(tags$b("QC Filters:"), " Define groups, choose Zero/RSD/Mean/Min filters -> Apply."),
+        tags$li(tags$b("QC Filters:"), " Define groups, choose Zero/RSD/D-ratio/Mean/Min filters -> Apply."),
         tags$li(tags$b("Peak Filters:"), " Choose mz/rt/RMD/AMD cutoffs -> Apply. "),
         tags$li(tags$b("Final Summary:"), " Compile summary & export final dataset."),
         tags$li(tags$b("About:"), " Description, Project Details, References.")
@@ -8182,7 +10568,11 @@ br(),
       br(),
       div(class="highlight", "Rule: Click the question mark icon to toggle the information tooltip."),
       br(),
+      div(class="highlight", "Note: We recommend to apply QC Filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while it might make sense to apply all other filters before them."),      
+      br(),
       div(class="highlight", "Rule: Plots are displayed and updated only after clicking the plot buttons, cutoff value on them is updated dynamically."),
+      br(),
+      div(class="highlight", "Rule: MS filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, In-Source Fragments, Mispicked Ions, and Saturated Ions. We recommend to keep the order to avoid misannotation."),
       br(),
       div(class="highlight", "Rule: Isotopes-Dimers/Adducts/Neutral Loses/In-Source Fragments/Mispicked/Saturated ions tables are displayed after activating the checkbox."),
       br(),
@@ -8204,7 +10594,8 @@ br(),
         tags$li(tags$b("Row ID column:"), " pick the column that uniquely identifies each feature."),
         tags$li(tags$b("mz / rt columns:"), " define columns with m/z & rt values."),
         tags$li(tags$b("Sample column keywords:"), " add patterns that match your sample columns (e.g. .mzML, _Area)."),
-        tags$li(tags$b("Clear dataset:"), " to delete any calculations and uploaded files.")
+        tags$li(tags$b("Clear dataset:"), " to delete any calculations and uploaded files."),
+        tags$li(tags$b("Import analysis setting (.json):"), " upload .json file with settings to restore filter switches, thresholds, evaluation modes, compatible column/group selections, manual labels, and embedded auxiliary CSV files.")
       ),
       div(
   style = "background-color: #fff3e0; border-left: 5px solid #FF8C00; padding: 10px 12px; margin-top: 8px; margin-bottom: 8px; border-radius: 6px; font-size: 18px; line-height: 1.45;",
@@ -8286,26 +10677,30 @@ br(),
       tags$ul(
         tags$li(tags$b("Isotopes/Dimers:"), " define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5). Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains the most intense isotope/dimer in each family.",
                 tags$br(),
-                "Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1, if you do not expect isotope patterns other than the regular 13C ladder."),
-        tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family.",
+                tags$b("Note: "),"isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1, if you do not expect isotope patterns other than the regular 13C ladder."),
+        tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family by default. When Preferred ions is enabled, a preferred ion within the allowed intensity difference can be retained instead.",
                 tags$br(),
-                "Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph."),
+                tags$b("Note: "),"we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph.",
+                tags$br(),
+                tags$b("Note: "),"we recommend to enable `Preferred ions` option only if you have a specific reason to prioritize certain ion forms."),
         tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral losses features and retains ion with the highest m/z in each pair."),
         tags$li(tags$b("In-Source Fragments:"), " uses RT shifts + correlation threshold to detect in-source fragment features and retains ion with the highest m/z in each pair.", 
                 tags$br(),
-                "Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio.",
+                tags$b("Note: "),"we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio.",
                 tags$br(),
-                "Note: we recommend, if possible, to enable `Require MS2 fragment match` option, that check if potential fragment is presented in associated precursor MS2 spectra"),
+                tags$b("Note: "),"we recommend, if possible, to enable `Require MS2 fragment match` option, that check if potential fragment is presented in associated precursor MS2 spectra"),
         tags$li(tags$b("Mispicked Ions:"), " uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others.", 
                 tags$br(),
-                "Note: we recommend using this filter with caution, and only if you expect poor integration. Be aware of incorrectly merging isomeric peaks."),
+                tags$b("Note: "),"we recommend using this filter with caution, and only if you expect poor integration. Be aware of incorrectly merging isomeric peaks."),
         tags$li(tags$b("Saturated Ions:"), " uses m/z and RT shifts + correlation threshold to detect saturated ions by graph and retains the most intense ion in each family.", 
                 tags$br(),
-                "Note: we recommend to disable `Bidirectional search` option, and remaining saturated artifacts to be strictly higher than anchor ion; also consider min intensity for the saturated (anchor) ion and its ratio with artifacts.",
+                tags$b("Note: "),"we recommend to disable `Bidirectional search` option, and remaining saturated artifacts to be strictly higher than anchor ion; also consider min intensity for the saturated (anchor) ion and its ratio with artifacts.",
                 tags$br(),
-                "Note: we recommend using this filter with caution, and only if you expect poor integration or supersaturated signals with TOF instruments.")
+                tags$b("Note: "),"we recommend using this filter with caution, and only if you expect poor integration or supersaturated signals with TOF instruments.")
       ),
       div(class="highlight", "Rule: Filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, In-Source Fragments, Mispicked Ions, and Saturated Ions. We recommend to keep the order to avoid misannotation."),
+      br(),
+      div(class="highlight", "Rule: Isotopes-Dimers/Adducts/Neutral Loses/In-Source Fragments/Mispicked/Saturated ions tables are displayed after activating the checkbox."),
       br(),
       div(class = "highlight",
       "Tip: See Isotopes & Dimers shift table ",
@@ -8448,7 +10843,7 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
   tags$br(),
   "To start from full raw sample names, use a token index larger than the number of available tokens; the app will fall back to the full sample name. "
 ),
-        tags$li(tags$b("Value filters:"), " choose group for removal -> specify value(s): zeros(by counts or %) / mean / rsd / min -> mode of filtering (ANY/EVERY/POOLED) -> Apply value filters.",
+        tags$li(tags$b("Value filters:"), " choose group for removal -> specify value(s): zeros(by counts or %) / mean / RSD / D-ratio / min -> mode of filtering (ANY/EVERY/POOLED) -> Apply value filters.",
                 tags$ul(
                         tags$li(tags$b("ANY"), " - satisfies threshold in at least one of the selected groups"),
                         tags$li(tags$b("EVERY"), " - satisfies threshold in all of the selected groups"), 
@@ -8457,9 +10852,11 @@ Be aware that wide m/z tolerances increase the risk of incorrectly grouping unre
                         )),
         tags$li(tags$b("Plot values distribution:"), " is displayed and updated only after clicking the plot buttons, cutoff value on it is updated dynamically."),
         br(),
-        div(class="highlight", "Note: We recommend to apply QC Filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while all other filters should be applied strictly before them."),
+        div(class="highlight", "Note: We recommend to apply QC Filters (except zeros) after drift/batch correction, normalization, and imputation for large-scale metabolomics study, while it might make sense to apply all other filters before them."),
         br(),
-        div(class="highlight", "Note: RSD calculation requires at least 2 samples per group. All-zero or all-missing features produce NA RSD and fail the RSD filter.")
+        div(class="highlight", "Note: RSD calculation requires at least 2 samples per group. All-zero or all-missing features produce NA RSD and fail the RSD filter."),
+        br(),
+        div(class="highlight", "Note: D-ratio (%) = 100 × SD(QC) / SD(biological samples). A QC group is required and is excluded from the biological groups. At least 2 finite values are required in each SD calculation. Zero biological SD or undefined ratios fail.")
       )
     ))
   }
@@ -8507,7 +10904,8 @@ div(
       h3("Final Summary"),
       tags$ul(
         tags$li(tags$b("Compile summary & final datasets:"), " final filtered peak table after all applied filters."),
-        tags$li(tags$b("MGF filtering:"), " activated after final compile. Filters MGF file based on final filtered table. Upload the MGF file corresponding to the peak table, then specify the matching Feature ID fields. Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns unless you have specific requirements.")
+        tags$li(tags$b("MGF filtering:"), " activated after final compile. Filters MGF file based on final filtered table. Upload the MGF file corresponding to the peak table, then specify the matching Feature ID fields. Feature/Peak ID in MGF should match with selected Feature ID in peak table. We recommend using the default columns unless you have specific requirements."),
+        tags$li(tags$b("Download settings (.json):"), " export analysis settings in .json file for re-using."),
       ),
       div(class="highlight", "Note: if something looks missing in final output, check tab by tab where it was filtered."),
       br(),
@@ -8662,6 +11060,26 @@ div(
     }
 
 })
+
+  for (id in c(
+    "global_controls0",
+    "blank_controls1",
+    "value_groups_ui",
+    "dratio_qc_group_ui",
+    "blank_metadata_sample_col_ui",
+    "blank_metadata_label_col_ui",
+    "qc_metadata_sample_col_ui",
+    "qc_metadata_label_col_ui",
+    "isf_mgf_field_ui",
+    "mgf_toggle_ui",
+    "mgf_matching_ui"
+  )) {
+    outputOptions(
+      output,
+      id,
+      suspendWhenHidden = FALSE
+    )
+  }
   
 }
 
