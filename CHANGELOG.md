@@ -101,10 +101,11 @@
 <br>
 <br>
 
-### **`V.1.6.0`** 2026.11.07
+### **`V.1.6.0`** 2026.11.08
 - Fixed according to the reviewer's suggestion
 - Minor UI refinements
 - D-ratio filtering
+- Preferred ion selection for adduct filtering
 - Added JSON saving/uploading for full MetaboCensoR functionality
 - Introducing full functionality as standalone R functions
 - Added Vignettes 
