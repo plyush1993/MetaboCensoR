@@ -1185,6 +1185,105 @@ apply_merge_map_to_raw <- function(raw_df_fid, merge_map, sample_cols) {
   raw_df_fid
 }
 
+.mc_preferred_adduct_reps <- function(
+    peaks, fam_map, edges, preferred, max_drop = 10) {
+
+  if (!is.numeric(max_drop) ||
+      length(max_drop) != 1L ||
+      !is.finite(max_drop) ||
+      max_drop < 0 || max_drop > 100) {
+    stop("Preferred-ion intensity difference must be between 0 and 100%.")
+  }
+
+  if (!nrow(fam_map)) {
+    return(data.frame(
+      peak_id = character(),
+      keep_rep = logical()
+    ))
+  }
+
+  preferred <- trimws(as.character(preferred))
+  preferred <- unique(
+    preferred[!is.na(preferred) & nzchar(preferred)]
+  )
+
+  # Preserve the original peak order, including tie-breaking.
+  nodes <- peaks[
+    as.character(peaks$peak_id) %in% as.character(fam_map$peak_id),
+    ,
+    drop = FALSE
+  ]
+
+  nodes$family_id <- as.character(
+    fam_map$family_id[
+      match(as.character(nodes$peak_id),
+            as.character(fam_map$peak_id))
+    ]
+  )
+
+  if (anyNA(nodes$family_id) ||
+      any(!is.finite(nodes$int)) ||
+      any(nodes$int < 0)) {
+    stop(
+      "Preferred-ion selection requires finite, ",
+      "nonnegative mean intensities."
+    )
+  }
+
+  family <- setNames(
+    nodes$family_id,
+    as.character(nodes$peak_id)
+  )
+
+  # Use only accepted edges within the same final family.
+  from_family <- family[as.character(edges$from)]
+  to_family <- family[as.character(edges$to)]
+
+  valid <- !is.na(from_family) &
+    !is.na(to_family) &
+    from_family == to_family
+
+  edges <- edges[which(valid), , drop = FALSE]
+
+  # Match the assignment belonging to each endpoint.
+  # Exact matching avoids treating M+H+Na as M+H.
+  preferred_ids <- unique(c(
+    as.character(edges$from[
+      trimws(as.character(edges$from_adduct)) %in% preferred
+    ]),
+    as.character(edges$to[
+      trimws(as.character(edges$to_adduct)) %in% preferred
+    ])
+  ))
+
+  groups <- split(seq_len(nrow(nodes)), nodes$family_id)
+
+  chosen <- vapply(groups, function(ii) {
+
+    maximum <- max(nodes$int[ii])
+
+    eligible <- ii[
+      nodes$int[ii] >= maximum * (1 - max_drop / 100) &
+        as.character(nodes$peak_id[ii]) %in% preferred_ids
+    ]
+
+    # No qualifying preferred candidate: retain the original maximum.
+    if (!length(eligible)) eligible <- ii
+
+    as.character(
+      nodes$peak_id[
+        eligible[which.max(nodes$int[eligible])]
+      ]
+    )
+  }, character(1))
+
+  data.frame(
+    peak_id = unname(chosen),
+    keep_rep = TRUE,
+    stringsAsFactors = FALSE
+  )
+}
+
 built_in_adducts_full <- function() {
   tibble::tibble(
     Name = c("M+H", "M+NH4", "M+Na", "M+K", "M+", "M-H", "M-2H", "M-3H", "M+FA-H", "M+Hac-H", "M-", "M+3H", "M+2H+Na", "M+H+2Na", "M+3Na", "M+2H", "M+H+NH4", "M+H+Na", "M+H+K", "M+ACN+2H", "M+2Na", "M+2ACN+2H", "M+3ACN+2H", "M+CH3OH+H", "M+ACN+H", "M+2Na-H", "M+IsoProp+H", "M+ACN+Na", "M+2K-H", "M+DMSO+H", "M+2ACN+H", "M+IsoProp+Na+H", "2M+H", "2M+NH4", "2M+Na", "2M+3H2O+2H", "2M+K", "2M+ACN+H", "2M+ACN+Na", "M-H2O-H", "M+Na-2H", "M+Cl", "M+K-2H", "M+Br", "M+TFA-H", "2M-H", "2M+FA-H", "2M+Hac-H", "3M-H"),
@@ -1821,6 +1920,9 @@ settings_registry <- list(
   add_ppm2 = settings_spec("numericInput", "ms", min = 0),
   add_min_nm2 = settings_spec("numericInput", "ms", min = 0),
   add_strict_rt2 = settings_spec("prettyCheckbox", "ms"),
+  add_prefer2 = settings_spec("prettyCheckbox", "ms"),
+  add_preferred2 = settings_spec("selectizeInput", "ms", multiple = TRUE),
+  add_prefer_pct2 = settings_spec("numericInput", "ms", min = 0, max = 100),
 
   # Neutral losses
   enable_nl2 = settings_spec("materialSwitch", "ms"),
@@ -2080,12 +2182,13 @@ settings_update_input <- function(session, id, value, type) {
 settings_choice_problem <- function(id, wanted, available) {
   # These selectors intentionally allow user-created values.
   if (id %in% c(
-    "sample_keyword0",
-    "blank_metadata_remove_suffixes",
-    "qc_metadata_remove_suffixes"
-  )) {
-    return(NULL)
-  }
+  "sample_keyword0",
+  "blank_metadata_remove_suffixes",
+  "qc_metadata_remove_suffixes",
+  "add_preferred2"
+)) {
+  return(NULL)
+}
 
   missing <- setdiff(
     as.character(wanted),

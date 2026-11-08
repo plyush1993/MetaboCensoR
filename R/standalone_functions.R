@@ -194,6 +194,9 @@ mc_labels_from_csv <- function(path, sample_names) {
 #' \item{\code{add_ppm2}}{Relative mass tolerance in ppm for adduct matching. Used only when add_tol_type2 = "ppm". Default: \code{10}.}
 #' \item{\code{add_min_nm2}}{Minimum candidate neutral mass in Da for adduct annotation. Candidate neutral masses must be strictly greater than this threshold. Default: \code{50}.}
 #' \item{\code{add_strict_rt2}}{If TRUE, restrict the total retention-time spread of an adduct family to add_rt2 minutes, in addition to pairwise matching. Default: \code{TRUE}.}
+#' \item{\code{add_prefer2}}{Prefer selected ion forms when choosing adduct-family representatives. Retain the most intense qualifying preferred feature, or the most intense feature overall if none qualify. Default: \code{FALSE}.}
+#' \item{\code{add_preferred2}}{Character vector of preferred ion names, matching the adduct definitions exactly. Default: \code{NULL}, using \code{"M+H"} for positive polarity or \code{"M-H"} for negative polarity. For example, \code{c("M+H", "M+Na")} prefers features with at least one assignment matching either ion form, without priority ordering.}
+#' \item{\code{add_prefer_pct2}}{Maximum intensity decrease (\%) from the family's highest mean intensity for a preferred representative. Default: 10; range: 0--100.}
 #' \item{\code{enable_nl2}}{Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit filters vector overrides this flag; use "neutral_losses" to select neutral-loss filtering explicitly. Default: \code{FALSE}.}
 #' \item{\code{nl_pol2}}{Ionization polarity used to select neutral-loss definitions: "positive" or "negative". Set add_pol2 separately if adduct filtering is also used. Default: \code{positive}.}
 #' \item{\code{nl_cor2}}{Minimum Pearson correlation between the sample-intensity profiles of features proposed to differ by a listed neutral loss. Values range from 0 to 1; higher cutoffs require more similar profiles. Default: \code{0.95}.}
@@ -250,7 +253,7 @@ mc_ms_parameters <- function(...) {
     iso_mz_tol2 = .005, iso_ppm2 = 10, iso_zmax2 = 3, iso_n2 = 1, iso_nd2 = 3,
     enable_add2 = TRUE, add_pol2 = "positive", add_cor2 = .80, add_rt2 = .005,
     add_tol_type2 = "da", add_mz_tol2 = .005, add_ppm2 = 10, add_min_nm2 = 50,
-    add_strict_rt2 = TRUE,
+    add_strict_rt2 = TRUE, add_prefer2 = FALSE, add_preferred2 = NULL, add_prefer_pct2 = 10,
     enable_nl2 = FALSE, nl_pol2 = "positive", nl_cor2 = .95, nl_rt2 = .002,
     nl_tol_type2 = "da", nl_mz_tol2 = .005, nl_ppm2 = 10,
     enable_isf2 = FALSE, isf_cor2 = .95, isf_rt2 = .01, isf_control_int2 = TRUE,
@@ -1123,7 +1126,7 @@ mc_prepare <- function(data, type = c("mzmine", "generic", "xcms", "msdial"),
 #' @details Filters run in this order, irrespective of their order in \code{filters}:
 #' \describe{
 #' \item{isotopes}{Find candidate isotope/dimer-pattern mass shifts within retention-time and Pearson-correlation thresholds. Connected families retain their highest-mean-intensity feature.}
-#' \item{adducts}{Convert candidate ion forms to neutral-mass intervals and connect compatible features within retention-time and correlation tolerances. Optional strict retention-time control limits family-wide RT spread. Each family retains its highest-mean-intensity feature.}
+#' \item{adducts}{Convert candidate ion forms to neutral-mass intervals and connect compatible features within retention-time and correlation tolerances. Optional strict retention-time control limits family-wide RT spread. By default, each family retains its highest mean intensity feature. Optionally prefer selected ion forms within a specified percentage of the family's highest mean intensity. Retain the most intense qualifying preferred feature, or the most intense feature overall if none qualify.}
 #' \item{neutral_losses}{Find correlated, coeluting pairs separated by a listed neutral-loss mass. Remove the lower-m/z member of accepted pairs.}
 #' \item{isf}{Find correlated, coeluting lower-m/z candidate fragments, optionally constrained by fragment-to-precursor intensity ratio. With MS2 checking enabled, require the candidate fragment mass in a matching precursor spectrum above the relative-intensity threshold. A match in any eligible spectrum for that precursor is sufficient. Remove accepted lower-m/z fragments.}
 #' \item{mispicked}{Group nearly coincident, correlated features. Keep the highest-mean-intensity representative and sum family intensities into it for each sample.}

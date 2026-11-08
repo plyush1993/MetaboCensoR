@@ -1014,7 +1014,7 @@ mainPanel(
               ")),
               bsTooltip(
                 id = "btnla",
-                title = "<b>Enable adduct filtering</b><br><br>Define polarity and minimal neutral mass<br><br>Uses m/z and RT shifts + correlation threshold to detect adduct features by graph and retains the most intense adduct in each family<br><br>Note: By default employs built-in Adducts list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph",
+                title = "<b>Enable adduct filtering</b><br><br>Define polarity and minimal neutral mass<br><br>Uses m/z and RT shifts + correlation threshold to detect adduct features by graph and retains the most intense adduct in each family by default. When Preferred ions is enabled, a preferred ion within the allowed intensity difference can be retained instead<br><br>Note: By default employs built-in Adducts list (see details in About Tab)<br><br>Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph<br><br>Note: we recommend to enable `Preferred ions` option only if you have a specific reason to prioritize certain ion forms",
                 placement = "right",
                 trigger = "click",
                 options = list(container = "body", html = TRUE)
@@ -1040,8 +1040,64 @@ mainPanel(
               numericInput("add_ppm2", "m/z tolerance (ppm)", value = 10, min = 0, step = 0.5)
             ),
             numericInput("add_min_nm2", "Minimum neutral mass", value = 50, min = 0, step = 1),
-            prettyCheckbox("add_strict_rt2", "Strict RT split inside clusters", T, icon = icon("check"), status = "primary", animation = "jelly")
+            prettyCheckbox("add_strict_rt2", "Strict RT split inside clusters", T, icon = icon("check"), status = "primary", animation = "jelly"),
+            div(style = "display: flex; align-items: center; margin-bottom: 12px;",
+            div(
+              style = "margin-bottom: -15px;",
+              prettyCheckbox(
+                "add_prefer2",
+                "Preferred ions",
+                value = FALSE,
+                icon = icon("check"),
+                status = "primary",
+                animation = "jelly"
+              )
+            ),
+
+            actionButton(
+              "btn_add_prefer",
+              label = "?",
+              class = "btn-primary btn-xs",
+              style = "border-radius: 50%; width: 22px; height: 22px; padding: 0; line-height: 1; font-size: 12px; margin-left: 8px; margin-top: 0px;"),
+
+            bsTooltip(
+              id = "btn_add_prefer",
+              title = paste0(
+                "<b>Preferred ions</b><br><br>",
+                "Optionally prefer selected ion forms when choosing the ",
+                "representative feature of each adduct family.<br><br>",
+                "Only features within the allowed intensity decrease from ",
+                "the family's maximum mean intensity qualify. ",
+                "For example, 10% requires at least 90% of the maximum.<br><br>",
+                "At least one assignment from an accepted family edge must ",
+                "match a selected ion form.<br><br>",
+                "If several preferred features qualify, retain the most intense. ",
+                "If none qualify, retain the most intense feature overall.<br><br>",
+                "When unchecked, retain the most intense feature overall.<br><br>",
+                "Ion names must match the adduct definitions exactly."
+              ),
+              placement = "right",
+              trigger = "click",
+              options = list(container = "body", html = TRUE)
+            )
           ),
+
+          conditionalPanel(
+            condition = "input.add_prefer2",
+            selectizeInput(
+              "add_preferred2",
+              "Preferred ion forms",
+              choices = sort(unique(built_in_adducts_full()$Name)),
+              selected = "M+H",
+              multiple = TRUE,
+              options = list(
+                plugins = list("remove_button"),
+                create = TRUE,
+                persist = FALSE,
+                placeholder = "Select or enter ion forms"
+              )
+            ),
+            numericInput("add_prefer_pct2", "Maximum intensity decrease from family maximum (%)", value = 10, min = 0, max = 100, step = 1))),
 
           tags$hr(),
 

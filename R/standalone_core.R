@@ -4,7 +4,105 @@
 #' @importFrom tidyr pivot_longer
 NULL
 
-# Internal calculations extracted from the supplied app; do not edit utils.R.
+.mc_preferred_adduct_reps <- function(
+    peaks, fam_map, edges, preferred, max_drop = 10) {
+
+  if (!is.numeric(max_drop) ||
+      length(max_drop) != 1L ||
+      !is.finite(max_drop) ||
+      max_drop < 0 || max_drop > 100) {
+    stop("Preferred-ion intensity difference must be between 0 and 100%.")
+  }
+
+  if (!nrow(fam_map)) {
+    return(data.frame(
+      peak_id = character(),
+      keep_rep = logical()
+    ))
+  }
+
+  preferred <- trimws(as.character(preferred))
+  preferred <- unique(
+    preferred[!is.na(preferred) & nzchar(preferred)]
+  )
+
+  # Preserve the original peak order, including tie-breaking.
+  nodes <- peaks[
+    as.character(peaks$peak_id) %in% as.character(fam_map$peak_id),
+    ,
+    drop = FALSE
+  ]
+
+  nodes$family_id <- as.character(
+    fam_map$family_id[
+      match(as.character(nodes$peak_id),
+            as.character(fam_map$peak_id))
+    ]
+  )
+
+  if (anyNA(nodes$family_id) ||
+      any(!is.finite(nodes$int)) ||
+      any(nodes$int < 0)) {
+    stop(
+      "Preferred-ion selection requires finite, ",
+      "nonnegative mean intensities."
+    )
+  }
+
+  family <- setNames(
+    nodes$family_id,
+    as.character(nodes$peak_id)
+  )
+
+  # Use only accepted edges within the same final family.
+  from_family <- family[as.character(edges$from)]
+  to_family <- family[as.character(edges$to)]
+
+  valid <- !is.na(from_family) &
+    !is.na(to_family) &
+    from_family == to_family
+
+  edges <- edges[which(valid), , drop = FALSE]
+
+  # Match the assignment belonging to each endpoint.
+  # Exact matching avoids treating M+H+Na as M+H.
+  preferred_ids <- unique(c(
+    as.character(edges$from[
+      trimws(as.character(edges$from_adduct)) %in% preferred
+    ]),
+    as.character(edges$to[
+      trimws(as.character(edges$to_adduct)) %in% preferred
+    ])
+  ))
+
+  groups <- split(seq_len(nrow(nodes)), nodes$family_id)
+
+  chosen <- vapply(groups, function(ii) {
+
+    maximum <- max(nodes$int[ii])
+
+    eligible <- ii[
+      nodes$int[ii] >= maximum * (1 - max_drop / 100) &
+        as.character(nodes$peak_id[ii]) %in% preferred_ids
+    ]
+
+    # No qualifying preferred candidate: retain the original maximum.
+    if (!length(eligible)) eligible <- ii
+
+    as.character(
+      nodes$peak_id[
+        eligible[which.max(nodes$int[eligible])]
+      ]
+    )
+  }, character(1))
+
+  data.frame(
+    peak_id = unname(chosen),
+    keep_rep = TRUE,
+    stringsAsFactors = FALSE
+  )
+}
+
 .mcs_core <- local({
   # Explicit bindings for unqualified calls in the preserved app helpers.
   for (nm in c("%>%", "across", "all_of", "any_of", "everything", "filter",
@@ -2030,6 +2128,20 @@ ms_engine <- function(ds, ft, parameters, adduct_table = NULL,
               dplyr::ungroup() %>%
               dplyr::transmute(peak_id, keep_rep = TRUE)
 
+            if (isTRUE(parameters$add_prefer2)) {
+              preferred <- parameters$add_preferred2
+              if (is.null(preferred)) {
+                preferred <- if (identical(parameters$add_pol2, "negative")) {"M-H"} else {"M+H"}}
+
+              reps <- .mc_preferred_adduct_reps(
+                peaks = peaks,
+                fam_map = fam_map,
+                edges = edges_corr_rt,
+                preferred = preferred,
+                max_drop = parameters$add_prefer_pct2
+              )
+            }
+
             in_family <- unique(fam_map$peak_id)
 
           fam_map_simple <- fam_map %>%
@@ -2725,4 +2837,3 @@ if ("target" %in% sel) {
 
   environment()
 })
-

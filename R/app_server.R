@@ -22,7 +22,7 @@
 #' @import jsonlite
 app_server <- function(input, output, session) {
 
-    # -----------------------------------------------------------------------
+  # -----------------------------------------------------------------------
   # Analysis settings: state and export
   # -----------------------------------------------------------------------
 
@@ -316,7 +316,7 @@ app_server <- function(input, output, session) {
     }
   )
 
-    # -----------------------------------------------------------------------
+  # -----------------------------------------------------------------------
   # Automatic restoration of pending settings
   # -----------------------------------------------------------------------
 
@@ -510,7 +510,8 @@ app_server <- function(input, output, session) {
         if (id %in% c(
           "sample_keyword0",
           "blank_metadata_remove_suffixes",
-          "qc_metadata_remove_suffixes"
+          "qc_metadata_remove_suffixes",
+          "add_preferred2"
         )) {
           updateSelectizeInput(
             session,
@@ -1017,6 +1018,102 @@ app_server <- function(input, output, session) {
       )
     }, ignoreInit = TRUE, priority = 100)
   })
+
+  add_previous_polarity <- reactiveVal(NULL)
+
+observeEvent(
+  list(input$add_pol2, settings_file("adduct_file2")),
+  {
+    pol <- input$add_pol2 %||% "positive"
+
+    definitions <- safe_read_csv_any(settings_file("adduct_file2"))
+
+    if (is.null(definitions) ||
+        !all(c("Name", "Charge", "Mult", "Mass") %in%
+             names(definitions))) {
+      definitions <- built_in_adducts_full()
+    }
+
+    if ("Ion_mode" %in% names(definitions)) {
+      definitions <- definitions[
+        tolower(as.character(definitions$Ion_mode)) == tolower(pol),
+        ,
+        drop = FALSE
+      ]
+    }
+
+    available <- trimws(as.character(definitions$Name))
+    available <- sort(unique(
+      available[!is.na(available) & nzchar(available)]
+    ))
+
+    default_ion <- if (pol == "negative") "M-H" else "M+H"
+
+    previous <- isolate(add_previous_polarity())
+    selected <- isolate(input$add_preferred2)
+    restoring <- isTRUE(isolate(settings_import$busy))
+
+    if (is.null(previous) ||
+        (!identical(previous, pol) && !restoring)) {
+      selected <- default_ion
+    }
+
+    # Preserve custom selections and an intentionally empty selection.
+    selected <- as.character(selected)
+
+    updateSelectizeInput(
+      session,
+      "add_preferred2",
+      choices = unique(c(available, selected)),
+      selected = selected
+    )
+
+    add_previous_polarity(pol)
+  },
+  ignoreInit = FALSE
+)
+
+observeEvent(
+  list(input$reset_ms, input$clear_shared),
+  {
+    shinyWidgets::updatePrettyCheckbox(
+      session,
+      "add_prefer2",
+      value = FALSE
+    )
+
+    shiny::updateNumericInput(
+      session,
+      "add_prefer_pct2",
+      value = 10
+    )
+
+    pol <- input$add_pol2 %||% "positive"
+    default_ion <- if (pol == "negative") "M-H" else "M+H"
+
+    definitions <- built_in_adducts_full()
+
+    available <- as.character(
+      definitions$Name[
+        tolower(as.character(definitions$Ion_mode)) ==
+          tolower(pol)
+      ]
+    )
+
+    available <- available[
+      !is.na(available) & nzchar(available)
+    ]
+
+    shiny::updateSelectizeInput(
+      session,
+      "add_preferred2",
+      choices = sort(unique(c(available, default_ion))),
+      selected = default_ion
+    )
+  },
+  ignoreInit = TRUE,
+  priority = -100
+)
 
 #options(shiny.maxRequestSize = 1024 * 1024^2)
   # --------------------------
@@ -2944,6 +3041,16 @@ output$labels_table <- renderDT({
               dplyr::ungroup() %>%
               dplyr::transmute(peak_id, keep_rep = TRUE)
 
+            if (isTRUE(input$add_prefer2)) {
+            reps <- .mc_preferred_adduct_reps(
+              peaks = peaks,
+              fam_map = fam_map,
+              edges = edges_corr_rt,
+              preferred = input$add_preferred2,
+              max_drop = as.numeric(input$add_prefer_pct2 %||% 10)
+            )
+          }
+
             in_family <- unique(fam_map$peak_id)
 
           fam_map_simple <- fam_map %>%
@@ -3474,8 +3581,30 @@ output$labels_table <- renderDT({
     }
 
     observeEvent(input$apply_ms, {
-      if (!settings_ready(stage = "ms")) return()
-      # MS2-supported ISF requires an uploaded MGF
+  if (!settings_ready(stage = "ms")) return()
+
+  # Validate preferred-ion intensity threshold
+  if (isTRUE(input$enable_add2) && isTRUE(input$add_prefer2)) {
+    pct <- input$add_prefer_pct2
+
+    if (!is.numeric(pct) ||
+        length(pct) != 1L ||
+        !is.finite(pct) ||
+        pct < 0 ||
+        pct > 100) {
+      showNotification(
+        paste(
+          "Preferred ions: enter a maximum intensity decrease",
+          "between 0 and 100%."
+        ),
+        type = "error",
+        duration = 6
+      )
+      return()
+    }
+  }
+
+  # MS2-supported ISF requires an uploaded MGF
   if (isTRUE(input$enable_isf2) && isTRUE(input$isf_ms2_check2)) {
 
     sps <- parsed_mgf()
@@ -6202,24 +6331,26 @@ br(),
       tags$ul(
         tags$li(tags$b("Isotopes/Dimers:"), " define number of C13 isotopes (n) and possible charges (z_max), and dimer seria for C13*(n_d + 0.5). Uses m/z and RT shifts + correlation threshold to detect isotopes/dimers features by graph and retains the most intense isotope/dimer in each family.",
                 tags$br(),
-                "Note: isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1, if you do not expect isotope patterns other than the regular 13C ladder."),
-        tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family.",
+                tags$b("Note: "),"isotope/dimer family is determined by graph, thus, we recommend to keep the default value of n is 1, if you do not expect isotope patterns other than the regular 13C ladder."),
+        tags$li(tags$b("Adducts:"), " define polarity and minimal neutral mass. By default employs built-in Adducts list (see details below). Uses m/z and RT shifts + correlation threshold to detect adducts features by graph and retains the most intense adduct in each family by default. When Preferred ions is enabled, a preferred ion within the allowed intensity difference can be retained instead.",
                 tags$br(),
-                "Note: we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph."),
+                tags$b("Note: "),"we recommend to enable `Strict RT split inside clusters` option, that check that adducts always fulfill defined rt tolerance even after grouping by graph.",
+                tags$br(),
+                tags$b("Note: "),"we recommend to enable `Preferred ions` option only if you have a specific reason to prioritize certain ion forms."),
         tags$li(tags$b("Neutral Loses:"), " define polarity. By default employs built-in Neutral Losses list (see details below). Uses m/z and RT shifts + correlation threshold to detect neutral losses features and retains ion with the highest m/z in each pair."),
         tags$li(tags$b("In-Source Fragments:"), " uses RT shifts + correlation threshold to detect in-source fragment features and retains ion with the highest m/z in each pair.",
                 tags$br(),
-                "Note: we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio.",
+                tags$b("Note: "),"we recommend to enable `Control intensity ratio` option, that check precursor / fragment intensity ratio.",
                 tags$br(),
-                "Note: we recommend, if possible, to enable `Require MS2 fragment match` option, that check if potential fragment is presented in associated precursor MS2 spectra"),
+                tags$b("Note: "),"we recommend, if possible, to enable `Require MS2 fragment match` option, that check if potential fragment is presented in associated precursor MS2 spectra"),
         tags$li(tags$b("Mispicked Ions:"), " uses m/z and RT shifts + correlation threshold to detect mispicked ions by graph and retains the most intense ion in each family and merges it with others.",
                 tags$br(),
-                "Note: we recommend using this filter with caution, and only if you expect poor integration. Be aware of incorrectly merging isomeric peaks."),
+                tags$b("Note: "),"we recommend using this filter with caution, and only if you expect poor integration. Be aware of incorrectly merging isomeric peaks."),
         tags$li(tags$b("Saturated Ions:"), " uses m/z and RT shifts + correlation threshold to detect saturated ions by graph and retains the most intense ion in each family.",
                 tags$br(),
-                "Note: we recommend to disable `Bidirectional search` option, and remaining saturated artifacts to be strictly higher than anchor ion; also consider min intensity for the saturated (anchor) ion and its ratio with artifacts.",
+                tags$b("Note: "),"we recommend to disable `Bidirectional search` option, and remaining saturated artifacts to be strictly higher than anchor ion; also consider min intensity for the saturated (anchor) ion and its ratio with artifacts.",
                 tags$br(),
-                "Note: we recommend using this filter with caution, and only if you expect poor integration or supersaturated signals with TOF instruments.")
+                tags$b("Note: "),"we recommend using this filter with caution, and only if you expect poor integration or supersaturated signals with TOF instruments.")
       ),
       div(class="highlight", "Rule: Filters are always applied sequentially. Start with Isotopes, then Adducts, Neutral Loses, In-Source Fragments, Mispicked Ions, and Saturated Ions. We recommend to keep the order to avoid misannotation."),
       br(),
