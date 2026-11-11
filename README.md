@@ -5,7 +5,7 @@
 [![](https://img.shields.io/badge/-2986cc.svg?style=flat&logo=r&logoColor=white?)](https://cran.r-project.org/index.html)
 [![License](https://img.shields.io/badge/GPLv3-indianred.svg?style=flat&maxAge=2678400)](https://choosealicense.com/licenses/gpl-3.0/)
 
-# ***MetaboCensoR*** <img src="inst/www/metabocensor_logo.png" align="right" height="200" width="180">
+# ***MetaboCensoR*** <img src="https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/metabocensor_logo.png" align="right" height="200" width="180" alt="MetaboCensoR logo">
 
 ### Description :bookmark_tabs:
 The [`R`](https://www.r-project.org/) package and [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and associated .mgf file, available through an interactive GUI or standalone R functions. 
@@ -26,7 +26,7 @@ Check compatibility with [`input examples`](https://github.com/plyush1993/Metabo
   <summary><b>Server GUI Map&nbsp;&nbsp;</b></summary>
   <br/>
 </a>
-<img src="inst/www/Server_Map.png" align="center" width="700" height="500">
+<img src="https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/Server_Map.png" align="center" width="700" height="400" alt="MetaboCensoR server map">
 </a>
 </details><br>
 
