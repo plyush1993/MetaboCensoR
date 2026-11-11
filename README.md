@@ -20,7 +20,7 @@ Check compatibility with [`input examples`](https://github.com/plyush1993/Metabo
 :bulb:<ins>**Learn More**</ins>: Check out the [`Tutorial`](https://github.com/plyush1993/MetaboCensoR/blob/main/MetaboCensoR_tutorial.pdf) for a full GUI walkthrough.<br>
 :book:<ins>**Manuscript**</ins>: Read our [`Publication`](https://doi.org/10.64898/2026.07.02.735197) for the detailed methodology and benchmarking reports.<br>
 :test_tube:<ins>**Case Studies**</ins>: Visit the [`Examples repository`](https://github.com/plyush1993/MetaboCensoR_Examples) for application and evaluation examples.<br>
-:computer:<ins>**R Functions**</ins>: Use standalone functions to run filtering workflows directly in R. See the [`Function Reference`](https://github.com/plyush1993/MetaboCensoR/tree/main/man) for available functions and parameters, and the [`Workflow Vignette`](https://github.com/plyush1993/MetaboCensoR/blob/main/vignettes/orbi-workflow.Rmd) for a complete analysis example.
+:computer:<ins>**R Functions**</ins>: Use standalone functions to run filtering workflows directly in R. Check out the [`GitHub Pages`](https://plyush1993.github.io/MetaboCensoR/index.html) for details. See the full function [`reference list`](https://plyush1993.github.io/MetaboCensoR/reference/index.html), the [`Functions Intro`](https://plyush1993.github.io/MetaboCensoR/articles/function-reference.html) for a short introduction to available functions and parameters, and the [`Workflow Vignette`](https://plyush1993.github.io/MetaboCensoR/articles/orbi-workflow.html) for a complete analysis example.
 
 <details>
   <summary><b>Server GUI Map&nbsp;&nbsp;</b></summary>
