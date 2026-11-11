@@ -9,6 +9,7 @@
 
 ### Description :bookmark_tabs:
 The [`R`](https://www.r-project.org/) package and [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and associated .mgf file, available through an interactive GUI or standalone R functions. 
+
 - Read the output peak table from [`mzMine`](https://mzio.io/mzmine-news/), [`xcms`](https://www.bioconductor.org/packages/release/bioc/html/xcms.html), [`MS-DIAL`](https://systemsomicslab.github.io/compms/msdial/main.html), and `Generic format`.<br>
 Check compatibility with [`input examples`](https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples).
   - Filter features detected in blank sample group(s) with a widget.
