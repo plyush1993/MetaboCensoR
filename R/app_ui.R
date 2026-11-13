@@ -630,6 +630,12 @@ mainPanel(
         "
       ),
 
+      tags$img(
+        src = "www/toc.png",
+        alt = "MetaboCensoR workflow from raw LC-MS data to filtered features",
+        style = "display: block; width: 700px; max-width: 100%; height: auto; margin: 16px auto;"
+      ),
+
       tags$hr(),
 
       div(
