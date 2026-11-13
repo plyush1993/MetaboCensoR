@@ -7,6 +7,8 @@
 
 # ***MetaboCensoR*** <img src="https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/metabocensor_logo.png" align="right" height="200" width="180" alt="MetaboCensoR logo">
 
+<img src="https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/toc.png" align="center" width="780">
+
 ### Description :bookmark_tabs:
 The [`R`](https://www.r-project.org/) package and [`Shiny`](https://www.shinyapps.io/) App for filtering redundant features in LC-MS peak table and associated .mgf file, available through an interactive GUI or standalone R functions. 
 
