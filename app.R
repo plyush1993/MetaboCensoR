@@ -2873,6 +2873,12 @@ mainPanel(
         "
       ),
 
+       tags$img(
+        src = "https://raw.githubusercontent.com/plyush1993/MetaboCensoR/main/inst/www/toc.png",
+        alt = "MetaboCensoR workflow from raw LC-MS data to filtered features",
+        style = "display: block; width: 700px; max-width: 100%; height: auto; margin: 16px auto;"
+      ),
+      
       tags$hr(),
 
       div(
