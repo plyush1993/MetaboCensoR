@@ -94,7 +94,6 @@ format_final_table_as_input <- function(final_df_with_fid, type,
     rest <- setdiff(names(df), ord)
     df <- df[, c(ord, rest), drop = FALSE]
   }
-
   df
 }
 
@@ -7467,6 +7466,23 @@ output$labels_table <- renderDT({
         } else {
           # try to standardize expected columns (your file)
           nl_df <- as.data.frame(nl_df, stringsAsFactors = FALSE)
+          
+          if (!all(c("Accurate Mass", "Neutral Loss") %in% names(nl_df))) {
+          showNotification(
+            paste(
+              "Neutral loss CSV missing required columns",
+              "('Accurate Mass', 'Neutral Loss').",
+              "Using built-in neutral losses."
+            ),
+            type = "warning",
+            duration = 5
+          )
+        
+          nl_df <- as.data.frame(
+            built_in_neutral_losses_full(),
+            stringsAsFactors = FALSE
+          )
+        }
           
           if ("Pos" %in% names(nl_df) && "Neg" %in% names(nl_df)) {
             if (nl_pol == "positive") {
