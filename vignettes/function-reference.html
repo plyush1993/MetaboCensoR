@@ -12,7 +12,7 @@
 
 
 
-<title>Standalone functions: code and options</title>
+<title>Standalone functions: workflow and parameter templates</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -146,8 +146,8 @@ code span.ot { color: #007020; }
 
 
 <section class="page-header">
-<h1 class="title toc-ignore project-name">Standalone functions: code and
-options</h1>
+<h1 class="title toc-ignore project-name">Standalone functions: workflow
+and parameter templates</h1>
 </section>
 
 
@@ -156,27 +156,46 @@ options</h1>
 <ul>
 <li><a href="#processing-logic" id="toc-processing-logic">Processing
 logic</a></li>
-<li><a href="#prepare-bundled-data" id="toc-prepare-bundled-data">Prepare bundled data</a></li>
-<li><a href="#download-optional-spectra-and-adducts" id="toc-download-optional-spectra-and-adducts">Download optional spectra
-and adducts</a></li>
-<li><a href="#complete-ms-and-peak-parameter-dictionaries" id="toc-complete-ms-and-peak-parameter-dictionaries">Complete MS and
-peak parameter dictionaries</a></li>
-<li><a href="#qc-and-blank-recipes" id="toc-qc-and-blank-recipes">QC and
-blank recipes</a></li>
-<li><a href="#labels-column-selection-and-custom-targets" id="toc-labels-column-selection-and-custom-targets">Labels, column
-selection and custom targets</a></li>
-<li><a href="#functions-and-arguments" id="toc-functions-and-arguments">Functions and arguments</a></li>
-<li><a href="#results-annotation-tables-and-plots" id="toc-results-annotation-tables-and-plots">Results, annotation tables
-and plots</a></li>
+<li><a href="#prepare-the-peak-table" id="toc-prepare-the-peak-table">1.
+Prepare the peak table</a></li>
+<li><a href="#assign-sample-groups" id="toc-assign-sample-groups">2.
+Assign sample groups</a></li>
+<li><a href="#remove-blank-associated-features" id="toc-remove-blank-associated-features">3. Remove blank-associated
+features</a></li>
+<li><a href="#configure-and-apply-ms-filtering" id="toc-configure-and-apply-ms-filtering">4. Configure and apply MS
+filtering</a></li>
+<li><a href="#apply-qc-filters" id="toc-apply-qc-filters">5. Apply QC
+filters</a></li>
+<li><a href="#configure-and-apply-peak-filtering" id="toc-configure-and-apply-peak-filtering">6. Configure and apply peak
+filtering</a></li>
+<li><a href="#summarize-and-inspect-the-final-result" id="toc-summarize-and-inspect-the-final-result">7. Summarize and inspect
+the final result</a></li>
+<li><a href="#export-tables-and-matching-spectra" id="toc-export-tables-and-matching-spectra">8. Export tables and
+matching spectra</a></li>
+<li><a href="#alternative-run-several-stages-in-one-call" id="toc-alternative-run-several-stages-in-one-call">9. Alternative: run
+several stages in one call</a></li>
 </ul>
 </div>
 </div>
 
 <section class="main-content">
-<p>This reference displays code without running it. Examples are
-independent recipes, not one script to execute from top to bottom.
-Argument templates include required placeholders; replace them with your
-objects. See the Orbi vignette for a complete analysis.</p>
+<p>This walkthrough provides complete, editable function calls for an R
+analysis. Copy the relevant blocks and change their settings for your
+data. Optional arguments are shown at their defaults, including the
+first choice for arguments with several allowed values. Required files,
+column names and objects use example values. The explicit MS and peak
+parameter lists reproduce the defaults and are passed to the
+corresponding filters so that your edits take effect.</p>
+<p>Code is displayed without execution when this vignette is rendered.
+The main workflow follows <code>imported</code> →
+<code>after_blank</code> → <code>after_ms</code> → <code>after_qc</code>
+→ <code>after_peak</code>. Blocks marked <strong>Alternative</strong> or
+<strong>Optional</strong> are separate adaptations, not additional steps
+to execute automatically. Default settings are templates, not
+recommendations for every dataset. For a worked analysis with figures,
+see <a href="https://plyush1993.github.io/MetaboCensoR/articles/orbi-workflow.html">Orbi:
+blank and MS filtering</a>. Full argument explanations are linked in
+each section.</p>
 <div id="processing-logic" class="section level2">
 <h2>Processing logic</h2>
 <p>Each filtering function takes a prepared dataset and returns an
@@ -213,872 +232,509 @@ features.</strong> <code>mc_final_table()</code>,
 layout.</li>
 </ul>
 </div>
-<div id="prepare-bundled-data" class="section level2">
-<h2>Prepare bundled data</h2>
+<div id="prepare-the-peak-table" class="section level2">
+<h2>1. Prepare the peak table</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_prepare.html"><code>mc_prepare()</code></a>.</p>
+<p>The bundled table provides a convenient starting point. Replace
+<code>peak_file</code> with your own CSV path. Inspect the detected
+sample columns before filtering; with
+<code>sample_keywords = NULL</code>, numeric columns are selected
+automatically. Set
+<code>sample_keywords = c(&quot;.mzML&quot;, &quot;Peak area&quot;)</code> or explicit
+<code>sample_cols</code> if needed. Supported input types are
+<code>&quot;mzmine&quot;</code>, <code>&quot;generic&quot;</code>, <code>&quot;xcms&quot;</code>, and
+<code>&quot;msdial&quot;</code>.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(MetaboCensoR)</span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>peak_file <span class="ot">&lt;-</span> <span class="fu">system.file</span>(</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>  <span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;orbi_iimn_gnps_quant.csv&quot;</span>,</span>
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>  <span class="at">package =</span> <span class="st">&quot;MetaboCensoR&quot;</span>, <span class="at">mustWork =</span> <span class="cn">TRUE</span></span>
 <span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a>)</span>
 <span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a>imported <span class="ot">&lt;-</span> <span class="fu">mc_prepare</span>(</span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  peak_file, <span class="at">type =</span> <span class="st">&quot;mzmine&quot;</span>,</span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="at">sample_keywords =</span> <span class="fu">c</span>(<span class="st">&quot;.mzML&quot;</span>, <span class="st">&quot;Peak area&quot;</span>)</span>
-<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>)</span>
-<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>metadata_file <span class="ot">&lt;-</span> <span class="fu">system.file</span>(</span>
-<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;metadata.csv&quot;</span>,</span>
-<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="at">package =</span> <span class="st">&quot;MetaboCensoR&quot;</span>, <span class="at">mustWork =</span> <span class="cn">TRUE</span></span>
-<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>)</span>
-<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>imported<span class="sc">$</span>labels <span class="ot">&lt;-</span> <span class="fu">mc_labels_from_metadata</span>(</span>
-<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  metadata_file, <span class="at">sample_names =</span> imported<span class="sc">$</span>sample_cols,</span>
-<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="at">sample_col =</span> <span class="st">&quot;Sample name&quot;</span>, <span class="at">label_col =</span> <span class="st">&quot;Label&quot;</span></span>
-<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>)</span></code></pre></div>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>  <span class="at">data =</span> peak_file,</span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a>  <span class="at">type =</span> <span class="st">&quot;mzmine&quot;</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" tabindex="-1"></a>  <span class="at">sample_cols =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-10"><a href="#cb1-10" tabindex="-1"></a>  <span class="at">sample_keywords =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" tabindex="-1"></a>  <span class="at">id_col =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-12"><a href="#cb1-12" tabindex="-1"></a>  <span class="at">mz_col =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-13"><a href="#cb1-13" tabindex="-1"></a>  <span class="at">rt_col =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-14"><a href="#cb1-14" tabindex="-1"></a>  <span class="at">labels =</span> <span class="cn">NULL</span>,</span>
+<span id="cb1-15"><a href="#cb1-15" tabindex="-1"></a>  <span class="at">token_sep =</span> <span class="st">&quot;_&quot;</span>,</span>
+<span id="cb1-16"><a href="#cb1-16" tabindex="-1"></a>  <span class="at">token_index =</span> <span class="dv">2</span></span>
+<span id="cb1-17"><a href="#cb1-17" tabindex="-1"></a>)</span>
+<span id="cb1-18"><a href="#cb1-18" tabindex="-1"></a>imported<span class="sc">$</span>sample_cols</span>
+<span id="cb1-19"><a href="#cb1-19" tabindex="-1"></a><span class="fu">print</span>(imported)</span></code></pre></div>
 </div>
-<div id="download-optional-spectra-and-adducts" class="section level2">
-<h2>Download optional spectra and adducts</h2>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>base_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;https://raw.githubusercontent.com/plyush1993/&quot;</span>,</span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>  <span class="st">&quot;MetaboCensoR_Examples/main/orbi/&quot;</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>)</span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>mgf_file <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.mgf&quot;</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>adduct_file <span class="ot">&lt;-</span> <span class="fu">tempfile</span>(<span class="at">fileext =</span> <span class="st">&quot;.csv&quot;</span>)</span>
-<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="fu">download.file</span>(<span class="fu">paste0</span>(base_url, <span class="st">&quot;orbi_iimn_gnps.mgf&quot;</span>),</span>
-<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>              mgf_file, <span class="at">mode =</span> <span class="st">&quot;wb&quot;</span>)</span>
-<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="fu">download.file</span>(<span class="fu">paste0</span>(base_url, <span class="st">&quot;adducts%20%28nontarget%20%2B%202xH2O%29.csv&quot;</span>),</span>
-<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>              adduct_file, <span class="at">mode =</span> <span class="st">&quot;wb&quot;</span>)</span>
-<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>spectra <span class="ot">&lt;-</span> <span class="fu">mc_read_mgf</span>(mgf_file)</span></code></pre></div>
+<div id="assign-sample-groups" class="section level2">
+<h2>2. Assign sample groups</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_labels_from_metadata.html"><code>mc_labels_from_metadata()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_labels_from_names.html"><code>mc_labels_from_names()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_labels_from_csv.html"><code>mc_labels_from_csv()</code></a>.</p>
+<p>Choose one labeling method. Metadata matching is used in the main
+workflow. The file and column names below are example inputs, not
+function defaults.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>metadata_file <span class="ot">&lt;-</span> <span class="fu">system.file</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>  <span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;metadata.csv&quot;</span>, <span class="at">package =</span> <span class="st">&quot;MetaboCensoR&quot;</span>, <span class="at">mustWork =</span> <span class="cn">TRUE</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>imported<span class="sc">$</span>labels <span class="ot">&lt;-</span> <span class="fu">mc_labels_from_metadata</span>(</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>  <span class="at">path =</span> metadata_file,</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>  <span class="at">sample_names =</span> imported<span class="sc">$</span>sample_cols,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>  <span class="at">sample_col =</span> <span class="st">&quot;Sample name&quot;</span>,</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>  <span class="at">label_col =</span> <span class="st">&quot;Label&quot;</span>,</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="at">clean_names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="at">remove_suffixes =</span> <span class="cn">NULL</span></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>)</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="fu">data.frame</span>(<span class="at">sample =</span> imported<span class="sc">$</span>sample_cols, <span class="at">group =</span> <span class="fu">unname</span>(imported<span class="sc">$</span>labels))</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="fu">table</span>(imported<span class="sc">$</span>labels)</span></code></pre></div>
+<p><strong>Alternative: extract groups from sample names.</strong></p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>imported<span class="sc">$</span>labels <span class="ot">&lt;-</span> <span class="fu">mc_labels_from_names</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  <span class="at">sample_names =</span> imported<span class="sc">$</span>sample_cols,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">separator =</span> <span class="st">&quot;_&quot;</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="at">token =</span> <span class="dv">2</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>)</span></code></pre></div>
+<p><strong>Alternative: read an ordered label CSV.</strong> Labels must
+follow the sample-column order.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>imported<span class="sc">$</span>labels <span class="ot">&lt;-</span> <span class="fu">mc_labels_from_csv</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="at">path =</span> <span class="st">&quot;Label.csv&quot;</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="at">sample_names =</span> imported<span class="sc">$</span>sample_cols</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>)</span></code></pre></div>
 </div>
-<div id="complete-ms-and-peak-parameter-dictionaries" class="section level2">
-<h2>Complete MS and peak parameter dictionaries</h2>
-<p>These are defaults. Only the tolerance matching <code>&quot;da&quot;</code> or
-<code>&quot;ppm&quot;</code> is used. Explicit <code>filters</code> in a filtering
-call override the enable flags. Use <code>&quot;positive&quot;</code> or
-<code>&quot;negative&quot;</code> for polarity.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>ms_options <span class="ot">&lt;-</span> <span class="fu">mc_ms_parameters</span>(</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>  <span class="co"># ISOTOPE FILTERING</span></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="co"># Enable isotope filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;isotopes&quot; to select isotope</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>  <span class="co"># filtering explicitly.</span></span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>  <span class="at">enable_iso2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of a</span></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="co"># candidate isotope and its parent feature. Values range from 0 to 1; higher</span></span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="co"># cutoffs require more similar profiles.</span></span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="at">iso_cor2 =</span> <span class="fl">0.8</span>,</span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between a candidate isotope</span></span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>  <span class="co"># and its parent feature.</span></span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>  <span class="at">iso_rt2 =</span> <span class="fl">0.01</span>,</span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for isotope matching: &quot;da&quot; uses iso_mz_tol2; &quot;ppm&quot; uses</span></span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>  <span class="co"># iso_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>  <span class="at">iso_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for isotope matching. Used only when</span></span>
-<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>  <span class="co"># iso_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>  <span class="at">iso_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
-<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for isotope matching. Used only when</span></span>
-<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>  <span class="co"># iso_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a>  <span class="at">iso_ppm2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a>  <span class="co"># Maximum charge state searched for isotope relationships. For example, 3</span></span>
-<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a>  <span class="co"># searches charge states 1, 2 and 3.</span></span>
-<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a>  <span class="at">iso_zmax2 =</span> <span class="dv">3</span>,</span>
-<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a>  <span class="co"># Maximum isotope order k searched. Expected isotope spacing is 1.00336 * k / z</span></span>
-<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a>  <span class="co"># Da, for orders 1 through iso_n2 and charges 1 through iso_zmax2.</span></span>
-<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a>  <span class="at">iso_n2 =</span> <span class="dv">1</span>,</span>
-<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a>  <span class="co"># Number of additional dimer-pattern isotope shifts searched: 1.00336 * (j +</span></span>
-<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a>  <span class="co"># 0.5) Da for j from 1 through iso_nd2.</span></span>
-<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a>  <span class="at">iso_nd2 =</span> <span class="dv">3</span>,</span>
-<span id="cb3-32"><a href="#cb3-32" tabindex="-1"></a>  <span class="co"># ADDUCT FILTERING</span></span>
-<span id="cb3-33"><a href="#cb3-33" tabindex="-1"></a>  <span class="co"># Enable adduct filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
-<span id="cb3-34"><a href="#cb3-34" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;adducts&quot; to select adduct filtering</span></span>
-<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a>  <span class="co"># explicitly.</span></span>
-<span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a>  <span class="at">enable_add2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-37"><a href="#cb3-37" tabindex="-1"></a>  <span class="co"># Ionization polarity used to select adduct definitions: &quot;positive&quot; or</span></span>
-<span id="cb3-38"><a href="#cb3-38" tabindex="-1"></a>  <span class="co"># &quot;negative&quot;. Set nl_pol2 separately if neutral-loss filtering is also used.</span></span>
-<span id="cb3-39"><a href="#cb3-39" tabindex="-1"></a>  <span class="at">add_pol2 =</span> <span class="st">&quot;positive&quot;</span>,</span>
-<span id="cb3-40"><a href="#cb3-40" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of features</span></span>
-<span id="cb3-41"><a href="#cb3-41" tabindex="-1"></a>  <span class="co"># proposed to belong to the same adduct family. Values range from 0 to 1;</span></span>
-<span id="cb3-42"><a href="#cb3-42" tabindex="-1"></a>  <span class="co"># higher cutoffs require more similar profiles.</span></span>
-<span id="cb3-43"><a href="#cb3-43" tabindex="-1"></a>  <span class="at">add_cor2 =</span> <span class="fl">0.8</span>,</span>
-<span id="cb3-44"><a href="#cb3-44" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between features proposed to</span></span>
-<span id="cb3-45"><a href="#cb3-45" tabindex="-1"></a>  <span class="co"># belong to the same adduct family.</span></span>
-<span id="cb3-46"><a href="#cb3-46" tabindex="-1"></a>  <span class="at">add_rt2 =</span> <span class="fl">0.005</span>,</span>
-<span id="cb3-47"><a href="#cb3-47" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for adduct matching: &quot;da&quot; uses add_mz_tol2; &quot;ppm&quot; uses</span></span>
-<span id="cb3-48"><a href="#cb3-48" tabindex="-1"></a>  <span class="co"># add_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-49"><a href="#cb3-49" tabindex="-1"></a>  <span class="at">add_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
-<span id="cb3-50"><a href="#cb3-50" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for adduct matching. Used only when</span></span>
-<span id="cb3-51"><a href="#cb3-51" tabindex="-1"></a>  <span class="co"># add_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-52"><a href="#cb3-52" tabindex="-1"></a>  <span class="at">add_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
-<span id="cb3-53"><a href="#cb3-53" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for adduct matching. Used only when</span></span>
-<span id="cb3-54"><a href="#cb3-54" tabindex="-1"></a>  <span class="co"># add_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-55"><a href="#cb3-55" tabindex="-1"></a>  <span class="at">add_ppm2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-56"><a href="#cb3-56" tabindex="-1"></a>  <span class="co"># Minimum candidate neutral mass in Da for adduct annotation. Candidate neutral</span></span>
-<span id="cb3-57"><a href="#cb3-57" tabindex="-1"></a>  <span class="co"># masses must be strictly greater than this threshold.</span></span>
-<span id="cb3-58"><a href="#cb3-58" tabindex="-1"></a>  <span class="at">add_min_nm2 =</span> <span class="dv">50</span>,</span>
-<span id="cb3-59"><a href="#cb3-59" tabindex="-1"></a>  <span class="co"># If TRUE, restrict the total retention-time spread of an adduct family to</span></span>
-<span id="cb3-60"><a href="#cb3-60" tabindex="-1"></a>  <span class="co"># add_rt2 minutes, in addition to pairwise matching.</span></span>
-<span id="cb3-61"><a href="#cb3-61" tabindex="-1"></a>  <span class="at">add_strict_rt2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-62"><a href="#cb3-62" tabindex="-1"></a>  <span class="co"># Prefer selected ion forms when choosing adduct-family representatives.</span></span>
-<span id="cb3-63"><a href="#cb3-63" tabindex="-1"></a>  <span class="co"># Retain the most intense qualifying preferred feature, or the most intense feature overall</span></span>
-<span id="cb3-64"><a href="#cb3-64" tabindex="-1"></a>  <span class="co"># if none qualify.</span></span>
-<span id="cb3-65"><a href="#cb3-65" tabindex="-1"></a>  <span class="at">add_prefer2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-66"><a href="#cb3-66" tabindex="-1"></a>  <span class="co"># Character vector of preferred ion names, matching the adduct definitions.</span></span>
-<span id="cb3-67"><a href="#cb3-67" tabindex="-1"></a>  <span class="co"># For example, c(&quot;M+H&quot;, &quot;M+Na&quot;).</span></span>
-<span id="cb3-68"><a href="#cb3-68" tabindex="-1"></a>  <span class="at">add_preferred2 =</span> <span class="cn">NULL</span>,</span>
-<span id="cb3-69"><a href="#cb3-69" tabindex="-1"></a>  <span class="co"># Maximum intensity decrease (%) from the family&#39;s highest mean intensity </span></span>
-<span id="cb3-70"><a href="#cb3-70" tabindex="-1"></a>  <span class="co"># for a preferred representative.</span></span>
-<span id="cb3-71"><a href="#cb3-71" tabindex="-1"></a>  <span class="at">add_prefer_pct2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-72"><a href="#cb3-72" tabindex="-1"></a>  <span class="co"># NEUTRAL-LOSS FILTERING</span></span>
-<span id="cb3-73"><a href="#cb3-73" tabindex="-1"></a>  <span class="co"># Enable neutral-loss filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
-<span id="cb3-74"><a href="#cb3-74" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;neutral_losses&quot; to select neutral-</span></span>
-<span id="cb3-75"><a href="#cb3-75" tabindex="-1"></a>  <span class="co"># loss filtering explicitly.</span></span>
-<span id="cb3-76"><a href="#cb3-76" tabindex="-1"></a>  <span class="at">enable_nl2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-77"><a href="#cb3-77" tabindex="-1"></a>  <span class="co"># Ionization polarity used to select neutral-loss definitions: &quot;positive&quot; or</span></span>
-<span id="cb3-78"><a href="#cb3-78" tabindex="-1"></a>  <span class="co"># &quot;negative&quot;. Set add_pol2 separately if adduct filtering is also used.</span></span>
-<span id="cb3-79"><a href="#cb3-79" tabindex="-1"></a>  <span class="at">nl_pol2 =</span> <span class="st">&quot;positive&quot;</span>,</span>
-<span id="cb3-80"><a href="#cb3-80" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of features</span></span>
-<span id="cb3-81"><a href="#cb3-81" tabindex="-1"></a>  <span class="co"># proposed to differ by a listed neutral loss. Values range from 0 to 1; higher</span></span>
-<span id="cb3-82"><a href="#cb3-82" tabindex="-1"></a>  <span class="co"># cutoffs require more similar profiles.</span></span>
-<span id="cb3-83"><a href="#cb3-83" tabindex="-1"></a>  <span class="at">nl_cor2 =</span> <span class="fl">0.95</span>,</span>
-<span id="cb3-84"><a href="#cb3-84" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between features proposed to</span></span>
-<span id="cb3-85"><a href="#cb3-85" tabindex="-1"></a>  <span class="co"># differ by a listed neutral loss.</span></span>
-<span id="cb3-86"><a href="#cb3-86" tabindex="-1"></a>  <span class="at">nl_rt2 =</span> <span class="fl">0.002</span>,</span>
-<span id="cb3-87"><a href="#cb3-87" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for neutral-loss matching: &quot;da&quot; uses nl_mz_tol2; &quot;ppm&quot;</span></span>
-<span id="cb3-88"><a href="#cb3-88" tabindex="-1"></a>  <span class="co"># uses nl_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-89"><a href="#cb3-89" tabindex="-1"></a>  <span class="at">nl_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
-<span id="cb3-90"><a href="#cb3-90" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for neutral-loss matching. Used only when</span></span>
-<span id="cb3-91"><a href="#cb3-91" tabindex="-1"></a>  <span class="co"># nl_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-92"><a href="#cb3-92" tabindex="-1"></a>  <span class="at">nl_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
-<span id="cb3-93"><a href="#cb3-93" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for neutral-loss matching. Used only when</span></span>
-<span id="cb3-94"><a href="#cb3-94" tabindex="-1"></a>  <span class="co"># nl_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-95"><a href="#cb3-95" tabindex="-1"></a>  <span class="at">nl_ppm2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-96"><a href="#cb3-96" tabindex="-1"></a>  <span class="co"># IN-SOURCE FRAGMENT FILTERING</span></span>
-<span id="cb3-97"><a href="#cb3-97" tabindex="-1"></a>  <span class="co"># Enable in-source fragment filtering when mc_filter_ms(filters = NULL). An</span></span>
-<span id="cb3-98"><a href="#cb3-98" tabindex="-1"></a>  <span class="co"># explicit filters vector overrides this flag; use &quot;isf&quot; to select in-source</span></span>
-<span id="cb3-99"><a href="#cb3-99" tabindex="-1"></a>  <span class="co"># fragment filtering explicitly.</span></span>
-<span id="cb3-100"><a href="#cb3-100" tabindex="-1"></a>  <span class="at">enable_isf2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-101"><a href="#cb3-101" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of a</span></span>
-<span id="cb3-102"><a href="#cb3-102" tabindex="-1"></a>  <span class="co"># candidate in-source fragment and its precursor feature. Values range from 0</span></span>
-<span id="cb3-103"><a href="#cb3-103" tabindex="-1"></a>  <span class="co"># to 1; higher cutoffs require more similar profiles.</span></span>
-<span id="cb3-104"><a href="#cb3-104" tabindex="-1"></a>  <span class="at">isf_cor2 =</span> <span class="fl">0.95</span>,</span>
-<span id="cb3-105"><a href="#cb3-105" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between a candidate in-source</span></span>
-<span id="cb3-106"><a href="#cb3-106" tabindex="-1"></a>  <span class="co"># fragment and its precursor feature.</span></span>
-<span id="cb3-107"><a href="#cb3-107" tabindex="-1"></a>  <span class="at">isf_rt2 =</span> <span class="fl">0.01</span>,</span>
-<span id="cb3-108"><a href="#cb3-108" tabindex="-1"></a>  <span class="co"># If TRUE, require the mean fragment/precursor intensity ratio to fall between</span></span>
-<span id="cb3-109"><a href="#cb3-109" tabindex="-1"></a>  <span class="co"># isf_ratio_min2 and isf_ratio_max2. If FALSE, omit this intensity-ratio</span></span>
-<span id="cb3-110"><a href="#cb3-110" tabindex="-1"></a>  <span class="co"># condition.</span></span>
-<span id="cb3-111"><a href="#cb3-111" tabindex="-1"></a>  <span class="at">isf_control_int2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-112"><a href="#cb3-112" tabindex="-1"></a>  <span class="co"># Lower allowed ratio of mean candidate fragment intensity to mean precursor</span></span>
-<span id="cb3-113"><a href="#cb3-113" tabindex="-1"></a>  <span class="co"># intensity. Used when isf_control_int2 = TRUE.</span></span>
-<span id="cb3-114"><a href="#cb3-114" tabindex="-1"></a>  <span class="at">isf_ratio_min2 =</span> <span class="fl">0.001</span>,</span>
-<span id="cb3-115"><a href="#cb3-115" tabindex="-1"></a>  <span class="co"># Upper allowed ratio of mean candidate fragment intensity to mean precursor</span></span>
-<span id="cb3-116"><a href="#cb3-116" tabindex="-1"></a>  <span class="co"># intensity. Used when isf_control_int2 = TRUE.</span></span>
-<span id="cb3-117"><a href="#cb3-117" tabindex="-1"></a>  <span class="at">isf_ratio_max2 =</span> <span class="fl">2.5</span>,</span>
-<span id="cb3-118"><a href="#cb3-118" tabindex="-1"></a>  <span class="co"># If TRUE, require the candidate fragment m/z in an eligible MS2 spectrum of</span></span>
-<span id="cb3-119"><a href="#cb3-119" tabindex="-1"></a>  <span class="co"># the precursor; supply spectra to mc_filter_ms(). Support in any eligible</span></span>
-<span id="cb3-120"><a href="#cb3-120" tabindex="-1"></a>  <span class="co"># spectrum is sufficient. FALSE uses MS1 evidence only.</span></span>
-<span id="cb3-121"><a href="#cb3-121" tabindex="-1"></a>  <span class="at">isf_ms2_check2 =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb3-122"><a href="#cb3-122" tabindex="-1"></a>  <span class="co"># Minimum intensity of a supporting MS2 peak, expressed as a percentage of that</span></span>
-<span id="cb3-123"><a href="#cb3-123" tabindex="-1"></a>  <span class="co"># spectrum&#39;s base peak. For example, 1 means 1 percent. Used when</span></span>
-<span id="cb3-124"><a href="#cb3-124" tabindex="-1"></a>  <span class="co"># isf_ms2_check2 = TRUE.</span></span>
-<span id="cb3-125"><a href="#cb3-125" tabindex="-1"></a>  <span class="at">isf_ms2_rel2 =</span> <span class="dv">1</span>,</span>
-<span id="cb3-126"><a href="#cb3-126" tabindex="-1"></a>  <span class="co"># Absolute tolerance in Da between the candidate in-source fragment m/z and a</span></span>
-<span id="cb3-127"><a href="#cb3-127" tabindex="-1"></a>  <span class="co"># supporting MS2 peak. Used when isf_ms2_check2 = TRUE.</span></span>
-<span id="cb3-128"><a href="#cb3-128" tabindex="-1"></a>  <span class="at">isf_ms2_mz_tol2 =</span> <span class="fl">0.01</span>,</span>
-<span id="cb3-129"><a href="#cb3-129" tabindex="-1"></a>  <span class="co"># Spectrum metadata field used to match MGF spectra to precursor feature IDs</span></span>
-<span id="cb3-130"><a href="#cb3-130" tabindex="-1"></a>  <span class="co"># for in-source fragment checking; typically &quot;acquisitionNum&quot;.</span></span>
-<span id="cb3-131"><a href="#cb3-131" tabindex="-1"></a>  <span class="at">isf_mgf_id_field =</span> <span class="st">&quot;acquisitionNum&quot;</span>,</span>
-<span id="cb3-132"><a href="#cb3-132" tabindex="-1"></a>  <span class="co"># MISPICKED-ION FILTERING</span></span>
-<span id="cb3-133"><a href="#cb3-133" tabindex="-1"></a>  <span class="co"># Enable mispicked-ion filtering when mc_filter_ms(filters = NULL). An explicit</span></span>
-<span id="cb3-134"><a href="#cb3-134" tabindex="-1"></a>  <span class="co"># filters vector overrides this flag; use &quot;mispicked&quot; to select mispicked-ion</span></span>
-<span id="cb3-135"><a href="#cb3-135" tabindex="-1"></a>  <span class="co"># filtering explicitly.</span></span>
-<span id="cb3-136"><a href="#cb3-136" tabindex="-1"></a>  <span class="at">enable_mis2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-137"><a href="#cb3-137" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of features</span></span>
-<span id="cb3-138"><a href="#cb3-138" tabindex="-1"></a>  <span class="co"># proposed to be duplicate peak detections. Values range from 0 to 1; higher</span></span>
-<span id="cb3-139"><a href="#cb3-139" tabindex="-1"></a>  <span class="co"># cutoffs require more similar profiles.</span></span>
-<span id="cb3-140"><a href="#cb3-140" tabindex="-1"></a>  <span class="at">mis_cor2 =</span> <span class="fl">0.8</span>,</span>
-<span id="cb3-141"><a href="#cb3-141" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between features proposed to</span></span>
-<span id="cb3-142"><a href="#cb3-142" tabindex="-1"></a>  <span class="co"># be duplicate peak detections.</span></span>
-<span id="cb3-143"><a href="#cb3-143" tabindex="-1"></a>  <span class="at">mis_rt2 =</span> <span class="fl">0.002</span>,</span>
-<span id="cb3-144"><a href="#cb3-144" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for mispicked-ion matching: &quot;da&quot; uses mis_mz_tol2; &quot;ppm&quot;</span></span>
-<span id="cb3-145"><a href="#cb3-145" tabindex="-1"></a>  <span class="co"># uses mis_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-146"><a href="#cb3-146" tabindex="-1"></a>  <span class="at">mis_tol_type2 =</span> <span class="st">&quot;ppm&quot;</span>,</span>
-<span id="cb3-147"><a href="#cb3-147" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for mispicked-ion matching. Used only when</span></span>
-<span id="cb3-148"><a href="#cb3-148" tabindex="-1"></a>  <span class="co"># mis_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-149"><a href="#cb3-149" tabindex="-1"></a>  <span class="at">mis_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
-<span id="cb3-150"><a href="#cb3-150" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for mispicked-ion matching. Used only when</span></span>
-<span id="cb3-151"><a href="#cb3-151" tabindex="-1"></a>  <span class="co"># mis_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-152"><a href="#cb3-152" tabindex="-1"></a>  <span class="at">mis_ppm2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-153"><a href="#cb3-153" tabindex="-1"></a>  <span class="co"># RINGING/SATURATED-ION FILTERING</span></span>
-<span id="cb3-154"><a href="#cb3-154" tabindex="-1"></a>  <span class="co"># Enable ringing/saturated-ion filtering when mc_filter_ms(filters = NULL). An</span></span>
-<span id="cb3-155"><a href="#cb3-155" tabindex="-1"></a>  <span class="co"># explicit filters vector overrides this flag; use &quot;ringing&quot; to select</span></span>
-<span id="cb3-156"><a href="#cb3-156" tabindex="-1"></a>  <span class="co"># ringing/saturated-ion filtering explicitly.</span></span>
-<span id="cb3-157"><a href="#cb3-157" tabindex="-1"></a>  <span class="at">enable_ring2 =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb3-158"><a href="#cb3-158" tabindex="-1"></a>  <span class="co"># Minimum Pearson correlation between the sample-intensity profiles of a</span></span>
-<span id="cb3-159"><a href="#cb3-159" tabindex="-1"></a>  <span class="co"># candidate ringing artifact and its high-intensity anchor. Values range from 0</span></span>
-<span id="cb3-160"><a href="#cb3-160" tabindex="-1"></a>  <span class="co"># to 1; higher cutoffs require more similar profiles.</span></span>
-<span id="cb3-161"><a href="#cb3-161" tabindex="-1"></a>  <span class="at">ring_cor2 =</span> <span class="fl">0.8</span>,</span>
-<span id="cb3-162"><a href="#cb3-162" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference, in minutes, between a candidate ringing</span></span>
-<span id="cb3-163"><a href="#cb3-163" tabindex="-1"></a>  <span class="co"># artifact and its high-intensity anchor.</span></span>
-<span id="cb3-164"><a href="#cb3-164" tabindex="-1"></a>  <span class="at">ring_rt2 =</span> <span class="fl">0.05</span>,</span>
-<span id="cb3-165"><a href="#cb3-165" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for ringing/saturated-ion matching: &quot;da&quot; uses</span></span>
-<span id="cb3-166"><a href="#cb3-166" tabindex="-1"></a>  <span class="co"># ring_mz_tol2; &quot;ppm&quot; uses ring_ppm2. Only the selected tolerance is used.</span></span>
-<span id="cb3-167"><a href="#cb3-167" tabindex="-1"></a>  <span class="at">ring_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
-<span id="cb3-168"><a href="#cb3-168" tabindex="-1"></a>  <span class="co"># Absolute mass tolerance in Da for ringing/saturated-ion matching. Used only</span></span>
-<span id="cb3-169"><a href="#cb3-169" tabindex="-1"></a>  <span class="co"># when ring_tol_type2 = &quot;da&quot;.</span></span>
-<span id="cb3-170"><a href="#cb3-170" tabindex="-1"></a>  <span class="at">ring_mz_tol2 =</span> <span class="fl">0.95</span>,</span>
-<span id="cb3-171"><a href="#cb3-171" tabindex="-1"></a>  <span class="co"># Relative mass tolerance in ppm for ringing/saturated-ion matching. Used only</span></span>
-<span id="cb3-172"><a href="#cb3-172" tabindex="-1"></a>  <span class="co"># when ring_tol_type2 = &quot;ppm&quot;.</span></span>
-<span id="cb3-173"><a href="#cb3-173" tabindex="-1"></a>  <span class="at">ring_ppm2 =</span> <span class="dv">500</span>,</span>
-<span id="cb3-174"><a href="#cb3-174" tabindex="-1"></a>  <span class="co"># Minimum mean sample intensity for a feature to act as the high-intensity</span></span>
-<span id="cb3-175"><a href="#cb3-175" tabindex="-1"></a>  <span class="co"># anchor in ringing/saturated-ion filtering.</span></span>
-<span id="cb3-176"><a href="#cb3-176" tabindex="-1"></a>  <span class="at">ring_min_anch2 =</span> <span class="fl">1e+05</span>,</span>
-<span id="cb3-177"><a href="#cb3-177" tabindex="-1"></a>  <span class="co"># Minimum ratio of anchor mean intensity to candidate artifact mean intensity</span></span>
-<span id="cb3-178"><a href="#cb3-178" tabindex="-1"></a>  <span class="co"># in ringing/saturated-ion filtering. For example, 10 requires the anchor to be</span></span>
-<span id="cb3-179"><a href="#cb3-179" tabindex="-1"></a>  <span class="co"># at least ten times as intense; must be at least 1.</span></span>
-<span id="cb3-180"><a href="#cb3-180" tabindex="-1"></a>  <span class="at">ring_ratio2 =</span> <span class="dv">10</span>,</span>
-<span id="cb3-181"><a href="#cb3-181" tabindex="-1"></a>  <span class="co"># If TRUE, search for ringing artifacts below and above the anchor m/z. If</span></span>
-<span id="cb3-182"><a href="#cb3-182" tabindex="-1"></a>  <span class="co"># FALSE, search only above the anchor m/z.</span></span>
-<span id="cb3-183"><a href="#cb3-183" tabindex="-1"></a>  <span class="at">ring_bidirectional2 =</span> <span class="cn">FALSE</span></span>
-<span id="cb3-184"><a href="#cb3-184" tabindex="-1"></a>)</span></code></pre></div>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>peak_options <span class="ot">&lt;-</span> <span class="fu">mc_peak_parameters</span>(</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  <span class="co"># RMD = 1e6 * (mz - floor(mz + 0.5)) / mz.</span></span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="co"># AMD = abs(mz - floor(mz + 0.5)).</span></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="co"># Peak filters enabled when mc_filter_peak(filters = NULL): &quot;mz&quot;, &quot;rt&quot;, &quot;rmd&quot;,</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="co"># &quot;amd&quot; and/or &quot;target&quot;. An empty vector selects none. An explicit filters</span></span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="co"># vector overrides this setting.</span></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="at">peak_filters =</span> <span class="fu">character</span>(),</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="co"># Enable the lower m/z limit, peak_mz_min, when the &quot;mz&quot; peak filter is</span></span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="co"># selected. FALSE disables this bound only.</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="at">mz_min_enable =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  <span class="co"># Enable the upper m/z limit, peak_mz_max, when the &quot;mz&quot; peak filter is</span></span>
-<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="co"># selected. FALSE disables this bound only.</span></span>
-<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  <span class="at">mz_max_enable =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>  <span class="co"># Lower m/z limit in m/z units. Keep values greater than or equal to this limit</span></span>
-<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>  <span class="co"># when mz_min_enable = TRUE and the &quot;mz&quot; filter is selected.</span></span>
-<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>  <span class="at">peak_mz_min =</span> <span class="dv">200</span>,</span>
-<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>  <span class="co"># Upper m/z limit in m/z units. Keep values less than or equal to this limit</span></span>
-<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>  <span class="co"># when mz_max_enable = TRUE and the &quot;mz&quot; filter is selected.</span></span>
-<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>  <span class="at">peak_mz_max =</span> <span class="dv">1500</span>,</span>
-<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>  <span class="co"># Enable the lower retention time limit, peak_rt_min, when the &quot;rt&quot; peak filter</span></span>
-<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a>  <span class="co"># is selected. FALSE disables this bound only.</span></span>
-<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>  <span class="at">rt_min_enable =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>  <span class="co"># Enable the upper retention time limit, peak_rt_max, when the &quot;rt&quot; peak filter</span></span>
-<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a>  <span class="co"># is selected. FALSE disables this bound only.</span></span>
-<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>  <span class="at">rt_max_enable =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a>  <span class="co"># Lower retention time limit in minutes. Keep values greater than or equal to</span></span>
-<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a>  <span class="co"># this limit when rt_min_enable = TRUE and the &quot;rt&quot; filter is selected.</span></span>
-<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a>  <span class="at">peak_rt_min =</span> <span class="dv">1</span>,</span>
-<span id="cb4-29"><a href="#cb4-29" tabindex="-1"></a>  <span class="co"># Upper retention time limit in minutes. Keep values less than or equal to this</span></span>
-<span id="cb4-30"><a href="#cb4-30" tabindex="-1"></a>  <span class="co"># limit when rt_max_enable = TRUE and the &quot;rt&quot; filter is selected.</span></span>
-<span id="cb4-31"><a href="#cb4-31" tabindex="-1"></a>  <span class="at">peak_rt_max =</span> <span class="dv">30</span>,</span>
-<span id="cb4-32"><a href="#cb4-32" tabindex="-1"></a>  <span class="co"># Enable the lower relative mass defect (RMD) limit, peak_rmd_min, when the</span></span>
-<span id="cb4-33"><a href="#cb4-33" tabindex="-1"></a>  <span class="co"># &quot;rmd&quot; peak filter is selected. FALSE disables this bound only.</span></span>
-<span id="cb4-34"><a href="#cb4-34" tabindex="-1"></a>  <span class="at">rmd_min_enable =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb4-35"><a href="#cb4-35" tabindex="-1"></a>  <span class="co"># Enable the upper relative mass defect (RMD) limit, peak_rmd_max, when the</span></span>
-<span id="cb4-36"><a href="#cb4-36" tabindex="-1"></a>  <span class="co"># &quot;rmd&quot; peak filter is selected. FALSE disables this bound only.</span></span>
-<span id="cb4-37"><a href="#cb4-37" tabindex="-1"></a>  <span class="at">rmd_max_enable =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb4-38"><a href="#cb4-38" tabindex="-1"></a>  <span class="co"># Lower relative mass defect (RMD) limit in ppm. Keep values greater than or</span></span>
-<span id="cb4-39"><a href="#cb4-39" tabindex="-1"></a>  <span class="co"># equal to this limit when rmd_min_enable = TRUE and the &quot;rmd&quot; filter is</span></span>
-<span id="cb4-40"><a href="#cb4-40" tabindex="-1"></a>  <span class="co"># selected.</span></span>
-<span id="cb4-41"><a href="#cb4-41" tabindex="-1"></a>  <span class="at">peak_rmd_min =</span> <span class="sc">-</span><span class="dv">2000</span>,</span>
-<span id="cb4-42"><a href="#cb4-42" tabindex="-1"></a>  <span class="co"># Upper relative mass defect (RMD) limit in ppm. Keep values less than or equal</span></span>
-<span id="cb4-43"><a href="#cb4-43" tabindex="-1"></a>  <span class="co"># to this limit when rmd_max_enable = TRUE and the &quot;rmd&quot; filter is selected.</span></span>
-<span id="cb4-44"><a href="#cb4-44" tabindex="-1"></a>  <span class="at">peak_rmd_max =</span> <span class="dv">2000</span>,</span>
-<span id="cb4-45"><a href="#cb4-45" tabindex="-1"></a>  <span class="co"># Enable the lower absolute mass defect (AMD) limit, peak_amd_min, when the</span></span>
-<span id="cb4-46"><a href="#cb4-46" tabindex="-1"></a>  <span class="co"># &quot;amd&quot; peak filter is selected. FALSE disables this bound only.</span></span>
-<span id="cb4-47"><a href="#cb4-47" tabindex="-1"></a>  <span class="at">amd_min_enable =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb4-48"><a href="#cb4-48" tabindex="-1"></a>  <span class="co"># Enable the upper absolute mass defect (AMD) limit, peak_amd_max, when the</span></span>
-<span id="cb4-49"><a href="#cb4-49" tabindex="-1"></a>  <span class="co"># &quot;amd&quot; peak filter is selected. FALSE disables this bound only.</span></span>
-<span id="cb4-50"><a href="#cb4-50" tabindex="-1"></a>  <span class="at">amd_max_enable =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb4-51"><a href="#cb4-51" tabindex="-1"></a>  <span class="co"># Lower absolute mass defect (AMD) limit in Da. Keep values greater than or</span></span>
-<span id="cb4-52"><a href="#cb4-52" tabindex="-1"></a>  <span class="co"># equal to this limit when amd_min_enable = TRUE and the &quot;amd&quot; filter is</span></span>
-<span id="cb4-53"><a href="#cb4-53" tabindex="-1"></a>  <span class="co"># selected.</span></span>
-<span id="cb4-54"><a href="#cb4-54" tabindex="-1"></a>  <span class="at">peak_amd_min =</span> <span class="dv">0</span>,</span>
-<span id="cb4-55"><a href="#cb4-55" tabindex="-1"></a>  <span class="co"># Upper absolute mass defect (AMD) limit in Da. Keep values less than or equal</span></span>
-<span id="cb4-56"><a href="#cb4-56" tabindex="-1"></a>  <span class="co"># to this limit when amd_max_enable = TRUE and the &quot;amd&quot; filter is selected.</span></span>
-<span id="cb4-57"><a href="#cb4-57" tabindex="-1"></a>  <span class="at">peak_amd_max =</span> <span class="fl">0.5</span>,</span>
-<span id="cb4-58"><a href="#cb4-58" tabindex="-1"></a>  <span class="co"># Action for features matching a target by both m/z and retention time:</span></span>
-<span id="cb4-59"><a href="#cb4-59" tabindex="-1"></a>  <span class="co"># &quot;remove&quot; discards matches; &quot;keep&quot; retains only matches. Used when the</span></span>
-<span id="cb4-60"><a href="#cb4-60" tabindex="-1"></a>  <span class="co"># &quot;target&quot; peak filter is selected.</span></span>
-<span id="cb4-61"><a href="#cb4-61" tabindex="-1"></a>  <span class="at">target_peak_action =</span> <span class="st">&quot;remove&quot;</span>,</span>
-<span id="cb4-62"><a href="#cb4-62" tabindex="-1"></a>  <span class="co"># Mass-tolerance unit for target matching: &quot;da&quot; uses target_mz_tol_da; &quot;ppm&quot;</span></span>
-<span id="cb4-63"><a href="#cb4-63" tabindex="-1"></a>  <span class="co"># uses target_mz_tol_ppm.</span></span>
-<span id="cb4-64"><a href="#cb4-64" tabindex="-1"></a>  <span class="at">target_mz_tol_type =</span> <span class="st">&quot;da&quot;</span>,</span>
-<span id="cb4-65"><a href="#cb4-65" tabindex="-1"></a>  <span class="co"># Absolute m/z tolerance in Da for matching features to targets. Used only when</span></span>
-<span id="cb4-66"><a href="#cb4-66" tabindex="-1"></a>  <span class="co"># target_mz_tol_type = &quot;da&quot;.</span></span>
-<span id="cb4-67"><a href="#cb4-67" tabindex="-1"></a>  <span class="at">target_mz_tol_da =</span> <span class="fl">0.005</span>,</span>
-<span id="cb4-68"><a href="#cb4-68" tabindex="-1"></a>  <span class="co"># Relative m/z tolerance in ppm for matching features to targets. Used only</span></span>
-<span id="cb4-69"><a href="#cb4-69" tabindex="-1"></a>  <span class="co"># when target_mz_tol_type = &quot;ppm&quot;.</span></span>
-<span id="cb4-70"><a href="#cb4-70" tabindex="-1"></a>  <span class="at">target_mz_tol_ppm =</span> <span class="dv">10</span>,</span>
-<span id="cb4-71"><a href="#cb4-71" tabindex="-1"></a>  <span class="co"># Maximum retention-time difference in minutes between a feature and a target.</span></span>
-<span id="cb4-72"><a href="#cb4-72" tabindex="-1"></a>  <span class="co"># Both the m/z and retention-time conditions must pass for a target match.</span></span>
-<span id="cb4-73"><a href="#cb4-73" tabindex="-1"></a>  <span class="at">target_rt_tol =</span> <span class="fl">0.05</span></span>
-<span id="cb4-74"><a href="#cb4-74" tabindex="-1"></a>)</span></code></pre></div>
+<div id="remove-blank-associated-features" class="section level2">
+<h2>3. Remove blank-associated features</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_filter_blank.html"><code>mc_filter_blank()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_plot_blank.html"><code>mc_plot_blank()</code></a>.</p>
+<p><code>groups</code> is required: replace <code>&quot;Blank&quot;</code> with
+your blank group name(s). The default compares mean blank intensity
+against biological-group means. Use <code>mode = &quot;drop_detected&quot;</code>
+for the alternative detection-based rule.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>after_blank <span class="ot">&lt;-</span> <span class="fu">mc_filter_blank</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  <span class="at">x =</span> imported,</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">groups =</span> <span class="st">&quot;Blank&quot;</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">mode =</span> <span class="st">&quot;mean_cutoff&quot;</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">cutoff =</span> <span class="fl">0.10</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">labels =</span> <span class="cn">NULL</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>)</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="fu">mc_plot_blank</span>(<span class="at">x =</span> after_blank, <span class="at">interactive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="fu">head</span>(after_blank<span class="sc">$</span>blank_tbl)</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="fu">head</span>(after_blank<span class="sc">$</span>removed_ids<span class="sc">$</span>blank)</span></code></pre></div>
+<p>The plot and <code>blank_tbl</code> show saved comparisons.
+<code>removed_ids$blank</code> identifies features removed at this
+stage. For static plots, change <code>interactive</code> to
+<code>FALSE</code>.</p>
 </div>
-<div id="qc-and-blank-recipes" class="section level2">
-<h2>QC and blank recipes</h2>
-<p>QC examples below illustrate options. <code>group_any</code> requires
-at least one group to pass each metric, <code>group_every</code>
-requires all selected groups, and <code>pooled</code> combines selected
-samples. Selected metrics are combined with AND. D-ratio requires a
-genuine QC group and enough replicate samples.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>after_blank <span class="ot">&lt;-</span> <span class="fu">mc_filter_blank</span>(imported, <span class="at">groups =</span> <span class="st">&quot;Blank&quot;</span>,</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>                               <span class="at">mode =</span> <span class="st">&quot;mean_cutoff&quot;</span>, <span class="at">cutoff =</span> <span class="fl">0.10</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co"># Alternative, starting again from imported:</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>after_detected <span class="ot">&lt;-</span> <span class="fu">mc_filter_blank</span>(imported, <span class="at">groups =</span> <span class="st">&quot;Blank&quot;</span>,</span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>                                  <span class="at">mode =</span> <span class="st">&quot;drop_detected&quot;</span>)</span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>after_qc <span class="ot">&lt;-</span> <span class="fu">mc_filter_qc</span>(</span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  imported, <span class="at">filters =</span> <span class="fu">c</span>(<span class="st">&quot;zeros&quot;</span>, <span class="st">&quot;mean&quot;</span>, <span class="st">&quot;rsd&quot;</span>, <span class="st">&quot;min&quot;</span>),</span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="at">mode =</span> <span class="st">&quot;group_every&quot;</span>, <span class="at">groups =</span> <span class="st">&quot;Sample&quot;</span>,</span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  <span class="at">zero_metric =</span> <span class="st">&quot;percent&quot;</span>, <span class="at">zero_cutoff =</span> <span class="dv">50</span>,</span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  <span class="at">mean_cutoff =</span> <span class="dv">5000</span>, <span class="at">rsd_cutoff =</span> <span class="dv">30</span>, <span class="at">min_cutoff =</span> <span class="dv">1000</span></span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>)</span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co"># For YOUR data with QC replicates:</span></span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co"># after_dratio &lt;- mc_filter_qc(</span></span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#   your_data, filters = &quot;dratio&quot;, groups = &quot;Sample&quot;,</span></span>
-<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#   mode = &quot;pooled&quot;, qc_group = &quot;QC&quot;, dratio_cutoff = 50</span></span>
-<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co"># )</span></span></code></pre></div>
-</div>
-<div id="labels-column-selection-and-custom-targets" class="section level2">
-<h2>Labels, column selection and custom targets</h2>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Alternative label sources (choose one):</span></span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>label_file <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;Label.csv&quot;</span>,</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>                          <span class="at">package =</span> <span class="st">&quot;MetaboCensoR&quot;</span>, <span class="at">mustWork =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>imported<span class="sc">$</span>labels <span class="ot">&lt;-</span> <span class="fu">mc_labels_from_csv</span>(label_file, imported<span class="sc">$</span>sample_cols)</span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>imported<span class="sc">$</span>labels <span class="ot">&lt;-</span> <span class="fu">mc_labels_from_names</span>(imported<span class="sc">$</span>sample_cols,</span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>                                        <span class="at">separator =</span> <span class="st">&quot;_&quot;</span>, <span class="at">token =</span> <span class="dv">2</span>)</span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co"># Or provide a named vector covering every sample:</span></span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>my_labels <span class="ot">&lt;-</span> <span class="fu">setNames</span>(<span class="fu">unname</span>(imported<span class="sc">$</span>labels), imported<span class="sc">$</span>sample_cols)</span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>imported<span class="sc">$</span>labels <span class="ot">&lt;-</span> my_labels</span>
-<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a></span>
-<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co"># Exact names or positions after input-format conversion:</span></span>
-<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>manual <span class="ot">&lt;-</span> <span class="fu">mc_prepare</span>(peak_file, <span class="at">type =</span> <span class="st">&quot;mzmine&quot;</span>,</span>
-<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>                      <span class="at">sample_cols =</span> imported<span class="sc">$</span>sample_cols)</span>
-<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co"># sample_cols = c(4, 5, 6) is also allowed: verify your column positions first.</span></span>
-<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a></span>
-<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co"># Illustrative targets:</span></span>
-<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a>targets <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">mz =</span> <span class="fu">c</span>(<span class="fl">300.123</span>, <span class="fl">450.234</span>), <span class="at">rt =</span> <span class="fu">c</span>(<span class="fl">5.2</span>, <span class="fl">8.1</span>))</span>
-<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a>target_options <span class="ot">&lt;-</span> <span class="fu">mc_peak_parameters</span>(</span>
-<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a>  <span class="at">target_peak_action =</span> <span class="st">&quot;remove&quot;</span>, <span class="at">target_mz_tol_type =</span> <span class="st">&quot;ppm&quot;</span>,</span>
-<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>  <span class="at">target_mz_tol_ppm =</span> <span class="dv">10</span>, <span class="at">target_rt_tol =</span> <span class="fl">0.05</span></span>
-<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a>)</span>
-<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a>after_target <span class="ot">&lt;-</span> <span class="fu">mc_filter_peak</span>(imported, <span class="at">filters =</span> <span class="st">&quot;target&quot;</span>,</span>
-<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>                               <span class="at">parameters =</span> target_options, <span class="at">targets =</span> targets)</span>
-<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a>after_target<span class="sc">$</span>target_matches</span>
-<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a><span class="co"># Alternatively: targets = &quot;targets.csv&quot; or</span></span>
-<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a><span class="co"># target_text = &quot;300.123,5.2\n450.234,8.1&quot;</span></span>
+<div id="configure-and-apply-ms-filtering" class="section level2">
+<h2>4. Configure and apply MS filtering</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_ms_parameters.html"><code>mc_ms_parameters()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_filter_ms.html"><code>mc_filter_ms()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_plot_ms.html"><code>mc_plot_ms()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_read_mgf.html"><code>mc_read_mgf()</code></a>.</p>
+<div id="complete-ms-parameter-template" class="section level3">
+<h3>Complete MS parameter template</h3>
+<p>All settings below are defaults. RT tolerances are in minutes. Each
+subfilter uses only the mass tolerance selected by its
+<code>&quot;da&quot;</code>/<code>&quot;ppm&quot;</code> setting. Set <code>add_pol2</code>
+and <code>nl_pol2</code> separately for negative-mode analyses. With
+<code>filters = NULL</code>, the enable flags select subfilters; by
+default only isotopes and adducts are enabled. An explicit filter vector
+overrides these flags.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>ms_options <span class="ot">&lt;-</span> <span class="fu">mc_ms_parameters</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="co"># ISOTOPE FILTERING</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">enable_iso2 =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">iso_cor2 =</span> <span class="fl">0.8</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">iso_rt2 =</span> <span class="fl">0.01</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="at">iso_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="at">iso_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="at">iso_ppm2 =</span> <span class="dv">10</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>  <span class="at">iso_zmax2 =</span> <span class="dv">3</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>  <span class="at">iso_n2 =</span> <span class="dv">1</span>,</span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>  <span class="at">iso_nd2 =</span> <span class="dv">3</span>,</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>  <span class="co"># ADDUCT FILTERING</span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a>  <span class="at">enable_add2 =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a>  <span class="at">add_pol2 =</span> <span class="st">&quot;positive&quot;</span>,</span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a>  <span class="at">add_cor2 =</span> <span class="fl">0.8</span>,</span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a>  <span class="at">add_rt2 =</span> <span class="fl">0.005</span>,</span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a>  <span class="at">add_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>  <span class="at">add_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a>  <span class="at">add_ppm2 =</span> <span class="dv">10</span>,</span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a>  <span class="at">add_min_nm2 =</span> <span class="dv">50</span>,</span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>  <span class="at">add_strict_rt2 =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a>  <span class="at">add_prefer2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a>  <span class="at">add_preferred2 =</span> <span class="cn">NULL</span>,</span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>  <span class="at">add_prefer_pct2 =</span> <span class="dv">10</span>,</span>
 <span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a></span>
-<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a><span class="co"># Optional custom neutral-loss definitions, using YOUR local CSV:</span></span>
-<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a><span class="co"># after_nl &lt;- mc_filter_ms(imported, filters = &quot;neutral_losses&quot;,</span></span>
-<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a><span class="co">#   parameters = mc_ms_parameters(nl_pol2 = &quot;negative&quot;),</span></span>
-<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a><span class="co">#   neutral_losses = &quot;neutral_losses.csv&quot;)</span></span></code></pre></div>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a>  <span class="co"># NEUTRAL-LOSS FILTERING</span></span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a>  <span class="at">enable_nl2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>  <span class="at">nl_pol2 =</span> <span class="st">&quot;positive&quot;</span>,</span>
+<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a>  <span class="at">nl_cor2 =</span> <span class="fl">0.95</span>,</span>
+<span id="cb6-32"><a href="#cb6-32" tabindex="-1"></a>  <span class="at">nl_rt2 =</span> <span class="fl">0.002</span>,</span>
+<span id="cb6-33"><a href="#cb6-33" tabindex="-1"></a>  <span class="at">nl_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
+<span id="cb6-34"><a href="#cb6-34" tabindex="-1"></a>  <span class="at">nl_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
+<span id="cb6-35"><a href="#cb6-35" tabindex="-1"></a>  <span class="at">nl_ppm2 =</span> <span class="dv">10</span>,</span>
+<span id="cb6-36"><a href="#cb6-36" tabindex="-1"></a></span>
+<span id="cb6-37"><a href="#cb6-37" tabindex="-1"></a>  <span class="co"># IN-SOURCE FRAGMENT FILTERING</span></span>
+<span id="cb6-38"><a href="#cb6-38" tabindex="-1"></a>  <span class="at">enable_isf2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-39"><a href="#cb6-39" tabindex="-1"></a>  <span class="at">isf_cor2 =</span> <span class="fl">0.95</span>,</span>
+<span id="cb6-40"><a href="#cb6-40" tabindex="-1"></a>  <span class="at">isf_rt2 =</span> <span class="fl">0.01</span>,</span>
+<span id="cb6-41"><a href="#cb6-41" tabindex="-1"></a>  <span class="at">isf_control_int2 =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-42"><a href="#cb6-42" tabindex="-1"></a>  <span class="at">isf_ratio_min2 =</span> <span class="fl">0.001</span>,</span>
+<span id="cb6-43"><a href="#cb6-43" tabindex="-1"></a>  <span class="at">isf_ratio_max2 =</span> <span class="fl">2.5</span>,</span>
+<span id="cb6-44"><a href="#cb6-44" tabindex="-1"></a>  <span class="at">isf_ms2_check2 =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb6-45"><a href="#cb6-45" tabindex="-1"></a>  <span class="at">isf_ms2_rel2 =</span> <span class="dv">1</span>,</span>
+<span id="cb6-46"><a href="#cb6-46" tabindex="-1"></a>  <span class="at">isf_ms2_mz_tol2 =</span> <span class="fl">0.01</span>,</span>
+<span id="cb6-47"><a href="#cb6-47" tabindex="-1"></a>  <span class="at">isf_mgf_id_field =</span> <span class="st">&quot;acquisitionNum&quot;</span>,</span>
+<span id="cb6-48"><a href="#cb6-48" tabindex="-1"></a></span>
+<span id="cb6-49"><a href="#cb6-49" tabindex="-1"></a>  <span class="co"># MISPICKED-ION FILTERING</span></span>
+<span id="cb6-50"><a href="#cb6-50" tabindex="-1"></a>  <span class="at">enable_mis2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-51"><a href="#cb6-51" tabindex="-1"></a>  <span class="at">mis_cor2 =</span> <span class="fl">0.8</span>,</span>
+<span id="cb6-52"><a href="#cb6-52" tabindex="-1"></a>  <span class="at">mis_rt2 =</span> <span class="fl">0.002</span>,</span>
+<span id="cb6-53"><a href="#cb6-53" tabindex="-1"></a>  <span class="at">mis_tol_type2 =</span> <span class="st">&quot;ppm&quot;</span>,</span>
+<span id="cb6-54"><a href="#cb6-54" tabindex="-1"></a>  <span class="at">mis_mz_tol2 =</span> <span class="fl">0.005</span>,</span>
+<span id="cb6-55"><a href="#cb6-55" tabindex="-1"></a>  <span class="at">mis_ppm2 =</span> <span class="dv">10</span>,</span>
+<span id="cb6-56"><a href="#cb6-56" tabindex="-1"></a></span>
+<span id="cb6-57"><a href="#cb6-57" tabindex="-1"></a>  <span class="co"># RINGING/SATURATED-ION FILTERING</span></span>
+<span id="cb6-58"><a href="#cb6-58" tabindex="-1"></a>  <span class="at">enable_ring2 =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-59"><a href="#cb6-59" tabindex="-1"></a>  <span class="at">ring_cor2 =</span> <span class="fl">0.8</span>,</span>
+<span id="cb6-60"><a href="#cb6-60" tabindex="-1"></a>  <span class="at">ring_rt2 =</span> <span class="fl">0.05</span>,</span>
+<span id="cb6-61"><a href="#cb6-61" tabindex="-1"></a>  <span class="at">ring_tol_type2 =</span> <span class="st">&quot;da&quot;</span>,</span>
+<span id="cb6-62"><a href="#cb6-62" tabindex="-1"></a>  <span class="at">ring_mz_tol2 =</span> <span class="fl">0.95</span>,</span>
+<span id="cb6-63"><a href="#cb6-63" tabindex="-1"></a>  <span class="at">ring_ppm2 =</span> <span class="dv">500</span>,</span>
+<span id="cb6-64"><a href="#cb6-64" tabindex="-1"></a>  <span class="at">ring_min_anch2 =</span> <span class="fl">1e+05</span>,</span>
+<span id="cb6-65"><a href="#cb6-65" tabindex="-1"></a>  <span class="at">ring_ratio2 =</span> <span class="dv">10</span>,</span>
+<span id="cb6-66"><a href="#cb6-66" tabindex="-1"></a>  <span class="at">ring_bidirectional2 =</span> <span class="cn">FALSE</span></span>
+<span id="cb6-67"><a href="#cb6-67" tabindex="-1"></a>)</span></code></pre></div>
 </div>
-<div id="functions-and-arguments" class="section level2">
-<h2>Functions and arguments</h2>
-<p>Each template shows the complete argument list. Choice vectors in
-templates list allowed alternatives; normally select one string.
-<code>...</code> in parameter constructors accepts the named settings
-listed above.</p>
-<div id="mc_prepare" class="section level3">
-<h3>mc_prepare</h3>
-<p>Read a feature-by-sample peak table, identify intensity columns, and
-assign sample groups. Feature metadata are retained alongside the
-intensity values.</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># mc_prepare(data, type = c(&quot;mzmine&quot;, &quot;generic&quot;, &quot;xcms&quot;, &quot;msdial&quot;), </span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#     sample_cols = NULL, sample_keywords = NULL, id_col = NULL, </span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#     mz_col = NULL, rt_col = NULL, labels = NULL, token_sep = &quot;_&quot;, </span></span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#     token_index = 2)</span></span></code></pre></div>
-<ul>
-<li><code>data</code>: A local CSV filename or a data frame with one
-feature per row. Bundled files can be located with
-<code>system.file()</code>. For a web-hosted CSV, first read it with
-<code>vroom::vroom(url, delim = &quot;,&quot;)</code> and pass the resulting
-table.</li>
-<li><code>type</code>: Input format: <code>&quot;mzmine&quot;</code> (default),
-<code>&quot;generic&quot;</code>, <code>&quot;xcms&quot;</code>, or <code>&quot;msdial&quot;</code>.
-XCMS retention times are converted from seconds to minutes. Other
-formats require retention times in minutes. See <a href="https://github.com/plyush1993/MetaboCensoR/tree/main/Input_Examples">compatible
-peak-table examples</a> for the supported input layouts.</li>
-<li><code>sample_cols</code>: Intensity-column names or integer column
-positions after format conversion and column cleanup. Explicit
-selections take precedence over <code>sample_keywords</code>.</li>
-<li><code>sample_keywords</code>: Case-sensitive literal substrings used
-to identify intensity columns. A column is selected if its name contains
-at least one substring. If neither selector is supplied, columns with at
-least 70% finite numeric entries are considered, excluding identified
-feature columns and names beginning with row.</li>
-<li><code>id_col</code>: Feature-ID column name. If omitted, searches
-for row ID, Feature ID, or Alignment ID, then uses the first column.
-Original names recognized during format conversion may also be
-supplied.</li>
-<li><code>mz_col</code>: Feature m/z column name. Defaults to the
-standardized <code>mz</code> column; recognized original column names
-are accepted.</li>
-<li><code>rt_col</code>: Retention-time column name. Defaults to the
-standardized <code>rt</code> column; recognized original column names
-are accepted.</li>
-<li><code>labels</code>: One nonempty group label per sample. An unnamed
-vector must follow the selected sample columns; a named vector is
-matched to their names. If omitted, groups are extracted from sample
-names using <code>token_sep</code> and <code>token_index</code>.</li>
-<li><code>token_sep</code>: Literal separator used to split sample names
-when labels are omitted. Default: <code>&quot;_&quot;</code>.</li>
-<li><code>token_index</code>: One-based position of the group name in
-each split sample name. Default: 2.</li>
-</ul>
+<div id="apply-ms-filters" class="section level3">
+<h3>Apply MS filters</h3>
+<p>The <code>ms_options</code> list above has the same values as the
+default <code>mc_ms_parameters()</code> call. Passing it explicitly
+makes the template editable.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>after_ms <span class="ot">&lt;-</span> <span class="fu">mc_filter_ms</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  <span class="at">x =</span> after_blank,</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">filters =</span> <span class="cn">NULL</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">parameters =</span> ms_options,</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="at">adducts =</span> <span class="cn">NULL</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="at">neutral_losses =</span> <span class="cn">NULL</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  <span class="at">spectra =</span> <span class="cn">NULL</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>)</span></code></pre></div>
+<p>To select filters explicitly, replace <code>filters = NULL</code>
+with, for example,
+<code>filters = c(&quot;isotopes&quot;, &quot;adducts&quot;, &quot;isf&quot;)</code>. ISF requires
+spectra when <code>isf_ms2_check2 = TRUE</code>.
+<strong>Optional:</strong> read an MGF before the call above and change
+<code>spectra = NULL</code> to <code>spectra = spectra</code>. Match the
+MGF feature-ID field to your data. For MS1-only ISF, change
+<code>isf_ms2_check2</code> to <code>FALSE</code> in the parameter
+template. Custom adduct and neutral-loss CSV paths or data frames
+replace their respective <code>NULL</code> arguments; see Reference for
+their required columns.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>spectra <span class="ot">&lt;-</span> <span class="fu">mc_read_mgf</span>(<span class="at">path =</span> <span class="st">&quot;your_spectra.mgf&quot;</span>)</span></code></pre></div>
 </div>
-<div id="mc_labels_from_names" class="section level3">
-<h3>mc_labels_from_names</h3>
-<p>Split each sample name at a chosen separator and use one part as its
-group label.</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># mc_labels_from_names(sample_names, separator = &quot;_&quot;, token = 2)</span></span></code></pre></div>
-<ul>
-<li><code>sample_names</code>: Character vector of sample-column names,
-in the required output order.</li>
-<li><code>separator</code>: Literal separator, not a regular expression.
-Default: <code>&quot;_&quot;</code>.</li>
-<li><code>token</code>: Positive integer giving the one-based position
-of the group name. Default: 2.</li>
-</ul>
+<div id="inspect-ms-results" class="section level3">
+<h3>Inspect MS results</h3>
+<p>Annotation tables describe inferred ion relationships. A table can be
+<code>NULL</code> when its subfilter was not run. These assignments
+support redundancy reduction and do not by themselves establish compound
+identity.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">mc_plot_ms</span>(<span class="at">x =</span> after_ms, <span class="at">interactive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>after_ms<span class="sc">$</span>ms<span class="sc">$</span>counts</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="fu">head</span>(after_ms<span class="sc">$</span>removed_ids<span class="sc">$</span>ms)</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co"># Isotopes and adducts</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="fu">head</span>(after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>iso_table)</span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="fu">head</span>(after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>add_table)</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a><span class="co"># Other subfilters (NULL if not run)</span></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a><span class="fu">head</span>(after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>nl_table)</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a><span class="fu">head</span>(after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>isf_table)</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a><span class="fu">head</span>(after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>mis_table)</span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="fu">head</span>(after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>ring_table)</span></code></pre></div>
 </div>
-<div id="mc_labels_from_metadata" class="section level3">
-<h3>mc_labels_from_metadata</h3>
-<p>Read sample names and groups from two metadata columns and align the
-group labels to the peak-table sample order.</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># mc_labels_from_metadata(path, sample_names, sample_col, label_col, clean_names = FALSE, </span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#     remove_suffixes = NULL)</span></span></code></pre></div>
-<ul>
-<li><code>path</code>: Local metadata CSV filename. The first row must
-contain column names. Download remote files before calling this
-function.</li>
-<li><code>sample_names</code>: Sample-column names to match, in the
-required output order.</li>
-<li><code>sample_col</code>: Exact metadata column name containing
-sample identifiers.</li>
-<li><code>label_col</code>: Exact metadata column name containing group
-labels.</li>
-<li><code>clean_names</code>: If <code>TRUE</code>, also remove the
-suffixes specified in <code>remove_suffixes</code> from both sets of
-names before matching. Default: <code>FALSE</code>.</li>
-<li><code>remove_suffixes</code>: Optional trailing strings to remove,
-for example <code>c(&quot; Peak area&quot;, &quot;.mzML&quot;)</code>. Suffix removal is
-case-insensitive and is used only when
-<code>clean_names = TRUE</code>.</li>
-</ul>
 </div>
-<div id="mc_labels_from_csv" class="section level3">
-<h3>mc_labels_from_csv</h3>
-<p>Read a headerless CSV containing one sample-group label per row.</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># mc_labels_from_csv(path, sample_names)</span></span></code></pre></div>
-<ul>
-<li><code>path</code>: Filename of a comma-separated, headerless label
-file. The first column is read as the label vector.</li>
-<li><code>sample_names</code>: Sample-column names in the same order as
-the labels in the file.</li>
-</ul>
-</div>
-<div id="mc_filter_blank" class="section level3">
-<h3>mc_filter_blank</h3>
-<p>Compare feature intensities in blank and experimental groups, or
-remove every feature detected in a blank sample. Save the values and
-decisions for inspection and plotting.</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="co"># mc_filter_blank(x, groups, mode = c(&quot;mean_cutoff&quot;, &quot;drop_detected&quot;), </span></span>
-<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="co">#     cutoff = 0.1, labels = NULL)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>groups</code>: One or more existing group labels identifying
-blanks, for example <code>&quot;Blank&quot;</code>. All remaining groups are
-treated as experimental groups in ratio mode.</li>
-<li><code>mode</code>: <code>&quot;mean_cutoff&quot;</code> (default) compares
-blank and experimental group means. <code>&quot;drop_detected&quot;</code> removes
-any feature with intensity greater than zero in any selected blank
-sample.</li>
-<li><code>cutoff</code>: Nonnegative blank-to-sample ratio threshold,
-default 0.10. Used only in <code>&quot;mean_cutoff&quot;</code> mode. A ratio
-equal to the cutoff does not pass.</li>
-<li><code>labels</code>: Optional sample-group labels. An unnamed vector
-must follow <code>x$sample_cols</code>; a named vector must cover those
-sample names exactly. <code>NULL</code> uses <code>x$labels</code>.</li>
-</ul>
-</div>
-<div id="mc_filter_qc" class="section level3">
-<h3>mc_filter_qc</h3>
-<p>Calculate zero abundance, mean intensity, relative standard
-deviation, D-ratio, or minimum intensity for selected sample groups,
-then retain features that pass every selected metric.</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># mc_filter_qc(x, filters = character(), mode = c(&quot;group_any&quot;, &quot;group_every&quot;, </span></span>
-<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="co">#     &quot;pooled&quot;), groups = NULL, zero_metric = c(&quot;count&quot;, &quot;percent&quot;), </span></span>
-<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co">#     zero_cutoff = 1, mean_cutoff = 5000, rsd_cutoff = 30, min_cutoff = 1000, </span></span>
-<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#     qc_group = NULL, dratio_cutoff = 50, labels = NULL)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>filters</code>: Character vector containing any of
+<div id="apply-qc-filters" class="section level2">
+<h2>5. Apply QC filters</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_filter_qc.html"><code>mc_filter_qc()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_plot_qc.html"><code>mc_plot_qc()</code></a>.</p>
+<p>The default <code>filters = character()</code> selects no criteria
+and removes nothing. To activate QC filtering, edit it to, for example,
+<code>c(&quot;zeros&quot;, &quot;rsd&quot;)</code>. Available criteria are
 <code>&quot;zeros&quot;</code>, <code>&quot;mean&quot;</code>, <code>&quot;rsd&quot;</code>,
-<code>&quot;dratio&quot;</code>, and <code>&quot;min&quot;</code>. The default empty vector
-removes nothing.</li>
-<li><code>mode</code>: <code>&quot;group_any&quot;</code> (default): each metric
-must pass in at least one selected group. <code>&quot;group_every&quot;</code>:
-each metric must pass in every selected group. <code>&quot;pooled&quot;</code>:
-combine selected samples before calculating each metric.</li>
-<li><code>groups</code>: Group labels to evaluate. <code>NULL</code> or
-an empty vector selects all groups. For D-ratio, the group specified by
-<code>qc_group</code> is excluded from the biological denominator.
-Select biological groups explicitly to avoid including blanks.</li>
-<li><code>zero_metric</code>: Express zeros as <code>&quot;count&quot;</code> or
-<code>&quot;percent&quot;</code> of evaluated samples.</li>
-<li><code>zero_cutoff</code>: Zero-count or zero-percentage threshold.
-Default: 1. Features pass only when their zero count or percentage is
-strictly less than this threshold. With <code>&quot;zero_metric&quot;</code> =
-<code>&quot;count&quot;</code>, a cutoff of 1 allows no zeros. With
-<code>&quot;zero_metric&quot;</code> = <code>&quot;percent&quot;</code>, a cutoff of 50
-rejects features with exactly 50 percent zeros.</li>
-<li><code>mean_cutoff</code>: Minimum arithmetic mean intensity.
-Equality passes. Default: 5000.</li>
-<li><code>rsd_cutoff</code>: Maximum RSD in percent. Equality passes.
-Default: 30.</li>
-<li><code>min_cutoff</code>: Minimum observed intensity. Equality
-passes. Default: 1000.</li>
-<li><code>qc_group</code>: Exactly one existing pooled-QC group label
-for D-ratio, containing at least two samples. Required only when dratio
-is selected.</li>
-<li><code>dratio_cutoff</code>: Maximum D-ratio in percent. Equality
-passes. Default: 50.</li>
-<li><code>labels</code>: Optional sample-group labels. An unnamed vector
-must follow <code>x$sample_cols</code>; a named vector must cover those
-sample names exactly. <code>NULL</code> uses <code>x$labels</code>.</li>
-</ul>
+<code>&quot;dratio&quot;</code>, and <code>&quot;min&quot;</code>. Before enabling them,
+replace <code>groups = NULL</code> with the intended evaluation groups;
+<code>NULL</code> includes all groups, potentially including blanks.</p>
+<p><code>group_any</code> requires each metric to pass in at least one
+group (different groups may satisfy different metrics);
+<code>group_every</code> requires every selected group to pass each
+metric; <code>pooled</code> combines the selected samples. Selected
+metrics are combined with AND. For D-ratio, specify a genuine pooled-QC
+group in <code>qc_group</code> and biological groups in
+<code>groups</code>.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>after_qc <span class="ot">&lt;-</span> <span class="fu">mc_filter_qc</span>(</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>  <span class="at">x =</span> after_ms,</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  <span class="at">filters =</span> <span class="fu">character</span>(),</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  <span class="at">mode =</span> <span class="st">&quot;group_any&quot;</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>  <span class="at">groups =</span> <span class="cn">NULL</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>  <span class="at">zero_metric =</span> <span class="st">&quot;count&quot;</span>,</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>  <span class="at">zero_cutoff =</span> <span class="dv">1</span>,</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>  <span class="at">mean_cutoff =</span> <span class="dv">5000</span>,</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="at">rsd_cutoff =</span> <span class="dv">30</span>,</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>  <span class="at">min_cutoff =</span> <span class="dv">1000</span>,</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>  <span class="at">qc_group =</span> <span class="cn">NULL</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>  <span class="at">dratio_cutoff =</span> <span class="dv">50</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>  <span class="at">labels =</span> <span class="cn">NULL</span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>)</span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a><span class="fu">head</span>(after_qc<span class="sc">$</span>qc_tbl)</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a><span class="fu">head</span>(after_qc<span class="sc">$</span>removed_ids<span class="sc">$</span>qc)</span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a><span class="co"># QC values and plots exist only when criteria were selected.</span></span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(after_qc<span class="sc">$</span>qc_tbl) <span class="sc">&amp;&amp;</span> <span class="fu">nrow</span>(after_qc<span class="sc">$</span>qc_tbl) <span class="sc">&gt;</span> <span class="dv">0</span><span class="dt">L</span>) {</span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>  <span class="fu">mc_plot_qc</span>(<span class="at">x =</span> after_qc, <span class="at">filters =</span> <span class="cn">NULL</span>, <span class="at">interactive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a>}</span></code></pre></div>
+<p><code>qc_tbl</code> contains metric values and decisions.
+<code>pass</code> is the group-level decision; <code>keep</code> is the
+group-aggregated decision for that metric. Failures can overlap across
+metrics, so their counts should not be added to obtain total removed
+features. With the default zero-count cutoff of 1, a feature must have
+no zeros; equality fails the zero cutoff, whereas equality passes mean,
+RSD, minimum and D-ratio cutoffs.</p>
 </div>
-<div id="mc_filter_ms" class="section level3">
-<h3>mc_filter_ms</h3>
-<p>Apply isotope, adduct, neutral-loss, in-source-fragment,
-mispicked-ion, and ringing-artifact filters. Retain representative
-features and expose the annotation tables for inspection.</p>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="co"># mc_filter_ms(x, filters = NULL, parameters = mc_ms_parameters(), </span></span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#     adducts = NULL, neutral_losses = NULL, spectra = NULL)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>filters</code>: Any of <code>&quot;isotopes&quot;</code>,
-<code>&quot;adducts&quot;</code>, <code>&quot;neutral_losses&quot;</code>,
-<code>&quot;isf&quot;</code>, <code>&quot;mispicked&quot;</code>, and
-<code>&quot;ringing&quot;</code>. An explicit vector overrides enable flags in
-parameters. <code>NULL</code> uses those flags; isotopes and adducts are
-enabled by default. <code>character(0)</code> disables all
-subfilters.</li>
-<li><code>parameters</code>: Named list from
-<code>mc_ms_parameters()</code>. Pass your list explicitly with
-<code>parameters = ms_options</code>.</li>
-<li><code>adducts</code>: Custom adduct data frame or local CSV
-filename. NULL uses built-in definitions. Required columns are described
-below.</li>
-<li><code>neutral_losses</code>: Custom neutral-loss data frame or local
-CSV filename. NULL uses built-in definitions. Required columns are
-described below.</li>
-<li><code>spectra</code>: A <code>Spectra</code> object, for example
-from <code>mc_read_mgf()</code>. Required for ISF when MS2 checking is
-enabled.</li>
-</ul>
+<div id="configure-and-apply-peak-filtering" class="section level2">
+<h2>6. Configure and apply peak filtering</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_peak_parameters.html"><code>mc_peak_parameters()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_filter_peak.html"><code>mc_filter_peak()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_plot_peak.html"><code>mc_plot_peak()</code></a>.</p>
+<div id="complete-peak-parameter-template" class="section level3">
+<h3>Complete peak parameter template</h3>
+<p>No peak filters are selected by default. Set
+<code>peak_filters</code>, for example to <code>c(&quot;mz&quot;, &quot;rt&quot;)</code>, to
+activate criteria. Enabled bounds apply only to selected filters. RT is
+in minutes, RMD in ppm, and AMD in Da.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>peak_options <span class="ot">&lt;-</span> <span class="fu">mc_peak_parameters</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="co"># Filter selection</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="at">peak_filters =</span> <span class="fu">character</span>(),</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  <span class="co"># m/z</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  <span class="at">mz_min_enable =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>  <span class="at">mz_max_enable =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>  <span class="at">peak_mz_min =</span> <span class="dv">200</span>,</span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>  <span class="at">peak_mz_max =</span> <span class="dv">1500</span>,</span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>  <span class="co"># Retention time</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>  <span class="at">rt_min_enable =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>  <span class="at">rt_max_enable =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>  <span class="at">peak_rt_min =</span> <span class="dv">1</span>,</span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a>  <span class="at">peak_rt_max =</span> <span class="dv">30</span>,</span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a>  <span class="co"># Relative mass defect</span></span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a>  <span class="at">rmd_min_enable =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a>  <span class="at">rmd_max_enable =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-21"><a href="#cb11-21" tabindex="-1"></a>  <span class="at">peak_rmd_min =</span> <span class="sc">-</span><span class="dv">2000</span>,</span>
+<span id="cb11-22"><a href="#cb11-22" tabindex="-1"></a>  <span class="at">peak_rmd_max =</span> <span class="dv">2000</span>,</span>
+<span id="cb11-23"><a href="#cb11-23" tabindex="-1"></a></span>
+<span id="cb11-24"><a href="#cb11-24" tabindex="-1"></a>  <span class="co"># Absolute mass defect</span></span>
+<span id="cb11-25"><a href="#cb11-25" tabindex="-1"></a>  <span class="at">amd_min_enable =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-26"><a href="#cb11-26" tabindex="-1"></a>  <span class="at">amd_max_enable =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-27"><a href="#cb11-27" tabindex="-1"></a>  <span class="at">peak_amd_min =</span> <span class="dv">0</span>,</span>
+<span id="cb11-28"><a href="#cb11-28" tabindex="-1"></a>  <span class="at">peak_amd_max =</span> <span class="fl">0.5</span>,</span>
+<span id="cb11-29"><a href="#cb11-29" tabindex="-1"></a></span>
+<span id="cb11-30"><a href="#cb11-30" tabindex="-1"></a>  <span class="co"># Target matching</span></span>
+<span id="cb11-31"><a href="#cb11-31" tabindex="-1"></a>  <span class="at">target_peak_action =</span> <span class="st">&quot;remove&quot;</span>,</span>
+<span id="cb11-32"><a href="#cb11-32" tabindex="-1"></a>  <span class="at">target_mz_tol_type =</span> <span class="st">&quot;da&quot;</span>,</span>
+<span id="cb11-33"><a href="#cb11-33" tabindex="-1"></a>  <span class="at">target_mz_tol_da =</span> <span class="fl">0.005</span>,</span>
+<span id="cb11-34"><a href="#cb11-34" tabindex="-1"></a>  <span class="at">target_mz_tol_ppm =</span> <span class="dv">10</span>,</span>
+<span id="cb11-35"><a href="#cb11-35" tabindex="-1"></a>  <span class="at">target_rt_tol =</span> <span class="fl">0.05</span></span>
+<span id="cb11-36"><a href="#cb11-36" tabindex="-1"></a>)</span></code></pre></div>
 </div>
-<div id="mc_filter_peak" class="section level3">
-<h3>mc_filter_peak</h3>
-<p>Apply selected feature-property bounds or match a list of m/z and
-retention-time targets. Store values and filtering decisions for
-plotting.</p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="co"># mc_filter_peak(x, filters = NULL, parameters = mc_peak_parameters(), </span></span>
-<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="co">#     targets = NULL, target_text = NULL)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>filters</code>: Any of <code>&quot;mz&quot;</code>, <code>&quot;rt&quot;</code>,
-<code>&quot;rmd&quot;</code>, <code>&quot;amd&quot;</code>, and <code>&quot;target&quot;</code>.
-<code>NULL</code> uses <code>parameters$peak_filters</code>; the default
-selects no filters.</li>
-<li><code>parameters</code>: Named list from
-<code>mc_peak_parameters()</code>, specifying enabled bounds and
-target-matching tolerances.</li>
-<li><code>targets</code>: Target data frame or local CSV filename with
-m/z and retention time in minutes. Use columns named <code>mz</code> and
-<code>rt</code>; if recognizable names are absent, the first two columns
-are used.</li>
-<li><code>target_text</code>: Optional comma-separated target rows as
-one string, with or without a header. These rows are combined with
-targets and duplicate m/z-RT pairs are removed.</li>
-</ul>
-</div>
-<div id="mc_ms_parameters" class="section level3">
-<h3>mc_ms_parameters</h3>
-<p>Create a complete named list of MS-filter settings, replacing
-selected defaults with your named arguments.</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co"># mc_ms_parameters(...)</span></span></code></pre></div>
-<ul>
-<li><code>...</code>: Named settings to replace. Supported names,
-meanings, units, and defaults are listed below. Unknown names raise an
-error.</li>
-</ul>
-</div>
-<div id="mc_peak_parameters" class="section level3">
-<h3>mc_peak_parameters</h3>
-<p>Create a complete named list of peak-filter settings with selected
-defaults replaced.</p>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="co"># mc_peak_parameters(...)</span></span></code></pre></div>
-<ul>
-<li><code>...</code>: Named settings to replace. Supported names,
-meanings, units, and defaults are listed below. Unknown names raise an
-error.</li>
-</ul>
-</div>
-<div id="mc_read_mgf" class="section level3">
-<h3>mc_read_mgf</h3>
-<p>Import an MGF file as a Spectra object for fragment confirmation or
-synchronized peak-table and spectral export.</p>
-<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># mc_read_mgf(path)</span></span></code></pre></div>
-<ul>
-<li><code>path</code>: Local MGF filename. Download a remote MGF to a
-local file before reading it.</li>
-</ul>
-</div>
-<div id="mc_filter_mgf" class="section level3">
-<h3>mc_filter_mgf</h3>
-<p>Subset a Spectra object using the feature IDs in a filtered result or
-a supplied table.</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="co"># mc_filter_mgf(spectra, table, match_col = NULL, id_field = &quot;acquisitionNum&quot;)</span></span></code></pre></div>
-<ul>
-<li><code>spectra</code>: A <code>Spectra</code> object to subset.</li>
-<li><code>table</code>: A <code>metabocensor_result</code> or a data
-frame identifying the features to retain.</li>
-<li><code>match_col</code>: Feature-ID column. With a result object,
-<code>NULL</code> uses its selected ID column; with a data frame,
-<code>NULL</code> uses the first column. An explicit name for a result
-object refers to the input-format exported table.</li>
-<li><code>id_field</code>: Spectrum metadata field containing feature
-IDs. Default: <code>&quot;acquisitionNum&quot;</code>.</li>
-</ul>
-</div>
-<div id="mc_write_mgf" class="section level3">
-<h3>mc_write_mgf</h3>
-<p>Export a Spectra object to a specified MGF file.</p>
-<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># mc_write_mgf(spectra, path)</span></span></code></pre></div>
-<ul>
-<li><code>spectra</code>: A <code>Spectra</code> object to export.</li>
-<li><code>path</code>: Output MGF filename, including the desired
-directory. An existing file may be overwritten.</li>
-</ul>
-</div>
-<div id="mc_final_table" class="section level3">
-<h3>mc_final_table</h3>
-<p>Return retained features as a data frame in the original,
-standardized, or internal layout.</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a><span class="co"># mc_final_table(x, format = c(&quot;input&quot;, &quot;standard&quot;, &quot;internal&quot;))</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>format</code>: Output layout: <code>&quot;input&quot;</code> restores
-original column names and order, metadata columns, and XCMS retention
-times in seconds; <code>&quot;standard&quot;</code> returns Feature ID, mz, rt in
-minutes, and sample intensities; <code>&quot;internal&quot;</code> returns the
-current table including <code>.FID</code>.</li>
-</ul>
-</div>
-<div id="mc_write_table" class="section level3">
-<h3>mc_write_table</h3>
-<p>Export retained features to a CSV file with a chosen column
-layout.</p>
-<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="co"># mc_write_table(x, path, format = c(&quot;input&quot;, &quot;standard&quot;, &quot;internal&quot;))</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>path</code>: Output CSV filename, including the desired
-directory. Existing output is overwritten.</li>
-<li><code>format</code>: Output layout: <code>&quot;input&quot;</code> restores
-original column names and order, metadata columns, and XCMS retention
-times in seconds; <code>&quot;standard&quot;</code> returns Feature ID, mz, rt in
-minutes, and sample intensities; <code>&quot;internal&quot;</code> returns the
-current table including <code>.FID</code>.</li>
-</ul>
-</div>
-<div id="mc_export" class="section level3">
-<h3>mc_export</h3>
-<p>Collect the current filtered peak table and optionally retain
-matching MGF spectra. Write either or both outputs when filenames are
-supplied.</p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a><span class="co"># mc_export(x, csv = NULL, mgf = NULL, mgf_file = NULL, id_field = &quot;acquisitionNum&quot;, </span></span>
-<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="co">#     match_col = NULL, format = c(&quot;input&quot;, &quot;standard&quot;, &quot;internal&quot;))</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>csv</code>: Optional output CSV filename. NULL returns the
-table without writing a CSV.</li>
-<li><code>mgf</code>: Optional local MGF filename or
-<code>Spectra</code> object. Spectra are matched to retained feature
-IDs.</li>
-<li><code>mgf_file</code>: Optional output MGF filename. Requires
-<code>mgf</code>.</li>
-<li><code>id_field</code>: Spectrum metadata field containing feature
-IDs. Default: <code>&quot;acquisitionNum&quot;</code>.</li>
-<li><code>match_col</code>: Optional ID column in the exported table.
-<code>NULL</code> uses the ID column selected at import, regardless of
-output layout.</li>
-<li><code>format</code>: Output layout: <code>&quot;input&quot;</code> restores
-original column names and order, metadata columns, and XCMS retention
-times in seconds; <code>&quot;standard&quot;</code> returns Feature ID, mz, rt in
-minutes, and sample intensities; <code>&quot;internal&quot;</code> returns the
-current table including <code>.FID</code>.</li>
-</ul>
-</div>
-<div id="mc_run" class="section level3">
-<h3>mc_run</h3>
-<p>Apply selected filtering stages in the fixed order blank, MS, QC, and
-peak filtering.</p>
-<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a><span class="co"># mc_run(x, blank = NULL, ms = NULL, qc = NULL, peak = NULL)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>blank</code>: <code>NULL</code> to skip blank filtering, or a
-named list of arguments to <code>mc_filter_blank()</code> other than
-x.</li>
-<li><code>ms</code>: <code>NULL</code> to skip MS filtering, or a named
-list of arguments to <code>mc_filter_ms()</code> other than x.</li>
-<li><code>qc</code>: <code>NULL</code> to skip QC filtering, or a named
-list of arguments to <code>mc_filter_qc()</code> other than x.</li>
-<li><code>peak</code>: <code>NULL</code> to skip peak filtering, or a
-named list of arguments to <code>mc_filter_peak()</code> other than
-x.</li>
-</ul>
-</div>
-<div id="mc_summary" class="section level3">
-<h3>mc_summary</h3>
-<p>Return feature counts before and after each completed filtering
-stage.</p>
-<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="co"># mc_summary(x)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-</ul>
-</div>
-<div id="print.metabocensor_result" class="section level3">
-<h3>print.metabocensor_result</h3>
-<p>Display the current numbers of features and samples, followed by
-stage-level filtering counts.</p>
-<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="co"># print(x, ...)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>...</code>: Additional arguments; currently unused.</li>
-</ul>
-</div>
-<div id="mc_plot_blank" class="section level3">
-<h3>mc_plot_blank</h3>
-<p>Visualize the saved blank comparisons and filtering threshold.</p>
-<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="co"># mc_plot_blank(x, interactive = TRUE)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>interactive</code>: <code>TRUE</code> returns an interactive
-Plotly figure. <code>FALSE</code> returns static ggplot output.</li>
-</ul>
-</div>
-<div id="mc_plot_qc" class="section level3">
-<h3>mc_plot_qc</h3>
-<p>Visualize the saved QC values and their filtering thresholds.</p>
-<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a><span class="co"># mc_plot_qc(x, filters = NULL, interactive = TRUE)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>filters</code>: QC metrics to display: zeros, mean, rsd,
-dratio, or min. Only metrics already stored by
-<code>mc_filter_qc()</code> can be selected. NULL displays all stored
-metrics.</li>
-<li><code>interactive</code>: <code>TRUE</code> returns an interactive
-Plotly figure. <code>FALSE</code> returns static ggplot output.</li>
-</ul>
-</div>
-<div id="mc_plot_peak" class="section level3">
-<h3>mc_plot_peak</h3>
-<p>Visualize the saved m/z, retention times, and mass defects.</p>
-<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="co"># mc_plot_peak(x, filters = NULL, interactive = TRUE, webgl = TRUE)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>filters</code>: Properties to display: mz, rt, rmd, or amd.
-NULL selects the corresponding filters used in the peak-filtering step.
-Target matching has no scatter plot.</li>
-<li><code>interactive</code>: <code>TRUE</code> returns an interactive
-Plotly figure. <code>FALSE</code> returns static ggplot output.</li>
-<li><code>webgl</code>: Use WebGL for interactive scatter traces.
-Ignored for static output.</li>
-</ul>
-</div>
-<div id="mc_plot_ms" class="section level3">
-<h3>mc_plot_ms</h3>
-<p>Visualize the saved number of features removed by each MS
-subfilter.</p>
-<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="co"># mc_plot_ms(x, interactive = TRUE)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>interactive</code>: <code>TRUE</code> returns an interactive
-Plotly figure. <code>FALSE</code> returns static ggplot output.</li>
-</ul>
-</div>
-<div id="mc_plot_summary" class="section level3">
-<h3>mc_plot_summary</h3>
-<p>Visualize the saved number of retained features after each filtering
-stage.</p>
-<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a><span class="co"># mc_plot_summary(x, interactive = TRUE)</span></span></code></pre></div>
-<ul>
-<li><code>x</code>: A <code>metabocensor_result</code> returned by
-<code>mc_prepare()</code> or a filtering function.</li>
-<li><code>interactive</code>: <code>TRUE</code> returns an interactive
-Plotly figure. <code>FALSE</code> returns static ggplot output.</li>
-</ul>
+<div id="apply-peak-filters-and-inspect-results" class="section level3">
+<h3>Apply peak filters and inspect results</h3>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>after_peak <span class="ot">&lt;-</span> <span class="fu">mc_filter_peak</span>(</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>  <span class="at">x =</span> after_qc,</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="at">filters =</span> <span class="cn">NULL</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>  <span class="at">parameters =</span> peak_options,</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>  <span class="at">targets =</span> <span class="cn">NULL</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>  <span class="at">target_text =</span> <span class="cn">NULL</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>)</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="fu">head</span>(after_peak<span class="sc">$</span>peak_tbl)</span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="fu">head</span>(after_peak<span class="sc">$</span>removed_ids<span class="sc">$</span>peak)</span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="fu">head</span>(after_peak<span class="sc">$</span>target_matches)</span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="co"># Plot selected properties, if any; target matching has no scatter plot.</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">any</span>(after_peak<span class="sc">$</span>peak<span class="sc">$</span>peak_filters <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;mz&quot;</span>, <span class="st">&quot;rt&quot;</span>, <span class="st">&quot;rmd&quot;</span>, <span class="st">&quot;amd&quot;</span>))) {</span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a>  <span class="fu">mc_plot_peak</span>(</span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a>    <span class="at">x =</span> after_peak,</span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a>    <span class="at">filters =</span> <span class="cn">NULL</span>,</span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a>    <span class="at">interactive =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a>    <span class="at">webgl =</span> <span class="cn">TRUE</span></span>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a>  )</span>
+<span id="cb12-20"><a href="#cb12-20" tabindex="-1"></a>}</span></code></pre></div>
+<p><code>peak_tbl</code> contains the features entering this stage,
+property values, per-filter decisions, and the combined
+<code>keep</code> decision. <code>target_matches</code> contains target
+matches when applicable. To use targets, select <code>&quot;target&quot;</code>
+and supply a CSV or data frame in <code>targets</code> (columns
+<code>mz</code> and <code>rt</code>), or comma-separated rows in
+<code>target_text</code>. Both m/z and RT tolerances must be
+satisfied.</p>
+<p><strong>Optional:</strong> inspect property distributions even with
+no peak filters selected. This explicitly changes the plotting argument
+from its default; inactive bounds are not drawn.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">mc_plot_peak</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>  <span class="at">x =</span> after_peak,</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>  <span class="at">filters =</span> <span class="fu">c</span>(<span class="st">&quot;mz&quot;</span>, <span class="st">&quot;rt&quot;</span>, <span class="st">&quot;rmd&quot;</span>, <span class="st">&quot;amd&quot;</span>),</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>  <span class="at">interactive =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>  <span class="at">webgl =</span> <span class="cn">TRUE</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>)</span></code></pre></div>
 </div>
 </div>
-<div id="results-annotation-tables-and-plots" class="section level2">
-<h2>Results, annotation tables and plots</h2>
-<p>Each stage can be applied once to an object. To change a stage, start
-from the saved object before that stage. Individual calls can use
-different stage orders; <code>mc_run()</code> always uses blank, MS, QC,
-then peak. MS subfilters have their own fixed order.</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>after_ms <span class="ot">&lt;-</span> <span class="fu">mc_filter_ms</span>(</span>
-<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a>  after_blank, <span class="at">filters =</span> <span class="fu">c</span>(<span class="st">&quot;isotopes&quot;</span>, <span class="st">&quot;adducts&quot;</span>, <span class="st">&quot;isf&quot;</span>),</span>
-<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a>  <span class="at">parameters =</span> ms_options, <span class="at">spectra =</span> spectra, <span class="at">adducts =</span> adduct_file</span>
-<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a>)</span>
-<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="fu">mc_summary</span>(after_ms)</span>
-<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a><span class="fu">print</span>(after_ms)</span>
-<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a>after_ms<span class="sc">$</span>ms<span class="sc">$</span>counts</span>
-<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a>after_ms<span class="sc">$</span>removed_ids</span>
-<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a>after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>iso_table</span>
-<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a>after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>add_table</span>
-<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a>after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>nl_table</span>
-<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a>after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>isf_table</span>
-<span id="cb31-13"><a href="#cb31-13" tabindex="-1"></a>after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>mis_table</span>
-<span id="cb31-14"><a href="#cb31-14" tabindex="-1"></a>after_ms<span class="sc">$</span>annot_tbls<span class="sc">$</span>ring_table</span>
-<span id="cb31-15"><a href="#cb31-15" tabindex="-1"></a><span class="co"># A table can be NULL when its filter was not run.</span></span>
-<span id="cb31-16"><a href="#cb31-16" tabindex="-1"></a>after_blank<span class="sc">$</span>blank_tbl</span>
-<span id="cb31-17"><a href="#cb31-17" tabindex="-1"></a>after_qc<span class="sc">$</span>qc_tbl</span>
-<span id="cb31-18"><a href="#cb31-18" tabindex="-1"></a></span>
-<span id="cb31-19"><a href="#cb31-19" tabindex="-1"></a><span class="co"># Plot stored results without recalculating filters.</span></span>
-<span id="cb31-20"><a href="#cb31-20" tabindex="-1"></a><span class="fu">mc_plot_blank</span>(after_blank, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb31-21"><a href="#cb31-21" tabindex="-1"></a><span class="fu">mc_plot_ms</span>(after_ms, <span class="at">interactive =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb31-22"><a href="#cb31-22" tabindex="-1"></a><span class="fu">mc_plot_qc</span>(after_qc, <span class="at">filters =</span> <span class="st">&quot;rsd&quot;</span>, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb31-23"><a href="#cb31-23" tabindex="-1"></a><span class="fu">mc_plot_summary</span>(after_ms, <span class="at">interactive =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+<div id="summarize-and-inspect-the-final-result" class="section level2">
+<h2>7. Summarize and inspect the final result</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_summary.html"><code>mc_summary()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/print.metabocensor_result.html"><code>print.metabocensor_result()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_plot_summary.html"><code>mc_plot_summary()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_final_table.html"><code>mc_final_table()</code></a>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>final <span class="ot">&lt;-</span> after_peak</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">print</span>(final)</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="fu">mc_summary</span>(<span class="at">x =</span> final)</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="fu">mc_plot_summary</span>(<span class="at">x =</span> final, <span class="at">interactive =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co"># Removed feature IDs grouped by filtering stage</span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>final<span class="sc">$</span>removed_ids</span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a><span class="co"># Retained table in the original input layout</span></span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>final_table <span class="ot">&lt;-</span> <span class="fu">mc_final_table</span>(<span class="at">x =</span> final, <span class="at">format =</span> <span class="st">&quot;input&quot;</span>)</span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a><span class="fu">head</span>(final_table)</span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a><span class="fu">dim</span>(final_table)</span></code></pre></div>
+<p>Use <code>format = &quot;standard&quot;</code> for Feature ID, mz, rt
+(minutes), and intensities, or <code>format = &quot;internal&quot;</code> to
+inspect the internal layout including <code>.FID</code>. Intermediate
+objects such as <code>after_blank</code> and <code>after_ms</code> can
+be inspected and exported with the same functions.</p>
+<p><strong>Optional: compare settings.</strong> Start both alternatives
+from the same object before the stage. This example changes the blank
+cutoff deliberately; other arguments retain their defaults.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>alternative_blank <span class="ot">&lt;-</span> <span class="fu">mc_filter_blank</span>(</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a>  <span class="at">x =</span> imported,</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a>  <span class="at">groups =</span> <span class="st">&quot;Blank&quot;</span>,</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a>  <span class="at">mode =</span> <span class="st">&quot;mean_cutoff&quot;</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a>  <span class="at">cutoff =</span> <span class="fl">0.20</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a>  <span class="at">labels =</span> <span class="cn">NULL</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a>)</span>
+<span id="cb15-8"><a href="#cb15-8" tabindex="-1"></a><span class="fu">mc_summary</span>(<span class="at">x =</span> after_blank)</span>
+<span id="cb15-9"><a href="#cb15-9" tabindex="-1"></a><span class="fu">mc_summary</span>(<span class="at">x =</span> alternative_blank)</span>
+<span id="cb15-10"><a href="#cb15-10" tabindex="-1"></a><span class="co"># Features removed at 0.10 but not at 0.20</span></span>
+<span id="cb15-11"><a href="#cb15-11" tabindex="-1"></a><span class="fu">setdiff</span>(after_blank<span class="sc">$</span>removed_ids<span class="sc">$</span>blank, alternative_blank<span class="sc">$</span>removed_ids<span class="sc">$</span>blank)</span></code></pre></div>
+</div>
+<div id="export-tables-and-matching-spectra" class="section level2">
+<h2>8. Export tables and matching spectra</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_export.html"><code>mc_export()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_write_table.html"><code>mc_write_table()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_filter_mgf.html"><code>mc_filter_mgf()</code></a>,
+<a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_write_mgf.html"><code>mc_write_mgf()</code></a>.</p>
+<div id="complete-export-template" class="section level3">
+<h3>Complete export template</h3>
+<p>By default, <code>mc_export()</code> returns the table without
+writing files or processing spectra. Replace the <code>NULL</code>
+arguments to write files or include spectra.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>output <span class="ot">&lt;-</span> <span class="fu">mc_export</span>(</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>  <span class="at">x =</span> final,</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>  <span class="at">csv =</span> <span class="cn">NULL</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>  <span class="at">mgf =</span> <span class="cn">NULL</span>,</span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a>  <span class="at">mgf_file =</span> <span class="cn">NULL</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a>  <span class="at">id_field =</span> <span class="st">&quot;acquisitionNum&quot;</span>,</span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a>  <span class="at">match_col =</span> <span class="cn">NULL</span>,</span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>  <span class="at">format =</span> <span class="st">&quot;input&quot;</span></span>
+<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a>)</span>
+<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a><span class="fu">head</span>(output<span class="sc">$</span>table)</span></code></pre></div>
+<p><strong>Optional: write the table and matching MGF together.</strong>
+This is an adaptation of the default template. It requires
+<code>spectra</code> from the MGF import block and a correct
+correspondence between feature IDs and <code>id_field</code>.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>output_dir <span class="ot">&lt;-</span> <span class="st">&quot;MetaboCensoR_results&quot;</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="fu">dir.create</span>(output_dir, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>output <span class="ot">&lt;-</span> <span class="fu">mc_export</span>(</span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>  <span class="at">x =</span> final,</span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>  <span class="at">csv =</span> <span class="fu">file.path</span>(output_dir, <span class="st">&quot;filtered_table.csv&quot;</span>),</span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>  <span class="at">mgf =</span> spectra,</span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>  <span class="at">mgf_file =</span> <span class="fu">file.path</span>(output_dir, <span class="st">&quot;filtered_spectra.mgf&quot;</span>),</span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a>  <span class="at">id_field =</span> <span class="st">&quot;acquisitionNum&quot;</span>,</span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a>  <span class="at">match_col =</span> <span class="cn">NULL</span>,</span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a>  <span class="at">format =</span> <span class="st">&quot;input&quot;</span></span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a>)</span>
+<span id="cb17-12"><a href="#cb17-12" tabindex="-1"></a><span class="fu">head</span>(output<span class="sc">$</span>table)</span>
+<span id="cb17-13"><a href="#cb17-13" tabindex="-1"></a>output<span class="sc">$</span>spectra</span></code></pre></div>
+<p><strong>Alternative: export a CSV only.</strong></p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="fu">mc_write_table</span>(</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a>  <span class="at">x =</span> final,</span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>  <span class="at">path =</span> <span class="st">&quot;filtered_table.csv&quot;</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>  <span class="at">format =</span> <span class="st">&quot;input&quot;</span></span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>)</span></code></pre></div>
+<p><strong>Alternative: subset and write spectra
+separately.</strong></p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>filtered_spectra <span class="ot">&lt;-</span> <span class="fu">mc_filter_mgf</span>(</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>  <span class="at">spectra =</span> spectra,</span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>  <span class="at">table =</span> final,</span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>  <span class="at">match_col =</span> <span class="cn">NULL</span>,</span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>  <span class="at">id_field =</span> <span class="st">&quot;acquisitionNum&quot;</span></span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a>)</span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a><span class="fu">mc_write_mgf</span>(<span class="at">spectra =</span> filtered_spectra, <span class="at">path =</span> <span class="st">&quot;filtered_spectra.mgf&quot;</span>)</span></code></pre></div>
+</div>
+<div id="save-annotation-tables-and-summaries" class="section level3">
+<h3>Save annotation tables and summaries</h3>
+<p>These optional base-R exports preserve useful supporting results
+separately from the final peak table. Empty or unavailable annotation
+tables are skipped.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>output_dir <span class="ot">&lt;-</span> <span class="st">&quot;MetaboCensoR_results&quot;</span></span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="fu">dir.create</span>(output_dir, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a><span class="fu">write.csv</span>(<span class="fu">mc_summary</span>(<span class="at">x =</span> final),</span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a>          <span class="fu">file.path</span>(output_dir, <span class="st">&quot;filtering_summary.csv&quot;</span>), <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a><span class="cf">for</span> (nm <span class="cf">in</span> <span class="fu">names</span>(final<span class="sc">$</span>annot_tbls)) {</span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a>  tab <span class="ot">&lt;-</span> final<span class="sc">$</span>annot_tbls[[nm]]</span>
+<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">is.data.frame</span>(tab) <span class="sc">&amp;&amp;</span> <span class="fu">nrow</span>(tab) <span class="sc">&gt;</span> <span class="dv">0</span><span class="dt">L</span>) {</span>
+<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a>    <span class="fu">write.csv</span>(tab, <span class="fu">file.path</span>(output_dir, <span class="fu">paste0</span>(nm, <span class="st">&quot;.csv&quot;</span>)), <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb20-9"><a href="#cb20-9" tabindex="-1"></a>  }</span>
+<span id="cb20-10"><a href="#cb20-10" tabindex="-1"></a>}</span>
+<span id="cb20-11"><a href="#cb20-11" tabindex="-1"></a><span class="cf">for</span> (stage <span class="cf">in</span> <span class="fu">names</span>(final<span class="sc">$</span>removed_ids)) {</span>
+<span id="cb20-12"><a href="#cb20-12" tabindex="-1"></a>  <span class="fu">write.csv</span>(<span class="fu">data.frame</span>(<span class="at">Feature =</span> final<span class="sc">$</span>removed_ids[[stage]]),</span>
+<span id="cb20-13"><a href="#cb20-13" tabindex="-1"></a>            <span class="fu">file.path</span>(output_dir, <span class="fu">paste0</span>(<span class="st">&quot;removed_&quot;</span>, stage, <span class="st">&quot;.csv&quot;</span>)),</span>
+<span id="cb20-14"><a href="#cb20-14" tabindex="-1"></a>            <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb20-15"><a href="#cb20-15" tabindex="-1"></a>}</span>
+<span id="cb20-16"><a href="#cb20-16" tabindex="-1"></a><span class="co"># Preserve the full result, settings and stored tables for later inspection.</span></span>
+<span id="cb20-17"><a href="#cb20-17" tabindex="-1"></a><span class="fu">saveRDS</span>(final, <span class="fu">file.path</span>(output_dir, <span class="st">&quot;MetaboCensoR_result.rds&quot;</span>))</span></code></pre></div>
+</div>
+</div>
+<div id="alternative-run-several-stages-in-one-call" class="section level2">
+<h2>9. Alternative: run several stages in one call</h2>
+<p>Reference: <a href="https://plyush1993.github.io/MetaboCensoR/reference/mc_run.html"><code>mc_run()</code></a>.</p>
+<p>The full default template below skips all stages. Replace each
+<code>NULL</code> with a named list of that filter’s arguments
+(excluding <code>x</code>). This is an alternative to the separate
+filtering calls; start from <code>imported</code> again.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>after_run <span class="ot">&lt;-</span> <span class="fu">mc_run</span>(</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a>  <span class="at">x =</span> imported,</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a>  <span class="at">blank =</span> <span class="cn">NULL</span>,</span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a>  <span class="at">ms =</span> <span class="cn">NULL</span>,</span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a>  <span class="at">qc =</span> <span class="cn">NULL</span>,</span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a>  <span class="at">peak =</span> <span class="cn">NULL</span></span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a>)</span></code></pre></div>
+<p>For example, the following adaptation applies blank and MS filtering
+using the parameter list defined above. QC and peak stages are skipped.
+Inspect or export <code>after_run</code> with the same functions used
+for <code>final</code>.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>after_run <span class="ot">&lt;-</span> <span class="fu">mc_run</span>(</span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="at">x =</span> imported,</span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>  <span class="at">blank =</span> <span class="fu">list</span>(<span class="at">groups =</span> <span class="st">&quot;Blank&quot;</span>, <span class="at">mode =</span> <span class="st">&quot;mean_cutoff&quot;</span>, <span class="at">cutoff =</span> <span class="fl">0.10</span>,</span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a>               <span class="at">labels =</span> <span class="cn">NULL</span>),</span>
+<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a>  <span class="at">ms =</span> <span class="fu">list</span>(<span class="at">filters =</span> <span class="cn">NULL</span>, <span class="at">parameters =</span> ms_options, <span class="at">adducts =</span> <span class="cn">NULL</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" tabindex="-1"></a>            <span class="at">neutral_losses =</span> <span class="cn">NULL</span>, <span class="at">spectra =</span> <span class="cn">NULL</span>),</span>
+<span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a>  <span class="at">qc =</span> <span class="cn">NULL</span>,</span>
+<span id="cb22-8"><a href="#cb22-8" tabindex="-1"></a>  <span class="at">peak =</span> <span class="cn">NULL</span></span>
+<span id="cb22-9"><a href="#cb22-9" tabindex="-1"></a>)</span>
+<span id="cb22-10"><a href="#cb22-10" tabindex="-1"></a><span class="fu">mc_summary</span>(<span class="at">x =</span> after_run)</span>
+<span id="cb22-11"><a href="#cb22-11" tabindex="-1"></a><span class="fu">mc_plot_summary</span>(<span class="at">x =</span> after_run, <span class="at">interactive =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
 </div>
 </section>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
- document.querySelectorAll('pre').forEach(function(pre) {
-  if (!pre.querySelector('code')) return;
-  var b=document.createElement('button'); b.className='copy-code'; b.textContent='Copy'; b.type='button';
-  pre.parentNode.insertBefore(b,pre);
-  b.onclick=async function() {
-   var text=pre.querySelector('code').textContent;
-   try { await navigator.clipboard.writeText(text); }
-   catch(e) { var t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();var ok=document.execCommand('copy');t.remove();if(!ok){b.textContent='Select code to copy';return;} }
-   b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500);
-  };
- });
-});
-</script>
 
 
 <!-- code folding -->
