@@ -26,12 +26,12 @@ for (pkg in packages) {
 
 # Define parameters
 z_max <- 3      # Maximum charge state
-n_iso <- 3      # Number of isotopes
+n <- 3      # Number of isotopes
 n_d   <- 3      # Dimer-series order
 delta <- 1.00336 # Mass difference for 13C
 
 # Generate Isotope Shifts
-shifts_iso <- tidyr::expand_grid(z = 1:z_max, k = 1:n_iso) %>%
+shifts_iso <- tidyr::expand_grid(z = 1:z_max, k = 1:n) %>%
   dplyr::mutate(
     name = paste0("C13*", k, " (z=", z, ")"),
     delta_mz = delta * k / z
